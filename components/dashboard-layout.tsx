@@ -75,7 +75,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-rose-50/30 dark:bg-neutral-950">
+    <div className="bg-rose-50/30 dark:bg-neutral-950 h-screen flex overflow-hidden">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
@@ -83,58 +83,60 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
       {/* Sidebar */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-72 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-xl border-r border-rose-100 dark:border-neutral-800 shadow-2xl transform transition-all duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-72 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-xl border-r border-rose-100 dark:border-neutral-800 shadow-2xl transform transition-all duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 flex flex-col ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* Sidebar Header */}
-        <div className="flex items-center justify-between h-20 px-6 border-b border-rose-100 dark:border-neutral-800 bg-crimson-600 dark:bg-crimson-700">
+        <div className="flex items-center justify-between h-20 px-6 border-b border-rose-100 dark:border-neutral-800 bg-crimson-600 dark:bg-crimson-700 flex-shrink-0">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center shadow-lg">
-              <Crown className="w-6 h-6 text-white" />
+              <Crown className="w-6 h-6 text-black dark:text-white" />
             </div>
             <div>
-              <span className="font-bold text-xl text-white">pay</span>
-              <p className="text-xs text-white/80">Merchant Dashboard</p>
+              <span className="font-bold text-xl text-black dark:text-white">pay</span>
+              <p className="text-xs text-black/80 dark:text-white/80">Merchant Dashboard</p>
             </div>
           </div>
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden text-white hover:bg-white/20"
+            className="lg:hidden text-black dark:text-white hover:bg-white/20"
             onClick={() => setSidebarOpen(false)}
           >
             <X className="h-5 w-5" />
           </Button>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 px-4 py-8 space-y-3">
-          {navigation.map((item) => {
-            const isActive = pathname === item.href
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`group flex items-center space-x-4 px-4 py-4 mx-2 rounded-2xl text-sm font-medium transition-all duration-300 ${
-                  isActive
-                    ? "bg-crimson-600 text-white shadow-lg shadow-crimson-600/25 scale-105"
-                    : "text-neutral-700 dark:text-neutral-300 hover:text-crimson-600 dark:hover:text-crimson-400 hover:bg-rose-50 dark:hover:bg-neutral-800 hover:scale-105"
-                }`}
-                onClick={() => setSidebarOpen(false)}
-              >
-                <item.icon
-                  className={`h-5 w-5 ${isActive ? "text-white" : "text-neutral-500 group-hover:text-crimson-600"}`}
-                />
-                <span>{item.name}</span>
-                {isActive && <div className="ml-auto w-2 h-2 bg-white rounded-full animate-pulse" />}
-              </Link>
-            )
-          })}
-        </nav>
+        {/* Navigation - Scrollable */}
+        <div className="flex-1 overflow-y-auto">
+          <nav className="px-4 py-8 space-y-3">
+            {navigation.map((item) => {
+              const isActive = pathname === item.href
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={`group flex items-center space-x-4 px-4 py-4 mx-2 rounded-2xl text-sm font-medium transition-all duration-300 ${
+                    isActive
+                      ? "bg-crimson-600 text-crimson-600 dark:text-crimson-200 shadow-lg shadow-crimson-600/25 scale-105"
+                      : "text-neutral-700 dark:text-neutral-300 hover:text-crimson-600 dark:hover:text-crimson-400 hover:bg-rose-50 dark:hover:bg-neutral-800 hover:scale-105"
+                  }`}
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <item.icon
+                    className={`h-5 w-5 ${isActive ? "text-white" : "text-neutral-500 group-hover:text-crimson-600"}`}
+                  />
+                  <span>{item.name}</span>
+                  {isActive && <div className="ml-auto w-2 h-2 bg-white rounded-full animate-pulse" />}
+                </Link>
+              )
+            })}
+          </nav>
+        </div>
 
         {/* Sidebar Footer */}
-        <div className="p-6 border-t border-rose-100 dark:border-neutral-800">
+        <div className="p-6 border-t border-rose-100 dark:border-neutral-800 flex-shrink-0">
           <div className="bg-rose-50 dark:bg-neutral-800 rounded-2xl p-4 mb-4">
             <div className="flex items-center space-x-3">
               <Avatar className="h-10 w-10 ring-2 ring-crimson-600">
@@ -143,7 +145,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               </Avatar>
               <div className="flex-1">
                 <p className="font-medium text-neutral-900 dark:text-white">John Doe</p>
-                <p className="text-xs text-neutral-500 dark:text-neutral-400">Premium Account</p>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400"></p>
               </div>
               <ChevronDown className="h-4 w-4 text-neutral-400" />
             </div>
@@ -163,10 +165,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
       </div>
 
-      {/* Main content */}
-      <div className="lg:pl-72">
-        {/* Top navbar */}
-        <header className="sticky top-0 z-30 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-xl border-b border-rose-100 dark:border-neutral-800 h-20 flex items-center justify-between px-8 shadow-sm">
+      {/* Main content area */}
+      <div className="flex-1 flex flex-col min-w-0 h-full">
+        {/* Top navbar - Fixed */}
+        <header className="bg-white/80 dark:bg-neutral-900/80 backdrop-blur-xl border-b border-rose-100 dark:border-neutral-800 h-20 flex items-center justify-between px-8 shadow-sm flex-shrink-0 z-30">
           <div className="flex items-center space-x-6">
             <Button
               variant="ghost"
@@ -248,7 +250,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   </Avatar>
                   <div className="hidden md:block text-left">
                     <p className="text-sm font-medium">John Doe</p>
-                    <p className="text-xs text-neutral-500">Premium</p>
+                    <p className="text-xs text-neutral-500"></p>
                   </div>
                   <ChevronDown className="h-4 w-4 text-neutral-400" />
                 </Button>
@@ -281,8 +283,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </header>
 
-        {/* Page content */}
-        <main className="flex-1 p-8">{children}</main>
+        {/* Page content - Scrollable */}
+        <main className="flex-1 overflow-y-auto bg-rose-50/30 dark:bg-neutral-950">
+          <div className="p-8 h-full">
+            {children}
+          </div>
+        </main>
       </div>
     </div>
   )

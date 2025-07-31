@@ -75,9 +75,9 @@ export default function Register() {
       <div className="w-full max-w-lg">
         {/* Logo and branding */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4 shadow-lg">
+          {/* <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4 shadow-lg">
             <Building2 className="w-8 h-8 text-white" />
-          </div>
+          </div> */}
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white">{t("joinpay")}</h1>
           <p className="text-slate-600 dark:text-slate-400 mt-2">{t("createMerchantAccount")}</p>
         </div>
