@@ -4,19 +4,36 @@ import { Copy, Check, RefreshCw, Eye, EyeOff } from 'lucide-react';
 
 export default function ApiKeysComponent() {
   const [activeTab, setActiveTab] = useState('API Keys');
-  const [copiedStates, setCopiedStates] = useState({});
+  const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>({});
   const [visibilityStates, setVisibilityStates] = useState({
     private: false,
     secret: false
   });
 
-  const apiKeys = {
-    public: '889448451105706e066e878fa329b91780e69d9d',
-    private: 'pk_e58123027622a846d1b11dddec376de89b6791b568a2',
-    secret: 'sk_16194bbba98e03da0db116501f6ae3637909af7598878'
+  const [apiKeys, setApiKeys] = useState({
+    public: '',
+    secret: ''
+  });
+
+  const handleRenewKeys = async () => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/generate-api-key`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (res.ok && data.public && data.secret) {
+        setApiKeys({ public: data.public, secret: data.secret });
+      } else {
+        alert(data.message || "Failed to renew API keys.");
+      }
+    } catch (err) {
+      alert("Failed to renew API keys.");
+    }
   };
 
-  const handleCopy = async (key, value) => {
+  const handleCopy = async (key: string, value: string) => {
     try {
       await navigator.clipboard.writeText(value);
       setCopiedStates(prev => ({ ...prev, [key]: true }));
@@ -28,14 +45,14 @@ export default function ApiKeysComponent() {
     }
   };
 
-  const toggleVisibility = (key) => {
+  const toggleVisibility = (key: keyof typeof visibilityStates) => {
     setVisibilityStates(prev => ({
       ...prev,
       [key]: !prev[key]
     }));
   };
 
-  const maskKey = (key) => {
+  const maskKey = (key: string) => {
     if (key.length <= 8) return key;
     return key.substring(0, 8) + '•'.repeat(key.length - 16) + key.substring(key.length - 8);
   };
@@ -94,7 +111,7 @@ export default function ApiKeysComponent() {
               </div>
 
               {/* Private API Key */}
-              <div className="space-y-2">
+              {/* <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Private Api Key
                 </label>
@@ -119,7 +136,7 @@ export default function ApiKeysComponent() {
                     {copiedStates.private ? 'Copied' : 'Copy'}
                   </button>
                 </div>
-              </div>
+              </div> */}
 
               {/* Secret */}
               <div className="space-y-2">
@@ -151,7 +168,11 @@ export default function ApiKeysComponent() {
 
               {/* Renew Button */}
               <div className="pt-4">
-                <button className="px-6 py-3 bg-black text-white rounded-lg hover:bg-grey-600 transition-colors flex items-center gap-2 font-medium">
+                <button
+                  className="px-6 py-3 bg-black text-white rounded-lg hover:bg-grey-600 transition-colors flex items-center gap-2 font-medium"
+                  onClick={handleRenewKeys}
+                  type="button"
+                >
                   <RefreshCw size={16} />
                   Renew API keys
                 </button>

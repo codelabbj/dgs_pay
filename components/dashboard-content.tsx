@@ -85,7 +85,7 @@ export function DashboardContent() {
     <div className="h-full overflow-y-auto">
       <div className="space-y-8 p-6 pb-20">
         {/* Header */}
-        <div className="flex items-center justify-between sticky top-0 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md z-10 py-4 -mx-6 px-6 border-b border-rose-100 dark:border-neutral-800">
+        <div className="flex items-center justify-between sticky top-0 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md z-10 py-4 -mx-6 px-6 border-b border-slate-100 dark:border-neutral-800">
           <div>
             <h1 className="text-4xl font-bold text-neutral-900 dark:text-white mb-2">{t("dashboard")}</h1>
             <p className="text-neutral-600 dark:text-neutral-400 text-lg">{t("welcomeBack2")}</p>
@@ -93,7 +93,7 @@ export function DashboardContent() {
           <Button
             variant="outline"
             size="lg"
-            className="rounded-2xl border-rose-200 dark:border-neutral-700 hover:bg-rose-50 dark:hover:bg-neutral-800 bg-transparent"
+            className="rounded-2xl border-slate-200 dark:border-neutral-700 hover:bg-slate-50 dark:hover:bg-neutral-800 bg-transparent"
             onClick={() => setShowBalances(!showBalances)}
           >
             {showBalances ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
@@ -103,7 +103,7 @@ export function DashboardContent() {
 
         {/* Balance Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-rose-100 dark:border-neutral-800 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-3xl overflow-hidden group">
+          <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-3xl overflow-hidden group">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="p-3 bg-crimson-600 rounded-2xl shadow-lg">
@@ -124,7 +124,7 @@ export function DashboardContent() {
             </CardContent>
           </Card>
 
-          <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-rose-100 dark:border-neutral-800 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-3xl overflow-hidden group">
+          <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-3xl overflow-hidden group">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="p-3 bg-emerald-600 rounded-2xl shadow-lg">
@@ -145,7 +145,7 @@ export function DashboardContent() {
             </CardContent>
           </Card>
 
-          <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-rose-100 dark:border-neutral-800 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-3xl overflow-hidden group">
+          <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-3xl overflow-hidden group">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="p-3 bg-purple-600 rounded-2xl shadow-lg">
@@ -170,7 +170,7 @@ export function DashboardContent() {
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Revenue Chart */}
-          <Card className="col-span-1 lg:col-span-2 bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-rose-100 dark:border-neutral-800 shadow-xl rounded-3xl overflow-hidden">
+          <Card className="col-span-1 lg:col-span-2 bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl rounded-3xl overflow-hidden">
             <CardHeader className="pb-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -215,7 +215,7 @@ export function DashboardContent() {
           </Card>
 
           {/* Peak Hours */}
-          <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-rose-100 dark:border-neutral-800 shadow-xl rounded-3xl overflow-hidden">
+          <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl rounded-3xl overflow-hidden">
             <CardHeader>
               <CardTitle className="text-lg font-bold text-neutral-900 dark:text-white">{t("whenPaidMost")}</CardTitle>
               <CardDescription className="text-neutral-600 dark:text-neutral-400">
@@ -243,7 +243,7 @@ export function DashboardContent() {
           </Card>
 
           {/* Customer Locations */}
-          <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-rose-100 dark:border-neutral-800 shadow-xl rounded-3xl overflow-hidden">
+          <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl rounded-3xl overflow-hidden">
             <CardHeader>
               <CardTitle className="text-lg font-bold text-neutral-900 dark:text-white">{t("whereCustomers")}</CardTitle>
               <CardDescription className="text-neutral-600 dark:text-neutral-400">
@@ -255,13 +255,13 @@ export function DashboardContent() {
                 {customerLocationData.map((item, index) => (
                   <div key={index} className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-rose-50 dark:bg-neutral-800 rounded-xl">
+                      <div className="p-2 bg-slate-50 dark:bg-neutral-800 rounded-xl">
                         <MapPin className="h-4 w-4 text-crimson-600" />
                       </div>
                       <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{item.country}</span>
                     </div>
                     <div className="flex items-center space-x-3">
-                      <div className="w-24 bg-rose-100 dark:bg-neutral-800 rounded-full h-2">
+                      <div className="w-24 bg-slate-100 dark:bg-neutral-800 rounded-full h-2">
                         <div
                           className="bg-crimson-600 h-2 rounded-full transition-all duration-500"
                           style={{ width: `${item.percentage}%` }}
@@ -278,7 +278,7 @@ export function DashboardContent() {
           </Card>
 
           {/* Bank Fees */}
-          <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-rose-100 dark:border-neutral-800 shadow-xl rounded-3xl overflow-hidden">
+          <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl rounded-3xl overflow-hidden">
             <CardHeader>
               <CardTitle className="text-lg font-bold text-neutral-900 dark:text-white">{t("whichBanks")}</CardTitle>
               <CardDescription className="text-neutral-600 dark:text-neutral-400">{t("bankFees")}</CardDescription>
@@ -288,7 +288,7 @@ export function DashboardContent() {
                 {bankData.map((item, index) => (
                   <div
                     key={index}
-                    className="flex items-center justify-between p-4 bg-rose-50/50 dark:bg-neutral-800/50 rounded-2xl hover:bg-rose-50 dark:hover:bg-neutral-800 transition-colors"
+                    className="flex items-center justify-between p-4 bg-slate-50/50 dark:bg-neutral-800/50 rounded-2xl hover:bg-slate-50 dark:hover:bg-neutral-800 transition-colors"
                   >
                     <div className="flex items-center space-x-4">
                       <div className="p-2 bg-white dark:bg-neutral-700 rounded-xl shadow-sm">
@@ -312,7 +312,7 @@ export function DashboardContent() {
           </Card>
 
           {/* Payment Methods */}
-          <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-rose-100 dark:border-neutral-800 shadow-xl rounded-3xl overflow-hidden">
+          <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl rounded-3xl overflow-hidden">
             <CardHeader>
               <CardTitle className="text-lg font-bold text-neutral-900 dark:text-white">{t("mostUsedPayment")}</CardTitle>
               <CardDescription className="text-neutral-600 dark:text-neutral-400">
@@ -352,7 +352,7 @@ export function DashboardContent() {
                 {paymentMethodData.map((item, index) => (
                   <div
                     key={index}
-                    className="flex items-center justify-between p-3 bg-rose-50/50 dark:bg-neutral-800/50 rounded-2xl"
+                    className="flex items-center justify-between p-3 bg-slate-50/50 dark:bg-neutral-800/50 rounded-2xl"
                   >
                     <div className="flex items-center space-x-3">
                       <div className="p-2 bg-white dark:bg-neutral-700 rounded-xl shadow-sm">

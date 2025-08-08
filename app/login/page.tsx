@@ -1,6 +1,6 @@
 "use client"
 
-import type React from "react"
+import React from "react"
 
 import { useState } from "react"
 import Link from "next/link"
@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useLanguage } from "@/contexts/language-context"
+import { ensureAuth } from "@/utils/auth"
 import { LanguageSwitcher } from "@/components/language-switcher"
 
 export default function Login() {
@@ -23,38 +24,57 @@ export default function Login() {
     rememberMe: false,
   })
   const router = useRouter()
+  // Automatically check authentication and refresh token
+  React.useEffect(() => {
+    ensureAuth(process.env.NEXT_PUBLIC_BASE_URL!, router)
+  }, [router])
+  // const [showPassword, setShowPassword] = useState(false)
+  // const [isLoading, setIsLoading] = useState(false)
+  // const [formData, setFormData] = useState({
+  //   email: "",
+  //   password: "",
+  //   rememberMe: false,
+  // })
   const { t } = useLanguage()
 
+  const [apiError, setApiError] = useState("")
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-
-    // Mock authentication
-    setTimeout(() => {
-      setIsLoading(false)
-
-      // Set mock authentication token
-      localStorage.setItem("auth-token", "mock-jwt-token-12345")
-      localStorage.setItem(
-        "user",
-        JSON.stringify({
-          id: "1",
-          name: "John Doe",
+    setApiError("")
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           email: formData.email,
-          avatar: "/placeholder.svg?height=32&width=32",
+          password: formData.password,
         }),
-      )
-
-      router.push("/")
-    }, 2000)
+      })
+      
+      const data = await res.json()
+      if (res.ok) {
+        localStorage.setItem("refresh", data.refresh)
+        localStorage.setItem("access", data.access)
+        // Ensure exp is stored as ISO string for correct date comparison
+        localStorage.setItem("exp", new Date(data.exp).toISOString())
+        localStorage.setItem("user", JSON.stringify(data.data))
+        router.push("/dashboard")
+      } else {
+        setApiError(data.details || data.message || "Login failed.")
+      }
+    } catch (err) {
+      setApiError("Login failed.")
+    }
+    setIsLoading(false)
   }
 
   return (
-    <div className="min-h-screen bg-rose-50/30 dark:bg-neutral-950 flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-slate-50/30 dark:bg-neutral-950 flex items-center justify-center p-4 relative overflow-hidden">
       {/* Background decoration */}
       <div className="absolute inset-0">
         <div className="absolute top-20 left-20 w-72 h-72 bg-crimson-600/10 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-20 right-20 w-96 h-96 bg-rose-600/10 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-20 right-20 w-96 h-96 bg-slate-600/10 rounded-full blur-3xl"></div>
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-pink-600/5 rounded-full blur-3xl"></div>
       </div>
 
@@ -67,13 +87,13 @@ export default function Login() {
         {/* Logo and branding */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-crimson-600 rounded-3xl mb-6 shadow-2xl shadow-crimson-600/25 relative">
-            <Crown className="w-10 h-10 text-white" />
+            <Crown className="w-10 h-10 text-black dark:text-white" />
           </div>
           <h1 className="text-4xl font-bold text-neutral-900 dark:text-white mb-3">{t("welcomeBack")}</h1>
           <p className="text-neutral-600 dark:text-neutral-400 text-lg">{t("signInToAccount")}</p>
         </div>
 
-        <Card className="bg-white/80 dark:bg-neutral-900/80 backdrop-blur-xl border-rose-100 dark:border-neutral-800 shadow-2xl rounded-3xl overflow-hidden">
+        <Card className="bg-white/80 dark:bg-neutral-900/80 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-2xl rounded-3xl overflow-hidden">
           <CardHeader className="space-y-1 pb-8 pt-8">
             <CardTitle className="text-2xl font-bold text-center text-neutral-900 dark:text-white">
               {t("signIn")}
@@ -83,6 +103,9 @@ export default function Login() {
             </CardDescription>
           </CardHeader>
           <CardContent className="px-8 pb-8">
+            {apiError && (
+              <div className="mb-4 text-center text-sm text-red-600 dark:text-red-400">{apiError}</div>
+            )}
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
@@ -96,7 +119,7 @@ export default function Login() {
                     placeholder="john@example.com"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="pl-12 h-14 bg-rose-50/50 dark:bg-neutral-800 border-rose-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent text-base"
+                    className="pl-12 h-14 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent text-base"
                     required
                   />
                 </div>
@@ -114,7 +137,7 @@ export default function Login() {
                     placeholder={t("password")}
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="pl-12 pr-12 h-14 bg-rose-50/50 dark:bg-neutral-800 border-rose-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent text-base"
+                    className="pl-12 pr-12 h-14 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent text-base"
                     required
                   />
                   <Button
@@ -161,7 +184,7 @@ export default function Login() {
                     <span>{t("signingIn")}</span>
                   </div>
                 ) : (
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center text-black dark:text-white space-x-3">
                     <span>{t("signIn")}</span>
                     <ArrowRight className="w-5 h-5" />
                   </div>
@@ -171,7 +194,7 @@ export default function Login() {
 
             <div className="mt-8 text-center">
               <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                {t("dontHaveAccount")}{" "}
+                {t("dontHaveAccount")} {" "}
                 <Link href="/register" className="text-crimson-600 hover:text-crimson-700 font-semibold">
                   {t("signUp")}
                 </Link>
@@ -179,10 +202,9 @@ export default function Login() {
             </div>
           </CardContent>
         </Card>
-
         {/* Footer */}
         <div className="text-center mt-8 text-sm text-neutral-500">
-          <p>© 2024 pay. All rights reserved.</p>
+          {/* <p>© 2024 pay. All rights reserved.</p> */}
         </div>
       </div>
     </div>

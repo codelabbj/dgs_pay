@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
+import { ensureAuth } from "@/utils/auth"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -48,6 +49,10 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
+  // Check authentication and refresh token on mount
+  useEffect(() => {
+    ensureAuth(process.env.NEXT_PUBLIC_BASE_URL!, window.location)
+  }, [])
   const pathname = usePathname()
   const { theme, setTheme } = useTheme()
   const [isLiveMode, setIsLiveMode] = useState(true)
@@ -75,7 +80,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   return (
-    <div className="bg-rose-50/30 dark:bg-neutral-950 h-screen flex overflow-hidden">
+    <div className="bg-slate-50/30 dark:bg-neutral-950 h-screen flex overflow-hidden">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
@@ -83,18 +88,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
       {/* Sidebar */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-72 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-xl border-r border-rose-100 dark:border-neutral-800 shadow-2xl transform transition-all duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 flex flex-col ${
+        className={`fixed inset-y-0 left-0 z-50 w-72 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-xl border-r border-slate-100 dark:border-neutral-800 shadow-2xl transform transition-all duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 flex flex-col ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* Sidebar Header */}
-        <div className="flex items-center justify-between h-20 px-6 border-b border-rose-100 dark:border-neutral-800 bg-crimson-600 dark:bg-crimson-700 flex-shrink-0">
+        <div className="flex items-center justify-between h-20 px-6 border-b border-slate-100 dark:border-neutral-800 bg-crimson-600 dark:bg-crimson-700 flex-shrink-0">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center shadow-lg">
               <Crown className="w-6 h-6 text-black dark:text-white" />
             </div>
             <div>
-              <span className="font-bold text-xl text-black dark:text-white">pay</span>
+              <span className="font-bold text-xl text-black dark:text-white">Aggregation</span>
               <p className="text-xs text-black/80 dark:text-white/80">Merchant Dashboard</p>
             </div>
           </div>
@@ -120,12 +125,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   className={`group flex items-center space-x-4 px-4 py-4 mx-2 rounded-2xl text-sm font-medium transition-all duration-300 ${
                     isActive
                       ? "bg-crimson-600 text-crimson-600 dark:text-crimson-200 shadow-lg shadow-crimson-600/25 scale-105"
-                      : "text-neutral-700 dark:text-neutral-300 hover:text-crimson-600 dark:hover:text-crimson-400 hover:bg-rose-50 dark:hover:bg-neutral-800 hover:scale-105"
+                      : "text-neutral-700 dark:text-neutral-300 hover:text-crimson-600 dark:hover:text-crimson-400 hover:bg-slate-50 dark:hover:bg-neutral-800 hover:scale-105"
                   }`}
                   onClick={() => setSidebarOpen(false)}
                 >
                   <item.icon
-                    className={`h-5 w-5 ${isActive ? "text-white" : "text-neutral-500 group-hover:text-crimson-600"}`}
+                    className={`h-5 w-5 ${isActive ? "text-black dark:text-white" : "text-neutral-500 group-hover:text-crimson-600"}`}
                   />
                   <span>{item.name}</span>
                   {isActive && <div className="ml-auto w-2 h-2 bg-white rounded-full animate-pulse" />}
@@ -136,8 +141,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
 
         {/* Sidebar Footer */}
-        <div className="p-6 border-t border-rose-100 dark:border-neutral-800 flex-shrink-0">
-          <div className="bg-rose-50 dark:bg-neutral-800 rounded-2xl p-4 mb-4">
+        <div className="p-6 border-t border-slate-100 dark:border-neutral-800 flex-shrink-0">
+          <div className="bg-slate-50 dark:bg-neutral-800 rounded-2xl p-4 mb-4">
             <div className="flex items-center space-x-3">
               <Avatar className="h-10 w-10 ring-2 ring-crimson-600">
                 <AvatarImage src="/placeholder.svg?height=40&width=40" />
@@ -152,7 +157,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
           <Button
             variant="ghost"
-            className="w-full justify-start text-neutral-600 dark:text-neutral-400 hover:text-crimson-600 dark:hover:text-crimson-400 hover:bg-rose-50 dark:hover:bg-neutral-800"
+            className="w-full justify-start text-neutral-600 dark:text-neutral-400 hover:text-crimson-600 dark:hover:text-crimson-400 hover:bg-slate-50 dark:hover:bg-neutral-800"
             onClick={() => {
               localStorage.removeItem("auth-token")
               localStorage.removeItem("user")
@@ -168,12 +173,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Main content area */}
       <div className="flex-1 flex flex-col min-w-0 h-full">
         {/* Top navbar - Fixed */}
-        <header className="bg-white/80 dark:bg-neutral-900/80 backdrop-blur-xl border-b border-rose-100 dark:border-neutral-800 h-20 flex items-center justify-between px-8 shadow-sm flex-shrink-0 z-30">
+        <header className="bg-white/80 dark:bg-neutral-900/80 backdrop-blur-xl border-b border-slate-100 dark:border-neutral-800 h-20 flex items-center justify-between px-8 shadow-sm flex-shrink-0 z-30">
           <div className="flex items-center space-x-6">
             <Button
               variant="ghost"
               size="icon"
-              className="lg:hidden hover:bg-rose-50 dark:hover:bg-neutral-800"
+              className="lg:hidden hover:bg-slate-50 dark:hover:bg-neutral-800"
               onClick={() => setSidebarOpen(true)}
             >
               <Menu className="h-5 w-5" />
@@ -183,14 +188,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
               <Input
                 placeholder={t("search")}
-                className="pl-12 w-96 h-12 bg-rose-50/50 dark:bg-neutral-800 border-rose-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
+                className="pl-12 w-96 h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
               />
             </div>
           </div>
 
           <div className="flex items-center space-x-4">
             {/* Live/Sandbox Toggle */}
-            <div className="flex items-center space-x-3 bg-rose-50 dark:bg-neutral-800 rounded-2xl px-4 py-2">
+            <div className="flex items-center space-x-3 bg-slate-50 dark:bg-neutral-800 rounded-2xl px-4 py-2">
               <span
                 className={`text-sm font-medium ${!isLiveMode ? "text-neutral-500" : "text-neutral-700 dark:text-neutral-300"}`}
               >
@@ -220,7 +225,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <Button
               variant="ghost"
               size="icon"
-              className="hover:bg-rose-50 dark:hover:bg-neutral-800 rounded-2xl"
+              className="hover:bg-slate-50 dark:hover:bg-neutral-800 rounded-2xl"
               onClick={() => setTheme(theme === "light" ? "dark" : "light")}
             >
               <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
@@ -231,7 +236,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <Button
               variant="ghost"
               size="icon"
-              className="relative hover:bg-rose-50 dark:hover:bg-neutral-800 rounded-2xl"
+              className="relative hover:bg-slate-50 dark:hover:bg-neutral-800 rounded-2xl"
             >
               <Bell className="h-5 w-5" />
               <span className="absolute -top-1 -right-1 h-3 w-3 bg-crimson-600 rounded-full animate-pulse"></span>
@@ -242,7 +247,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="flex items-center space-x-3 hover:bg-rose-50 dark:hover:bg-neutral-800 rounded-2xl px-3 py-2"
+                  className="flex items-center space-x-3 hover:bg-slate-50 dark:hover:bg-neutral-800 rounded-2xl px-3 py-2"
                 >
                   <Avatar className="h-8 w-8 ring-2 ring-crimson-600">
                     <AvatarImage src="/placeholder.svg?height=32&width=32" />
@@ -255,7 +260,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   <ChevronDown className="h-4 w-4 text-neutral-400" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 rounded-2xl border-rose-100 dark:border-neutral-800">
+              <DropdownMenuContent align="end" className="w-56 rounded-2xl border-slate-100 dark:border-neutral-800">
                 <DropdownMenuLabel>{t("myAccount")}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="rounded-xl">
@@ -284,7 +289,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </header>
 
         {/* Page content - Scrollable */}
-        <main className="flex-1 overflow-y-auto bg-rose-50/30 dark:bg-neutral-950">
+        <main className="flex-1 overflow-y-auto bg-slate-50/30 dark:bg-neutral-950">
           <div className="p-8 h-full">
             {children}
           </div>
