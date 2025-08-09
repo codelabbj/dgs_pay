@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -62,17 +62,39 @@ export function DashboardContent() {
   const [showBalances, setShowBalances] = useState(false)
   const { t } = useLanguage()
 
-  const formatCurrency = (amount: number) => {
+  // New state for API data
+  const [stats, setStats] = useState<{
+    availavailable_fund: number
+    all_operation_amount: number | null
+    payment_methode: Record<string, any>
+    country_payment: Record<string, number>
+  } | null>(null)
+
+  useEffect(() => {
+    fetch("/api/v1/statistic")
+      .then((res) => res.json())
+      .then(setStats)
+      .catch(() => {})
+  }, [])
+
+  const formatCurrency = (amount: number | null | undefined) => {
+    if (amount == null) return showBalances ? "0 FCFA" : "••••••"
     return showBalances ? `${amount.toLocaleString()} FCFA` : "••••••"
   }
 
-  const customerLocationData = [
-    { country: t("benin"), percentage: 45 },
-    { country: t("togo"), percentage: 25 },
-    { country: t("burkinaFaso"), percentage: 15 },
-    { country: t("niger"), percentage: 10 },
-    { country: t("others"), percentage: 5 },
-  ]
+  // Use API data for customer locations if available
+  const customerLocationData = stats?.country_payment
+    ? Object.entries(stats.country_payment).map(([country, percentage]) => ({
+        country: t(country),
+        percentage,
+      }))
+    : [
+        { country: t("benin"), percentage: 45 },
+        { country: t("togo"), percentage: 25 },
+        { country: t("burkinaFaso"), percentage: 15 },
+        { country: t("niger"), percentage: 10 },
+        { country: t("others"), percentage: 5 },
+      ]
 
   const bankData = [
     { bank: "Ecobank", fees: 2500, transactions: 145 },
@@ -106,7 +128,7 @@ export function DashboardContent() {
           <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-3xl overflow-hidden group">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <div className="p-3 bg-crimson-600 rounded-2xl shadow-lg">
+                <div className="p-3 bg-red-600 rounded-2xl shadow-lg">
                   <TrendingUp className="h-6 w-6 text-white" />
                 </div>
                 <ArrowUpRight className="h-5 w-5 text-emerald-600 group-hover:scale-110 transition-transform" />
@@ -137,7 +159,9 @@ export function DashboardContent() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">{formatCurrency(156780)}</div>
+              <div className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">
+                {formatCurrency(stats?.all_operation_amount ?? 156780)}
+              </div>
               <div className="flex items-center space-x-2">
                 <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 rounded-full">+8.2%</Badge>
                 <span className="text-sm text-neutral-500 dark:text-neutral-400">{t("fromLastWeek")}</span>
@@ -158,7 +182,9 @@ export function DashboardContent() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">{formatCurrency(89450)}</div>
+              <div className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">
+                {formatCurrency(stats?.availavailable_fund ?? 89450)}
+              </div>
               <div className="flex items-center space-x-2">
                 <Badge className="bg-red-100 text-red-800 hover:bg-red-100 rounded-full">-2.1%</Badge>
                 <span className="text-sm text-neutral-500 dark:text-neutral-400">{t("fromYesterday")}</span>

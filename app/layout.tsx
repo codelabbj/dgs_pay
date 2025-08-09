@@ -5,7 +5,6 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthGuard } from "@/components/auth-guard"
 import { LanguageProvider } from "@/contexts/language-context"
-import { ensureAuth } from "@/utils/auth"
 
 const inter = Inter({ subsets: ["latin"] })
 

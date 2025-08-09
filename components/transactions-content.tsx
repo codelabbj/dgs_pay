@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -8,91 +8,120 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Search, Download, Eye } from "lucide-react"
-
-// Mock transaction data
-const transactions = [
-  {
-    id: "TXN001",
-    date: "2024-01-15",
-    time: "14:30",
-    customer: "Alice Johnson",
-    email: "alice@example.com",
-    amount: 25000,
-    method: "Mobile Money",
-    status: "completed",
-    reference: "REF123456",
-  },
-  {
-    id: "TXN002",
-    date: "2024-01-15",
-    time: "13:45",
-    customer: "Bob Smith",
-    email: "bob@example.com",
-    amount: 15500,
-    method: "Credit Card",
-    status: "completed",
-    reference: "REF123457",
-  },
-  {
-    id: "TXN003",
-    date: "2024-01-15",
-    time: "12:20",
-    customer: "Carol Davis",
-    email: "carol@example.com",
-    amount: 8750,
-    method: "Bank Account",
-    status: "pending",
-    reference: "REF123458",
-  },
-  {
-    id: "TXN004",
-    date: "2024-01-14",
-    time: "16:15",
-    customer: "David Wilson",
-    email: "david@example.com",
-    amount: 32000,
-    method: "Mobile Money",
-    status: "completed",
-    reference: "REF123459",
-  },
-  {
-    id: "TXN005",
-    date: "2024-01-14",
-    time: "11:30",
-    customer: "Eva Brown",
-    email: "eva@example.com",
-    amount: 12300,
-    method: "Credit Card",
-    status: "failed",
-    reference: "REF123460",
-  },
-]
+import jsPDF from "jspdf"
+import autoTable from "jspdf-autotable"
+import { useLanguage } from "@/contexts/language-context"
 
 export function TransactionsContent() {
+  const { t } = useLanguage()
+  const [transactions, setTransactions] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [methodFilter, setMethodFilter] = useState("all")
+  const [statusMap, setStatusMap] = useState<{ [reference: string]: string }>({})
+  const [statusLoading, setStatusLoading] = useState<{ [reference: string]: boolean }>({})
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
+
+  // Then try to fetch fresh data from API
+      // const accessToken = localStorage.getItem('access')
+      // if (!accessToken) {
+      //   console.log('No access token available, using cached data')
+      //   setIsLoading(false)
+      //   return
+      // }
+
+
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      setLoading(true)
+      try {
+        const res = await fetch(`${baseUrl}/api/v1/transaction`)
+        if (res.ok) {
+          const data = await res.json()
+          setTransactions(data.results || [])
+        } else {
+          setTransactions([])
+        }
+      } catch {
+        setTransactions([])
+      }
+      setLoading(false)
+    }
+    fetchTransactions()
+  }, [baseUrl])
+
+  const handleCheckStatus = async (reference: string) => {
+    setStatusLoading((prev) => ({ ...prev, [reference]: true }))
+    try {
+      const res = await fetch(`${baseUrl}/api/v1/transaction-status?reference=${reference}`)
+      if (res.ok) {
+        const data = await res.json()
+        setStatusMap((prev) => ({ ...prev, [reference]: data.status || JSON.stringify(data) }))
+      } else {
+        setStatusMap((prev) => ({ ...prev, [reference]: t("error") }))
+      }
+    } catch {
+      setStatusMap((prev) => ({ ...prev, [reference]: t("error") }))
+    }
+    setStatusLoading((prev) => ({ ...prev, [reference]: false }))
+  }
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF()
+    const tableColumn = [
+      t("transactionId"),
+      t("date"),
+      t("time"),
+      t("customer"),
+      t("email"),
+      t("amount"),
+      t("method"),
+      t("status"),
+      t("reference"),
+    ]
+    const tableRows = filteredTransactions.map((transaction) => {
+      const dateObj = transaction.created_at ? new Date(transaction.created_at) : null
+      return [
+        transaction.id || "-",
+        dateObj ? dateObj.toLocaleDateString() : "-",
+        dateObj ? dateObj.toLocaleTimeString() : "-",
+        transaction.customer?.username || transaction.customer?.email || "-",
+        transaction.customer?.email || "-",
+        transaction.amount?.toLocaleString?.() || transaction.amount || "-",
+        transaction.network || transaction.type_trans || "-",
+        transaction.status || "-",
+        transaction.reference || "-",
+      ]
+    })
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [220, 220, 220] },
+      margin: { top: 20 },
+    })
+    doc.save("transactions.pdf")
+  }
 
   const filteredTransactions = transactions.filter((transaction) => {
+    const customerName = transaction.customer?.username || transaction.customer?.email || ""
     const matchesSearch =
-      transaction.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      transaction.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      transaction.reference.toLowerCase().includes(searchTerm.toLowerCase())
-
-    const matchesStatus = statusFilter === "all" || transaction.status === statusFilter
-    const matchesMethod = methodFilter === "all" || transaction.method === methodFilter
-
-    return matchesSearch && matchesStatus && matchesMethod
+      customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (transaction.reference || "").toLowerCase().includes(searchTerm.toLowerCase())
+    // Status and method filters can be expanded if needed
+    return matchesSearch
   })
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
-        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Completed</Badge>
+        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">{t("completed")}</Badge>
       case "pending":
-        return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Pending</Badge>
+      case "pening":
+        return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">{t("pending")}</Badge>
       case "failed":
-        return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Failed</Badge>
+        return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">{t("failed")}</Badge>
       default:
         return <Badge variant="secondary">{status}</Badge>
     }
@@ -106,13 +135,13 @@ export function TransactionsContent() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Transactions</h1>
-          <p className="text-muted-foreground">Manage and track all your payment transactions</p>
+          <h1 className="text-3xl font-bold">{t("transactions")}</h1>
+          <p className="text-muted-foreground">{t("manageAndTrackPayments")}</p>
         </div>
         <div className="flex space-x-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleExportPDF}>
             <Download className="h-4 w-4 mr-2" />
-            Export
+            {t("export")}
           </Button>
         </div>
       </div>
@@ -121,7 +150,7 @@ export function TransactionsContent() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Transactions</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("totalTransactions")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{filteredTransactions.length}</div>
@@ -129,7 +158,7 @@ export function TransactionsContent() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Completed</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("completed")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{completedTransactions}</div>
@@ -137,7 +166,7 @@ export function TransactionsContent() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Amount</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("totalAmount")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalAmount.toLocaleString()} FCFA</div>
@@ -145,7 +174,7 @@ export function TransactionsContent() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("successRate")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -161,15 +190,15 @@ export function TransactionsContent() {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Transaction History</CardTitle>
-          <CardDescription>View and filter your transaction history</CardDescription>
+          <CardTitle>{t("transactionHistory")}</CardTitle>
+          <CardDescription>{t("viewAndFilterHistory")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col md:flex-row gap-4 mb-6">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by customer, email, or reference..."
+                placeholder={t("searchPlaceholder")}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -177,24 +206,24 @@ export function TransactionsContent() {
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-full md:w-40">
-                <SelectValue placeholder="Status" />
+                <SelectValue placeholder={t("status")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="failed">Failed</SelectItem>
+                <SelectItem value="all">{t("allStatus")}</SelectItem>
+                <SelectItem value="completed">{t("completed")}</SelectItem>
+                <SelectItem value="pending">{t("pending")}</SelectItem>
+                <SelectItem value="failed">{t("failed")}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={methodFilter} onValueChange={setMethodFilter}>
               <SelectTrigger className="w-full md:w-40">
-                <SelectValue placeholder="Method" />
+                <SelectValue placeholder={t("method")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Methods</SelectItem>
-                <SelectItem value="Mobile Money">Mobile Money</SelectItem>
-                <SelectItem value="Credit Card">Credit Card</SelectItem>
-                <SelectItem value="Bank Account">Bank Account</SelectItem>
+                <SelectItem value="all">{t("allMethods")}</SelectItem>
+                <SelectItem value="Mobile Money">{t("mobileMoney")}</SelectItem>
+                <SelectItem value="Credit Card">{t("creditCard")}</SelectItem>
+                <SelectItem value="Bank Account">{t("bankAccount")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -204,50 +233,62 @@ export function TransactionsContent() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Transaction ID</TableHead>
-                  <TableHead>Date & Time</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Method</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead>{t("transactionId")}</TableHead>
+                  <TableHead>{t("dateAndTime")}</TableHead>
+                  <TableHead>{t("customer")}</TableHead>
+                  <TableHead>{t("amount")}</TableHead>
+                  <TableHead>{t("method")}</TableHead>
+                  <TableHead>{t("status")}</TableHead>
+                  <TableHead>{t("actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredTransactions.map((transaction) => (
-                  <TableRow key={transaction.id}>
-                    <TableCell className="font-medium">{transaction.id}</TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{transaction.date}</div>
-                        <div className="text-sm text-muted-foreground">{transaction.time}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{transaction.customer}</div>
-                        <div className="text-sm text-muted-foreground">{transaction.email}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-medium">{transaction.amount.toLocaleString()} FCFA</TableCell>
-                    <TableCell>{transaction.method}</TableCell>
-                    <TableCell>{getStatusBadge(transaction.status)}</TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="sm">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center">{t("loading")}</TableCell>
                   </TableRow>
-                ))}
+                ) : filteredTransactions.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center">{t("noTransactionsFound")}</TableCell>
+                  </TableRow>
+                ) : (
+                  filteredTransactions.map((transaction) => (
+                    <TableRow key={transaction.id}>
+                      <TableCell className="font-medium">{transaction.id}</TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{transaction.created_at ? new Date(transaction.created_at).toLocaleDateString() : "-"}</div>
+                          <div className="text-sm text-muted-foreground">{transaction.created_at ? new Date(transaction.created_at).toLocaleTimeString() : "-"}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{transaction.customer?.username || transaction.customer?.email || "-"}</div>
+                          <div className="text-sm text-muted-foreground">{transaction.customer?.email || "-"}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-medium">{transaction.amount?.toLocaleString?.() || transaction.amount || "-"} {transaction.currency || ""}</TableCell>
+                      <TableCell>{transaction.network || transaction.type_trans || "-"}</TableCell>
+                      <TableCell>{getStatusBadge(transaction.status)}</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleCheckStatus(transaction.reference)}
+                          disabled={statusLoading[transaction.reference]}
+                        >
+                          {statusLoading[transaction.reference] ? t("checking") : t("checkStatus")}
+                        </Button>
+                        {statusMap[transaction.reference] && (
+                          <div className="mt-2 text-xs text-blue-600">{t("status")}: {statusMap[transaction.reference]}</div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
-
-          {filteredTransactions.length === 0 && (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">No transactions found matching your criteria.</p>
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>

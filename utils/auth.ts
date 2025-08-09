@@ -60,3 +60,48 @@ export async function ensureAuth(baseUrl: string, router: any) {
     }
   }
 }
+
+// Utility function for making authenticated API calls
+export async function authenticatedFetch(url: string, options: RequestInit = {}) {
+  const accessToken = getAccessToken()
+  
+  if (!accessToken) {
+    throw new Error("No access token available")
+  }
+
+  const headers = {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${accessToken}`,
+    ...options.headers,
+  }
+
+  const response = await fetch(url, {
+    ...options,
+    headers,
+  })
+
+  // If token is expired, try to refresh
+  if (response.status === 401) {
+    const refreshed = await refreshAccessToken(process.env.NEXT_PUBLIC_BASE_URL!)
+    if (refreshed) {
+      // Retry the request with new token
+      const newAccessToken = getAccessToken()
+      const retryHeaders = {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${newAccessToken}`,
+        ...options.headers,
+      }
+      
+      return fetch(url, {
+        ...options,
+        headers: retryHeaders,
+      })
+    } else {
+      // Refresh failed, redirect to login
+      window.location.href = "/login"
+      throw new Error("Authentication failed")
+    }
+  }
+
+  return response
+}

@@ -12,7 +12,6 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useLanguage } from "@/contexts/language-context"
-import { ensureAuth } from "@/utils/auth"
 import { LanguageSwitcher } from "@/components/language-switcher"
 
 export default function Login() {
@@ -24,17 +23,6 @@ export default function Login() {
     rememberMe: false,
   })
   const router = useRouter()
-  // Automatically check authentication and refresh token
-  React.useEffect(() => {
-    ensureAuth(process.env.NEXT_PUBLIC_BASE_URL!, router)
-  }, [router])
-  // const [showPassword, setShowPassword] = useState(false)
-  // const [isLoading, setIsLoading] = useState(false)
-  // const [formData, setFormData] = useState({
-  //   email: "",
-  //   password: "",
-  //   rememberMe: false,
-  // })
   const { t } = useLanguage()
 
   const [apiError, setApiError] = useState("")
@@ -43,7 +31,7 @@ export default function Login() {
     setIsLoading(true)
     setApiError("")
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/login`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/v1/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -59,7 +47,7 @@ export default function Login() {
         // Ensure exp is stored as ISO string for correct date comparison
         localStorage.setItem("exp", new Date(data.exp).toISOString())
         localStorage.setItem("user", JSON.stringify(data.data))
-        router.push("/dashboard")
+        router.push("/")
       } else {
         setApiError(data.details || data.message || "Login failed.")
       }

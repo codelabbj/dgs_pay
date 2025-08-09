@@ -3,9 +3,9 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { ensureAuth } from "@/utils/auth"
+import { ensureAuth, authenticatedFetch } from "@/utils/auth"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   BarChart3,
   CreditCard,
@@ -49,10 +49,122 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
+  const [userProfile, setUserProfile] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter()
+  
   // Check authentication and refresh token on mount
   useEffect(() => {
     ensureAuth(process.env.NEXT_PUBLIC_BASE_URL!, window.location)
   }, [])
+  
+  // Load user profile
+  useEffect(() => {
+    loadUserProfile()
+  }, [])
+  
+  const loadUserProfile = async () => {
+    try {
+      // First, try to get user data from localStorage as a fallback
+      const userData = localStorage.getItem('user')
+      if (userData) {
+        try {
+          const parsedUser = JSON.parse(userData)
+          setUserProfile(parsedUser)
+        } catch (localStorageError) {
+          console.error('Failed to parse user data from localStorage:', localStorageError)
+        }
+      }
+
+      // Then try to fetch fresh data from API
+      const accessToken = localStorage.getItem('access')
+      if (!accessToken) {
+        console.log('No access token available, using cached data')
+        setIsLoading(false)
+        return
+      }
+
+      // Check if token is expired
+      const exp = localStorage.getItem('exp')
+      if (exp) {
+        const expDate = new Date(exp)
+        const now = new Date()
+        if (expDate <= now) {
+          console.log('Token expired, using cached data')
+          setIsLoading(false)
+          return
+        }
+      }
+
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/user-details`, {
+          headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+        })
+        
+        // Check if response is ok before trying to parse JSON
+        if (!response.ok) {
+          console.error('User profile API error:', response.status, response.statusText)
+          setIsLoading(false)
+          return
+        }
+        
+        // Check content type to ensure we're getting JSON
+        const contentType = response.headers.get('content-type')
+        if (!contentType || !contentType.includes('application/json')) {
+          console.error('Expected JSON response but got:', contentType)
+          setIsLoading(false)
+          return
+        }
+        
+        const data = await response.json()
+        setUserProfile(data)
+        // Update localStorage with fresh data
+        localStorage.setItem('user', JSON.stringify(data))
+      } catch (apiError) {
+        console.error('API call failed:', apiError)
+        // Don't throw, just use cached data
+      }
+    } catch (error) {
+      console.error('Failed to load user profile:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+  
+  const handleLogout = async () => {
+    try {
+      const accessToken = localStorage.getItem('access')
+      if (accessToken) {
+        await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/logout`, {
+          method: 'POST',
+          headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+        })
+      }
+    } catch (error) {
+      console.error('Logout error:', error)
+    } finally {
+      // Clear local storage and redirect
+      localStorage.removeItem("access")
+      localStorage.removeItem("refresh")
+      localStorage.removeItem("exp")
+      localStorage.removeItem("user")
+      router.push("/login")
+    }
+  }
+  
+  const getUserInitials = () => {
+    if (!userProfile) return "U"
+    const firstName = userProfile.first_name || ""
+    const lastName = userProfile.last_name || ""
+    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
+  }
+  
   const pathname = usePathname()
   const { theme, setTheme } = useTheme()
   const [isLiveMode, setIsLiveMode] = useState(true)
@@ -68,9 +180,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { name: t("dashboard"), href: "/", icon: BarChart3 },
     { name: t("transactions"), href: "/transactions", icon: CreditCard },
     // { name: t("customers"), href: "/customers", icon: Users },
-    { name: t("payouts"), href: "/payouts", icon: Wallet },
+    // { name: t("payDirect"), href: "/payouts", icon: Wallet },
     // { name: t("myStore"), href: "/store", icon: Store },
-    // { name: t("payDirect"), href: "/direct", icon: Zap },
+    { name: t("payDirect"), href: "/pay", icon: Zap },
     { name: t("developers"), href: "/developers", icon: Code },
     { name: t("settings"), href: "/settings", icon: Settings },
   ]
@@ -142,27 +254,31 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
         {/* Sidebar Footer */}
         <div className="p-6 border-t border-slate-100 dark:border-neutral-800 flex-shrink-0">
-          <div className="bg-slate-50 dark:bg-neutral-800 rounded-2xl p-4 mb-4">
-            <div className="flex items-center space-x-3">
-              <Avatar className="h-10 w-10 ring-2 ring-crimson-600">
-                <AvatarImage src="/placeholder.svg?height=40&width=40" />
-                <AvatarFallback className="bg-crimson-600 text-white">JD</AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <p className="font-medium text-neutral-900 dark:text-white">John Doe</p>
-                <p className="text-xs text-neutral-500 dark:text-neutral-400"></p>
+          <Link href="/profile" className="block">
+            <div className="bg-slate-50 dark:bg-neutral-800 rounded-2xl p-4 mb-4 hover:bg-slate-100 dark:hover:bg-neutral-700 transition-colors cursor-pointer">
+              <div className="flex items-center space-x-3">
+                <Avatar className="h-10 w-10 ring-2 ring-crimson-600 dark:ring-crimson-400">
+                  <AvatarImage src={userProfile?.logo || ""} />
+                  <AvatarFallback className="bg-crimson-600 text-black dark:text-white">
+                    {getUserInitials()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <p className="font-medium text-neutral-900 dark:text-white">
+                    {userProfile ? `${userProfile.first_name} ${userProfile.last_name}` : "Loading..."}
+                  </p>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                    {userProfile?.entreprise_name || ""}
+                  </p>
+                </div>
+                <ChevronDown className="h-4 w-4 text-neutral-400" />
               </div>
-              <ChevronDown className="h-4 w-4 text-neutral-400" />
             </div>
-          </div>
+          </Link>
           <Button
             variant="ghost"
             className="w-full justify-start text-neutral-600 dark:text-neutral-400 hover:text-crimson-600 dark:hover:text-crimson-400 hover:bg-slate-50 dark:hover:bg-neutral-800"
-            onClick={() => {
-              localStorage.removeItem("auth-token")
-              localStorage.removeItem("user")
-              window.location.href = "/login"
-            }}
+            onClick={handleLogout}
           >
             <LogOut className="h-5 w-5 mr-3" />
             {t("signOut")}
@@ -184,13 +300,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <Menu className="h-5 w-5" />
             </Button>
 
-            <div className="relative hidden md:block">
+            {/* <div className="relative hidden md:block">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
               <Input
                 placeholder={t("search")}
                 className="pl-12 w-96 h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
               />
-            </div>
+            </div> */}
           </div>
 
           <div className="flex items-center space-x-4">
@@ -250,12 +366,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   className="flex items-center space-x-3 hover:bg-slate-50 dark:hover:bg-neutral-800 rounded-2xl px-3 py-2"
                 >
                   <Avatar className="h-8 w-8 ring-2 ring-crimson-600">
-                    <AvatarImage src="/placeholder.svg?height=32&width=32" />
-                    <AvatarFallback className="bg-crimson-600 text-white">JD</AvatarFallback>
+                    <AvatarImage src={userProfile?.logo || ""} />
+                    <AvatarFallback className="bg-crimson-600 text-black dark:text-white">
+                      {getUserInitials()}
+                    </AvatarFallback>
                   </Avatar>
                   <div className="hidden md:block text-left">
-                    <p className="text-sm font-medium">John Doe</p>
-                    <p className="text-xs text-neutral-500"></p>
+                    <p className="text-sm font-medium">
+                      {userProfile ? `${userProfile.first_name} ${userProfile.last_name}` : "Loading..."}
+                    </p>
+                    <p className="text-xs text-neutral-500">
+                      {userProfile?.entreprise_name || ""}
+                    </p>
                   </div>
                   <ChevronDown className="h-4 w-4 text-neutral-400" />
                 </Button>
@@ -263,22 +385,22 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <DropdownMenuContent align="end" className="w-56 rounded-2xl border-slate-100 dark:border-neutral-800">
                 <DropdownMenuLabel>{t("myAccount")}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="rounded-xl">
-                  <User className="mr-2 h-4 w-4" />
-                  {t("profile")}
-                </DropdownMenuItem>
-                <DropdownMenuItem className="rounded-xl">
-                  <Settings className="mr-2 h-4 w-4" />
-                  {t("settings")}
-                </DropdownMenuItem>
+                <Link href="/profile">
+                  <DropdownMenuItem className="rounded-xl cursor-pointer">
+                    <User className="mr-2 h-4 w-4" />
+                    {t("profile")}
+                  </DropdownMenuItem>
+                </Link>
+                <Link href="/settings">
+                  <DropdownMenuItem className="rounded-xl cursor-pointer">
+                    <Settings className="mr-2 h-4 w-4" />
+                    {t("settings")}
+                  </DropdownMenuItem>
+                </Link>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  className="rounded-xl text-crimson-600 focus:text-crimson-600"
-                  onClick={() => {
-                    localStorage.removeItem("auth-token")
-                    localStorage.removeItem("user")
-                    window.location.href = "/login"
-                  }}
+                  className="rounded-xl text-crimson-600 focus:text-crimson-600 cursor-pointer"
+                  onClick={handleLogout}
                 >
                   <LogOut className="mr-2 h-4 w-4" />
                   {t("signOut")}

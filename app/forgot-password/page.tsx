@@ -9,123 +9,303 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useRouter } from "next/navigation"
+import { useLanguage } from "@/contexts/language-context"
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [isEmailSent, setIsEmailSent] = useState(false)
+  const [step, setStep] = useState<"email" | "otp" | "reset">("email")
+  const [otp, setOtp] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
+  const router = useRouter()
+  const { t } = useLanguage()
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
+
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError("")
+    setSuccess("")
+    try {
+      const res = await fetch(`${baseUrl}/api/v1/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
+      if (res.ok) {
+        setStep("otp")
+        setSuccess(t("otpSent"))
+      } else {
+        const data = await res.json()
+        setError(data.details || data.message || t("failedToSendOtp"))
+      }
+    } catch (err) {
+      setError(t("failedToSendOtp"))
+    }
+    setIsLoading(false)
+  }
 
-    // Mock password reset
-    setTimeout(() => {
+  const handleResendOtp = async () => {
+    setIsLoading(true)
+    setError("")
+    setSuccess("")
+    try {
+      const res = await fetch(`${baseUrl}/api/v1/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
+      if (res.ok) {
+        setSuccess(t("otpResent"))
+      } else {
+        const data = await res.json()
+        setError(data.details || data.message || t("failedToResendOtp"))
+      }
+    } catch (err) {
+      setError(t("failedToResendOtp"))
+    }
+    setIsLoading(false)
+  }
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError("")
+    setSuccess("")
+    if (!otp) {
+      setError(t("pleaseEnterOtp"))
+      return
+    }
+    setStep("reset")
+  }
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError("")
+    setSuccess("")
+    if (!newPassword || !confirmPassword) {
+      setError(t("pleaseFillAllPassword"))
       setIsLoading(false)
-      setIsEmailSent(true)
-    }, 2000)
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setError(t("passwordsDoNotMatch"))
+      setIsLoading(false)
+      return
+    }
+    try {
+      const res = await fetch(`${baseUrl}/api/v1resetpassword`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          otp,
+          new_password: newPassword,
+          confirm_new_password: confirmPassword,
+        }),
+      })
+      if (res.ok) {
+        setSuccess(t("resetPasswordSuccess"))
+        setTimeout(() => router.push("/login"), 2000)
+      } else {
+        const data = await res.json()
+        setError(data.details || data.message || t("failedToResetPassword"))
+      }
+    } catch (err) {
+      setError(t("failedToResetPassword"))
+    }
+    setIsLoading(false)
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-100 dark:from-gray-900 dark:via-purple-900/20 dark:to-violet-900/20 flex items-center justify-center p-4">
-      {/* Background decoration */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-400/20 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-400/20 rounded-full blur-3xl"></div>
-      </div>
+    <div className="min-h-screen bg-slate-50/30 dark:bg-neutral-950 flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Language switcher (optional, if needed) */}
+      {/* <div className="absolute top-6 right-6 z-10">
+        <LanguageSwitcher />
+      </div> */}
 
-      <div className="relative w-full max-w-md">
+      <div className="w-full max-w-md relative z-10">
         {/* Logo and branding */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl mb-4 shadow-lg">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-crimson-600 rounded-2xl mb-4 shadow-lg">
             <Sparkles className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
-            Reset Password
+          <h1 className="text-3xl font-bold text-neutral-900 dark:text-white">
+            {t("resetPasswordTitle")}
           </h1>
-          <p className="text-muted-foreground mt-2">
-            {isEmailSent ? "Check your email" : "Enter your email to reset your password"}
+          <p className="text-neutral-600 dark:text-neutral-400 mt-2">
+            {step === "email"
+              ? t("enterEmailToReset")
+              : step === "otp"
+              ? t("enterOtp")
+              : t("setNewPassword")}
           </p>
         </div>
 
-        <Card className="backdrop-blur-sm bg-white/80 dark:bg-gray-900/80 border-0 shadow-2xl">
+        <Card className="bg-white/80 dark:bg-neutral-900/80 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-2xl rounded-3xl overflow-hidden">
           <CardHeader className="space-y-1 pb-6">
-            <CardTitle className="text-2xl font-semibold text-center">
-              {isEmailSent ? "Email Sent!" : "Forgot Password"}
+            <CardTitle className="text-2xl font-semibold text-center text-neutral-900 dark:text-white">
+              {step === "email"
+                ? t("forgotPasswordTitle")
+                : step === "otp"
+                ? t("verifyOtp")
+                : t("setNewPassword")}
             </CardTitle>
-            <CardDescription className="text-center">
-              {isEmailSent
-                ? "We've sent a password reset link to your email address."
-                : "Enter your email address and we'll send you a link to reset your password."}
+            <CardDescription className="text-center text-neutral-600 dark:text-neutral-400">
+              {step === "email"
+                ? t("enterEmailToReset")
+                : step === "otp"
+                ? t("checkEmailForOtp")
+                : t("enterNewPassword") + " / " + t("confirmNewPassword")}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {!isEmailSent ? (
-              <form onSubmit={handleSubmit} className="space-y-6">
+            {error && <div className="mb-4 text-center text-sm text-red-600 dark:text-red-400">{error}</div>}
+            {success && <div className="mb-4 text-center text-sm text-green-600 dark:text-green-400">{success}</div>}
+            {step === "email" && (
+              <form onSubmit={handleSendOtp} className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium">
-                    Email Address
+                  <Label htmlFor="email" className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                    {t("emailAddress")}
                   </Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-neutral-400" />
                     <Input
                       id="email"
                       type="email"
                       placeholder="john@example.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="pl-10 h-12 bg-white/50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 focus:border-purple-500 focus:ring-purple-500"
+                      className="pl-12 h-14 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent text-base"
                       required
                     />
                   </div>
                 </div>
-
                 <Button
                   type="submit"
-                  className="w-full h-12 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200"
+                  className="w-full h-14 bg-crimson-600 hover:bg-crimson-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 rounded-2xl text-base"
                   disabled={isLoading}
                 >
                   {isLoading ? (
-                    <div className="flex items-center space-x-2">
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                      <span>Sending...</span>
+                    <div className="flex items-center space-x-3">
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      <span>{t("sending")}</span>
                     </div>
                   ) : (
-                    <div className="flex items-center space-x-2">
-                      <Send className="w-4 h-4" />
-                      <span>Send Reset Link</span>
+                    <div className="flex items-center text-black dark:text-white space-x-3">
+                      <Send className="w-5 h-5" />
+                      <span>{t("sendOtp")}</span>
                     </div>
                   )}
                 </Button>
               </form>
-            ) : (
-              <div className="text-center space-y-4">
-                <div className="w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto">
-                  <Mail className="w-8 h-8 text-green-600" />
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  If an account with that email exists, you'll receive a password reset link shortly.
-                </p>
-                <Button onClick={() => setIsEmailSent(false)} variant="outline" className="w-full">
-                  Send Another Email
-                </Button>
-              </div>
             )}
-
+            {step === "otp" && (
+              <form onSubmit={handleVerifyOtp} className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="otp" className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                    OTP Code
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="otp"
+                      type="text"
+                      placeholder={t("enterOtp")}
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value)}
+                      className="h-14 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent text-base pl-4"
+                      required
+                    />
+                  </div>
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full h-14 bg-crimson-600 hover:bg-crimson-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 rounded-2xl text-base"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <div className="flex items-center space-x-3">
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      <span>{t("verifying")}</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center text-black dark:text-white space-x-3">
+                      <span>{t("verifyOtp")}</span>
+                    </div>
+                  )}
+                </Button>
+                <div className="text-center">
+                  <Button type="button" variant="link" className="text-crimson-600 hover:text-crimson-700" onClick={handleResendOtp} disabled={isLoading}>
+                    {t("resendOtp")}
+                  </Button>
+                </div>
+              </form>
+            )}
+            {step === "reset" && (
+              <form onSubmit={handleResetPassword} className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="new-password" className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                    {t("enterNewPassword")}
+                  </Label>
+                  <Input
+                    id="new-password"
+                    type="password"
+                    placeholder={t("enterNewPassword")}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="h-14 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent text-base pl-4"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password" className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                    {t("confirmNewPassword")}
+                  </Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    placeholder={t("confirmNewPassword")}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="h-14 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent text-base pl-4"
+                    required
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full h-14 bg-crimson-600 hover:bg-crimson-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 rounded-2xl text-base"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <div className="flex items-center space-x-3">
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      <span>{t("resetting")}</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center text-black dark:text-white space-x-3">
+                      <span>{t("resetPasswordTitle")}</span>
+                    </div>
+                  )}
+                </Button>
+              </form>
+            )}
             <div className="mt-6 text-center">
               <Link
                 href="/login"
-                className="inline-flex items-center space-x-2 text-sm text-purple-600 hover:text-purple-700 font-medium"
+                className="inline-flex items-center space-x-2 text-sm text-crimson-600 hover:text-crimson-700 font-medium"
               >
                 <ArrowLeft className="w-4 h-4" />
-                <span>Back to Sign In</span>
+                <span>{t("backToSignIn")}</span>
               </Link>
             </div>
           </CardContent>
         </Card>
-
-        {/* Footer */}
-        <div className="text-center mt-8 text-sm text-muted-foreground">
+        <div className="text-center mt-8 text-sm text-neutral-500">
           {/* <p>© 2024 pay. All rights reserved.</p> */}
         </div>
       </div>
