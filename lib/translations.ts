@@ -160,6 +160,7 @@ export const translations = {
     // profile
 
     // profile: "Profile",
+    companyLogo: "Company Logo",
     manageAccountInfo: "Manage your account information and settings",
     loadingProfile: "Loading profile...",
     profileNotFound: "Profile Not Found",
@@ -207,6 +208,8 @@ export const translations = {
     countryCode: "Country Code",
     transactionReference: "Transaction Reference",
     // amount: "Amount",
+    paymentMethod: "Payment Method",
+    selectPaymentMethod: "Select payment method",
     network: "Network",
     selectNetwork: "Select network",
     wave: "Wave",
@@ -426,6 +429,7 @@ export const translations = {
 
     // profile
     // profile: "Profil",
+    companyLogo: "Logo de l'entreprise",
     manageAccountInfo: "Gérez les informations et paramètres de votre compte",
     loadingProfile: "Chargement du profil...",
     profileNotFound: "Profil introuvable",
@@ -473,6 +477,8 @@ export const translations = {
     countryCode: "Code pays",
     transactionReference: "Référence de la transaction",
     // amount: "Montant",
+    paymentMethod: "Méthode de paiement",
+    selectPaymentMethod: "Sélectionnez la méthode de paiement",
     network: "Réseau",
     selectNetwork: "Sélectionnez le réseau",
     wave: "Wave",

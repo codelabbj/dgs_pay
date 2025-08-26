@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox"
 import { useLanguage } from "@/contexts/language-context"
 import { LanguageSwitcher } from "@/components/language-switcher"
+import { storeAuthData } from "@/utils/auth"
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
@@ -42,11 +43,8 @@ export default function Login() {
       
       const data = await res.json()
       if (res.ok) {
-        localStorage.setItem("refresh", data.refresh)
-        localStorage.setItem("access", data.access)
-        // Ensure exp is stored as ISO string for correct date comparison
-        localStorage.setItem("exp", new Date(data.exp).toISOString())
-        localStorage.setItem("user", JSON.stringify(data.data))
+        // Store authentication data using the utility function
+        storeAuthData(data)
         router.push("/")
       } else {
         setApiError(data.details || data.message || "Login failed.")
@@ -73,11 +71,13 @@ export default function Login() {
 
       <div className="w-full max-w-md relative z-10">
         {/* Logo and branding */}
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-crimson-600 rounded-3xl mb-6 shadow-2xl shadow-crimson-600/25 relative">
-            <Crown className="w-10 h-10 text-black dark:text-white" />
+        <div className="text-center mb-5">
+          {/* <div className="inline-flex items-center justify-center w-25 h-25 bg-crimson-600 rounded-3xl mb-6 shadow-2xl shadow-crimson-600/25 relative"> */}
+          <div className="inline-flex items-center justify-center w-25 h-25 relative">
+            {/* <Crown className="w-10 h-10 text-black dark:text-white" /> */}
+            <img src="/logo1.png" alt="Logo" className="w-45 h-36" />
           </div>
-          <h1 className="text-4xl font-bold text-neutral-900 dark:text-white mb-3">{t("welcomeBack")}</h1>
+          {/* <h1 className="text-4xl font-bold text-neutral-900 dark:text-white mb-3">{t("welcomeBack")}</h1> */}
           <p className="text-neutral-600 dark:text-neutral-400 text-lg">{t("signInToAccount")}</p>
         </div>
 
@@ -167,7 +167,7 @@ export default function Login() {
                 disabled={isLoading}
               >
                 {isLoading ? (
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center text-black dark:text-white space-x-3">
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                     <span>{t("signingIn")}</span>
                   </div>

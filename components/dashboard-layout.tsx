@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { ensureAuth, authenticatedFetch } from "@/utils/auth"
+import { smartFetch, isAuthenticated, getUserData } from "@/utils/auth"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
@@ -53,11 +53,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
   
-  // Check authentication and refresh token on mount
-  useEffect(() => {
-    ensureAuth(process.env.NEXT_PUBLIC_BASE_URL!, window.location)
-  }, [])
-  
   // Load user profile
   useEffect(() => {
     loadUserProfile()
@@ -65,64 +60,22 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   
   const loadUserProfile = async () => {
     try {
-      // First, try to get user data from localStorage as a fallback
-      const userData = localStorage.getItem('user')
+      // First, try to get user data from localStorage
+      const userData = getUserData()
       if (userData) {
-        try {
-          const parsedUser = JSON.parse(userData)
-          setUserProfile(parsedUser)
-        } catch (localStorageError) {
-          console.error('Failed to parse user data from localStorage:', localStorageError)
-        }
+        setUserProfile(userData)
       }
 
       // Then try to fetch fresh data from API
-      const accessToken = localStorage.getItem('access')
-      if (!accessToken) {
-        console.log('No access token available, using cached data')
-        setIsLoading(false)
-        return
-      }
-
-      // Check if token is expired
-      const exp = localStorage.getItem('exp')
-      if (exp) {
-        const expDate = new Date(exp)
-        const now = new Date()
-        if (expDate <= now) {
-          console.log('Token expired, using cached data')
-          setIsLoading(false)
-          return
-        }
-      }
-
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/user-details`, {
-          headers: {
-            "Authorization": `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-        })
+        const response = await smartFetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/v1/user-details`)
         
-        // Check if response is ok before trying to parse JSON
-        if (!response.ok) {
-          console.error('User profile API error:', response.status, response.statusText)
-          setIsLoading(false)
-          return
+        if (response.ok) {
+          const data = await response.json()
+          setUserProfile(data)
+          // Update localStorage with fresh data
+          localStorage.setItem('user', JSON.stringify(data))
         }
-        
-        // Check content type to ensure we're getting JSON
-        const contentType = response.headers.get('content-type')
-        if (!contentType || !contentType.includes('application/json')) {
-          console.error('Expected JSON response but got:', contentType)
-          setIsLoading(false)
-          return
-        }
-        
-        const data = await response.json()
-        setUserProfile(data)
-        // Update localStorage with fresh data
-        localStorage.setItem('user', JSON.stringify(data))
       } catch (apiError) {
         console.error('API call failed:', apiError)
         // Don't throw, just use cached data
@@ -136,14 +89,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   
   const handleLogout = async () => {
     try {
-      const accessToken = localStorage.getItem('access')
-      if (accessToken) {
-        await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/logout`, {
-          method: 'POST',
-          headers: {
-            "Authorization": `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
+      // Try to call logout API if we have valid tokens
+      if (isAuthenticated()) {
+        await smartFetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/logout`, {
+          method: "POST",
         })
       }
     } catch (error) {

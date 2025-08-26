@@ -31,77 +31,76 @@ import {
   Area,
 } from "recharts"
 import { useLanguage } from "@/contexts/language-context"
-
-// Mock data with NO yellow colors
-const revenueData = [
-  { date: "Jan 1", amount: 12000 },
-  { date: "Jan 5", amount: 15000 },
-  { date: "Jan 10", amount: 18000 },
-  { date: "Jan 15", amount: 22000 },
-  { date: "Jan 20", amount: 19000 },
-  { date: "Jan 25", amount: 25000 },
-  { date: "Jan 30", amount: 28000 },
-]
-
-const paymentMethodData = [
-  { name: "Mobile Money", value: 45, color: "#dc2626" },
-  { name: "Credit Card", value: 35, color: "#10b981" },
-  { name: "Bank Account", value: 20, color: "#8b5cf6" },
-]
-
-const peakHoursData = [
-  { hour: "6AM", transactions: 12 },
-  { hour: "9AM", transactions: 45 },
-  { hour: "12PM", transactions: 78 },
-  { hour: "3PM", transactions: 65 },
-  { hour: "6PM", transactions: 89 },
-  { hour: "9PM", transactions: 34 },
-]
+import { smartFetch } from "@/utils/auth"
 
 export function DashboardContent() {
   const [showBalances, setShowBalances] = useState(false)
   const { t } = useLanguage()
 
-  // New state for API data
-  const [stats, setStats] = useState<{
-    availavailable_fund: number
-    all_operation_amount: number | null
-    payment_methode: Record<string, any>
-    country_payment: Record<string, number>
-  } | null>(null)
+  // State for API data
+  const [stats, setStats] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
 
   useEffect(() => {
-    fetch("/api/v1/statistic")
-      .then((res) => res.json())
-      .then(setStats)
-      .catch(() => {})
+    fetchStats()
   }, [])
+
+  const fetchStats = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const res = await smartFetch(`${baseUrl}/api/v1/statistic`)
+      
+      if (res.ok) {
+        const data = await res.json()
+        setStats(data)
+      } else {
+        setError(`Failed to fetch stats: ${res.status}`)
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error)
+      setError('Failed to fetch statistics')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const formatCurrency = (amount: number | null | undefined) => {
     if (amount == null) return showBalances ? "0 FCFA" : "••••••"
     return showBalances ? `${amount.toLocaleString()} FCFA` : "••••••"
   }
 
-  // Use API data for customer locations if available
+  // Use API data for customer locations if available, otherwise show empty state
   const customerLocationData = stats?.country_payment
     ? Object.entries(stats.country_payment).map(([country, percentage]) => ({
-        country: t(country),
+        country: t(country as any) || country, // Fallback to original country name if translation not found
         percentage,
       }))
-    : [
-        { country: t("benin"), percentage: 45 },
-        { country: t("togo"), percentage: 25 },
-        { country: t("burkinaFaso"), percentage: 15 },
-        { country: t("niger"), percentage: 10 },
-        { country: t("others"), percentage: 5 },
-      ]
+    : []
 
-  const bankData = [
-    { bank: "Ecobank", fees: 2500, transactions: 145 },
-    { bank: "UBA", fees: 1800, transactions: 98 },
-    { bank: "BOA", fees: 1200, transactions: 67 },
-    { bank: "Orabank", fees: 900, transactions: 45 },
-  ]
+  // Use API data for payment methods if available, otherwise show empty state
+  const paymentMethodData = stats?.payment_methode
+    ? Object.entries(stats.payment_methode).map(([method, data]: [string, any]) => ({
+        name: method,
+        value: data.percentage || 0,
+        color: method === "Mobile Money" ? "#dc2626" : method === "Credit Card" ? "#10b981" : "#8b5cf6",
+      }))
+    : []
+
+  if (loading) {
+    return (
+      <div className="h-full overflow-y-auto">
+        <div className="space-y-8 p-6 pb-20">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-neutral-600 dark:text-neutral-400">Loading dashboard data...</div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="h-full overflow-y-auto">
@@ -125,27 +124,6 @@ export function DashboardContent() {
 
         {/* Balance Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-3xl overflow-hidden group">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="p-3 bg-red-600 rounded-2xl shadow-lg">
-                  <TrendingUp className="h-6 w-6 text-white" />
-                </div>
-                <ArrowUpRight className="h-5 w-5 text-emerald-600 group-hover:scale-110 transition-transform" />
-              </div>
-              <CardTitle className="text-sm font-medium text-neutral-600 dark:text-neutral-400 mt-4">
-                {t("totalRevenue")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">{formatCurrency(2847650)}</div>
-              <div className="flex items-center space-x-2">
-                <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 rounded-full">+12.5%</Badge>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">{t("fromLastMonth")}</span>
-              </div>
-            </CardContent>
-          </Card> */}
-
           <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-3xl overflow-hidden group">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -160,7 +138,7 @@ export function DashboardContent() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">
-                {formatCurrency(stats?.all_operation_amount ?? 156780)}
+                {formatCurrency(stats?.all_operation_amount)}
               </div>
               <div className="flex items-center space-x-2">
                 <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 rounded-full">+8.2%</Badge>
@@ -183,7 +161,7 @@ export function DashboardContent() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">
-                {formatCurrency(stats?.availavailable_fund ?? 89450)}
+                {formatCurrency(stats?.availavailable_fund)}
               </div>
               <div className="flex items-center space-x-2">
                 <Badge className="bg-red-100 text-red-800 hover:bg-red-100 rounded-full">-2.1%</Badge>
@@ -195,79 +173,6 @@ export function DashboardContent() {
 
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Revenue Chart */}
-          {/* <Card className="col-span-1 lg:col-span-2 bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl rounded-3xl overflow-hidden">
-            <CardHeader className="pb-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-xl font-bold text-neutral-900 dark:text-white">
-                    {t("paymentsReceived")}
-                  </CardTitle>
-                  <CardDescription className="text-neutral-600 dark:text-neutral-400 mt-1">
-                    {t("paymentTrends")}
-                  </CardDescription>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 bg-crimson-600 rounded-full"></div>
-                  <span className="text-sm text-neutral-600 dark:text-neutral-400">Revenue</span>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={350}>
-                <AreaChart data={revenueData}>
-                  <defs>
-                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#dc2626" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#dc2626" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis dataKey="date" stroke="#64748b" />
-                  <YAxis stroke="#64748b" />
-                  <Tooltip
-                    formatter={(value) => [`${value} FCFA`, "Amount"]}
-                    contentStyle={{
-                      backgroundColor: "white",
-                      border: "1px solid #f1f5f9",
-                      borderRadius: "16px",
-                      boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
-                    }}
-                  />
-                  <Area type="monotone" dataKey="amount" stroke="#dc2626" strokeWidth={3} fill="url(#colorRevenue)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card> */}
-
-          {/* Peak Hours */}
-          {/* <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl rounded-3xl overflow-hidden">
-            <CardHeader>
-              <CardTitle className="text-lg font-bold text-neutral-900 dark:text-white">{t("whenPaidMost")}</CardTitle>
-              <CardDescription className="text-neutral-600 dark:text-neutral-400">
-                {t("peakTransactionHours")}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={peakHoursData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis dataKey="hour" stroke="#64748b" />
-                  <YAxis stroke="#64748b" />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "white",
-                      border: "1px solid #f1f5f9",
-                      borderRadius: "16px",
-                      boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
-                    }}
-                  />
-                  <Bar dataKey="transactions" fill="#dc2626" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card> */}
-
           {/* Customer Locations */}
           <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl rounded-3xl overflow-hidden">
             <CardHeader>
@@ -277,65 +182,37 @@ export function DashboardContent() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-6">
-                {customerLocationData.map((item, index) => (
-                  <div key={index} className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-slate-50 dark:bg-neutral-800 rounded-xl">
-                        <MapPin className="h-4 w-4 text-crimson-600" />
+              {customerLocationData.length > 0 ? (
+                <div className="space-y-6">
+                  {customerLocationData.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-slate-50 dark:bg-neutral-800 rounded-xl">
+                          <MapPin className="h-4 w-4 text-crimson-600" />
+                        </div>
+                        <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{item.country}</span>
                       </div>
-                      <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{item.country}</span>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <div className="w-24 bg-slate-100 dark:bg-neutral-800 rounded-full h-2">
-                        <div
-                          className="bg-crimson-600 h-2 rounded-full transition-all duration-500"
-                          style={{ width: `${item.percentage}%` }}
-                        />
+                      <div className="flex items-center space-x-3">
+                        <div className="w-24 bg-slate-100 dark:bg-neutral-800 rounded-full h-2">
+                          <div
+                            className="bg-crimson-600 h-2 rounded-full transition-all duration-500"
+                            style={{ width: `${item.percentage}%` }}
+                          />
+                        </div>
+                        <span className="text-sm font-bold text-neutral-700 dark:text-neutral-300 w-8">
+                          {typeof item.percentage === "number" ? item.percentage : 0}%
+                        </span>
                       </div>
-                      <span className="text-sm font-bold text-neutral-700 dark:text-neutral-300 w-8">
-                        {item.percentage}%
-                      </span>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-neutral-500 dark:text-neutral-400">
+                  No customer location data available
+                </div>
+              )}
             </CardContent>
           </Card>
-
-          {/* Bank Fees */}
-          {/* <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl rounded-3xl overflow-hidden">
-            <CardHeader>
-              <CardTitle className="text-lg font-bold text-neutral-900 dark:text-white">{t("whichBanks")}</CardTitle>
-              <CardDescription className="text-neutral-600 dark:text-neutral-400">{t("bankFees")}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {bankData.map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-4 bg-slate-50/50 dark:bg-neutral-800/50 rounded-2xl hover:bg-slate-50 dark:hover:bg-neutral-800 transition-colors"
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div className="p-2 bg-white dark:bg-neutral-700 rounded-xl shadow-sm">
-                        <Building className="h-5 w-5 text-crimson-600" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-neutral-900 dark:text-white">{item.bank}</p>
-                        <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                          {item.transactions} {t("transactions")}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-neutral-900 dark:text-white">{item.fees} FCFA</p>
-                      <p className="text-sm text-neutral-500 dark:text-neutral-400">{t("feesPaid")}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card> */}
 
           {/* Payment Methods */}
           <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl rounded-3xl overflow-hidden">
@@ -346,61 +223,71 @@ export function DashboardContent() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center justify-center mb-6">
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie
-                      data={paymentMethodData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={50}
-                      outerRadius={90}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {paymentMethodData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      formatter={(value) => `${value}%`}
-                      contentStyle={{
-                        backgroundColor: "white",
-                        border: "1px solid #f1f5f9",
-                        borderRadius: "16px",
-                        boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="space-y-3">
-                {paymentMethodData.map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-3 bg-slate-50/50 dark:bg-neutral-800/50 rounded-2xl"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-white dark:bg-neutral-700 rounded-xl shadow-sm">
-                        {item.name === "Mobile Money" && <Smartphone className="h-4 w-4 text-crimson-600" />}
-                        {item.name === "Credit Card" && <CreditCard className="h-4 w-4 text-crimson-600" />}
-                        {item.name === "Bank Account" && <Building className="h-4 w-4 text-crimson-600" />}
-                      </div>
-                      <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                        {item.name === "Mobile Money" && t("mobileMoneyMethod")}
-                        {item.name === "Credit Card" && t("creditCardMethod")}
-                        {item.name === "Bank Account" && t("bankAccountMethod")}
-                      </span>
-                    </div>
-                    <Badge
-                      variant="secondary"
-                      className="bg-crimson-100 text-crimson-800 hover:bg-crimson-100 rounded-full font-bold"
-                    >
-                      {item.value}%
-                    </Badge>
+              {paymentMethodData.length > 0 ? (
+                <>
+                  <div className="flex items-center justify-center mb-6">
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie
+                          data={paymentMethodData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={50}
+                          outerRadius={90}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          {paymentMethodData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          formatter={(value) => `${value}%`}
+                          contentStyle={{
+                            backgroundColor: "white",
+                            border: "1px solid #f1f5f9",
+                            borderRadius: "16px",
+                            boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
                   </div>
-                ))}
-              </div>
+                  <div className="space-y-3">
+                    {paymentMethodData.map((item, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-3 bg-slate-50/50 dark:bg-neutral-800/50 rounded-2xl"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className="p-2 bg-white dark:bg-neutral-700 rounded-xl shadow-sm">
+                            {item.name === "Mobile Money" && <Smartphone className="h-4 w-4 text-crimson-600" />}
+                            {item.name === "Credit Card" && <CreditCard className="h-4 w-4 text-crimson-600" />}
+                            {item.name === "Bank Account" && <Building className="h-4 w-4 text-crimson-600" />}
+                            {!["Mobile Money", "Credit Card", "Bank Account"].includes(item.name) && <CreditCard className="h-4 w-4 text-crimson-600" />}
+                          </div>
+                          <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                            {item.name === "Mobile Money" && t("mobileMoneyMethod")}
+                            {item.name === "Credit Card" && t("creditCardMethod")}
+                            {item.name === "Bank Account" && t("bankAccountMethod")}
+                            {!["Mobile Money", "Credit Card", "Bank Account"].includes(item.name) && item.name}
+                          </span>
+                        </div>
+                        <Badge
+                          variant="secondary"
+                          className="bg-crimson-100 text-crimson-800 hover:bg-crimson-100 rounded-full font-bold"
+                        >
+                          {item.value}%
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-8 text-neutral-500 dark:text-neutral-400">
+                  No payment method data available
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

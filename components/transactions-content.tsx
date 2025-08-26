@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -11,60 +11,346 @@ import { Search, Download, Eye } from "lucide-react"
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
 import { useLanguage } from "@/contexts/language-context"
+import { smartFetch, getAccessToken } from "@/utils/auth"
 
 export function TransactionsContent() {
-  const { t } = useLanguage()
   const [transactions, setTransactions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [methodFilter, setMethodFilter] = useState("all")
-  const [statusMap, setStatusMap] = useState<{ [reference: string]: string }>({})
-  const [statusLoading, setStatusLoading] = useState<{ [reference: string]: boolean }>({})
+  const [statusMap, setStatusMap] = useState<Record<string, string>>({})
+  const [statusLoading, setStatusLoading] = useState<Record<string, boolean>>({})
+  const { t } = useLanguage()
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
 
-  // Then try to fetch fresh data from API
-      // const accessToken = localStorage.getItem('access')
-      // if (!accessToken) {
-      //   console.log('No access token available, using cached data')
-      //   setIsLoading(false)
-      //   return
-      // }
-
+  // WebSocket references and state
+  const webSocketRef = useRef<WebSocket | null>(null)
+  const webSocketReconnectAttempts = useRef(0)
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const transactionsMapRef = useRef(new Map())
+  const wsHealth = useRef({
+    lastMessageTime: 0,
+    messageCount: 0
+  })
 
   useEffect(() => {
-    const fetchTransactions = async () => {
-      setLoading(true)
-      try {
-        const res = await fetch(`${baseUrl}/api/v1/transaction`)
-        if (res.ok) {
-          const data = await res.json()
-          setTransactions(data.results || [])
+    fetchTransactions()
+    
+    // Setup WebSocket connection
+    setupWebSocket()
+    
+    // Add health check interval for WebSocket
+    const healthCheckInterval = setInterval(() => {
+      const now = Date.now()
+      const minutesSinceLastMessage = (now - wsHealth.current.lastMessageTime) / (1000 * 60)
+      
+      if (wsHealth.current.lastMessageTime > 0 && minutesSinceLastMessage > 5) {
+        console.warn('No WebSocket messages received in 5 minutes, reconnecting...')
+        setupWebSocket() // Force reconnection
+      }
+    }, 60000) // Check every minute
+    
+    // Cleanup function
+    return () => {
+      clearInterval(healthCheckInterval)
+      cleanupWebSocket()
+    }
+  }, [])
+
+  const fetchTransactions = async () => {
+    setLoading(true)
+    try {
+      const res = await smartFetch(`${baseUrl}/api/v1/transaction`)
+      
+      if (res.ok) {
+        const data = await res.json()
+        // Ensure data is an array, handle different response structures
+        if (Array.isArray(data)) {
+          // Reset the transactions map for first page
+          transactionsMapRef.current.clear()
+          
+          // Add each transaction to the map
+          data.forEach((tx: any) => {
+            const key = getTransactionKey(tx)
+            transactionsMapRef.current.set(key, tx)
+          })
+          
+          setTransactions(data)
+        } else if (data && Array.isArray(data.data)) {
+          // Reset the transactions map for first page
+          transactionsMapRef.current.clear()
+          
+          // Add each transaction to the map
+          data.data.forEach((tx: any) => {
+            const key = getTransactionKey(tx)
+            transactionsMapRef.current.set(key, tx)
+          })
+          
+          setTransactions(data.data)
+        } else if (data && Array.isArray(data.results)) {
+          // Reset the transactions map for first page
+          transactionsMapRef.current.clear()
+          
+          // Add each transaction to the map
+          data.results.forEach((tx: any) => {
+            const key = getTransactionKey(tx)
+            transactionsMapRef.current.set(key, tx)
+          })
+          
+          setTransactions(data.results)
         } else {
+          console.log('API response structure:', data)
           setTransactions([])
         }
-      } catch {
-        setTransactions([])
+      } else {
+        setError(`Failed to fetch transactions: ${res.status}`)
       }
+    } catch (error) {
+      console.error('Error fetching transactions:', error)
+      setError('Failed to fetch transactions')
+    } finally {
       setLoading(false)
     }
-    fetchTransactions()
-  }, [baseUrl])
+  }
+
+  // Create a function to generate a composite key for transactions
+  const getTransactionKey = (transaction: any) => {
+    const id = transaction.id || transaction.reference || transaction.transaction_id
+    if (!id) {
+      console.error('Could not extract ID from transaction:', transaction)
+      return `unknown-${Math.random().toString(36).substring(2, 11)}`
+    }
+    return id.toString()
+  }
+
+  // WebSocket setup and management functions
+  const setupWebSocket = () => {
+    const token = getAccessToken()
+    if (!token) {
+      console.log('No access token available for WebSocket connection')
+      return
+    }
+
+    // Clean up existing connection
+    cleanupWebSocket()
+
+    try {
+      // Replace with your actual WebSocket URL when API is available
+      const wsUrl = `${baseUrl?.replace('http', 'ws')}/ws/transactions?token=${encodeURIComponent(token)}`
+      console.log('Attempting to connect to WebSocket:', wsUrl)
+      
+      webSocketRef.current = new WebSocket(wsUrl)
+
+      // Set connection timeout
+      const connectionTimeout = setTimeout(() => {
+        if (webSocketRef.current?.readyState !== WebSocket.OPEN) {
+          handleConnectionFailure('Connection timeout')
+        }
+      }, 5000)
+
+      webSocketRef.current.onopen = () => {
+        clearTimeout(connectionTimeout)
+        console.log('WebSocket connected successfully')
+        webSocketReconnectAttempts.current = 0
+        startPingInterval()
+      }
+
+      webSocketRef.current.onclose = (event) => {
+        clearTimeout(connectionTimeout)
+        handleWebSocketClose(event)
+      }
+
+      webSocketRef.current.onerror = (error) => {
+        console.error('WebSocket error:', error)
+        handleConnectionFailure('Connection failed')
+      }
+
+      webSocketRef.current.onmessage = handleWebSocketMessage
+
+    } catch (error) {
+      console.error('WebSocket setup failed:', error)
+      handleConnectionFailure('Failed to initialize WebSocket')
+    }
+  }
+
+  const cleanupWebSocket = () => {
+    if (webSocketRef.current) {
+      webSocketRef.current.close()
+      webSocketRef.current = null
+    }
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current)
+    }
+  }
+
+  const startPingInterval = () => {
+    const pingInterval = setInterval(() => {
+      if (webSocketRef.current?.readyState === WebSocket.OPEN) {
+        try {
+          webSocketRef.current.send(JSON.stringify({ type: 'ping' }))
+        } catch (error) {
+          console.error('Failed to send ping:', error)
+          cleanupWebSocket()
+          setupWebSocket()
+        }
+      } else {
+        clearInterval(pingInterval)
+      }
+    }, 30000)
+
+    // Store the interval ID for cleanup
+    if (webSocketRef.current) {
+      (webSocketRef.current as any).pingInterval = pingInterval
+    }
+  }
+
+  const handleConnectionFailure = (message: string) => {
+    console.error(message)
+    
+    // Implement exponential backoff
+    const backoffDelay = Math.min(1000 * Math.pow(2, webSocketReconnectAttempts.current), 30000)
+    webSocketReconnectAttempts.current++
+
+    reconnectTimeoutRef.current = setTimeout(() => {
+      setupWebSocket()
+    }, backoffDelay)
+  }
+
+  const handleWebSocketMessage = (event: MessageEvent) => {
+    try {
+      const data = JSON.parse(event.data)
+      wsHealth.current = {
+        lastMessageTime: Date.now(),
+        messageCount: wsHealth.current.messageCount + 1
+      }
+
+      console.log('WebSocket message received:', data)
+
+      switch (data.type) {
+        case 'transaction_update':
+          handleTransactionUpdate(data.transaction)
+          break
+        case 'new_transaction':
+          handleNewTransaction(data.transaction)
+          break
+        case 'pong':
+          console.log('Received pong from server')
+          break
+        case 'error':
+          console.error('Server error:', data.message)
+          break
+        default:
+          if (data.transaction) {
+            const existingTransaction = transactionsMapRef.current.has(getTransactionKey(data.transaction))
+            if (existingTransaction) {
+              handleTransactionUpdate(data.transaction)
+            } else {
+              handleNewTransaction(data.transaction)
+            }
+          }
+      }
+
+    } catch (error) {
+      console.error('Error processing WebSocket message:', error)
+    }
+  }
+
+  const handleWebSocketClose = (event: CloseEvent) => {
+    cleanupWebSocket()
+    
+    const reason = getCloseReason(event.code)
+    console.log(`WebSocket closed: ${reason}`)
+
+    if (event.code !== 1000) {
+      handleConnectionFailure(reason)
+    }
+  }
+
+  const getCloseReason = (code: number): string => {
+    const closeReasons: Record<number, string> = {
+      1000: 'Normal closure',
+      1001: 'Going away',
+      1002: 'Protocol error',
+      1003: 'Unsupported data',
+      1005: 'No status received',
+      1006: 'Abnormal closure',
+      1007: 'Invalid frame payload data',
+      1008: 'Policy violation',
+      1009: 'Message too big',
+      1010: 'Mandatory extension',
+      1011: 'Internal server error',
+      1012: 'Service restart',
+      1013: 'Try again later',
+      1014: 'Bad gateway',
+      1015: 'TLS handshake'
+    }
+
+    return closeReasons[code] || `Unknown reason (${code})`
+  }
+
+  // Handle new transaction from WebSocket
+  const handleNewTransaction = (transaction: any) => {
+    const key = getTransactionKey(transaction)
+    
+    // Check if we already have this transaction
+    if (!transactionsMapRef.current.has(key)) {
+      // Add to our map
+      transactionsMapRef.current.set(key, transaction)
+      
+      // Add to state (at the beginning)
+      setTransactions(prev => [transaction, ...prev])
+      console.log('New transaction added via WebSocket:', transaction)
+    }
+  }
+  
+  // Handle transaction updates from WebSocket
+  const handleTransactionUpdate = (updatedTransaction: any) => {
+    const key = getTransactionKey(updatedTransaction)
+    
+    console.log('Received update for transaction:', key, updatedTransaction)
+    
+    // Update the transaction in our state
+    setTransactions(prev => 
+      prev.map(item => {
+        if (getTransactionKey(item) === key) {
+          // Update the transaction with new data
+          return { ...item, ...updatedTransaction }
+        }
+        return item
+      })
+    )
+    
+    // Update the transaction in our map
+    if (transactionsMapRef.current.has(key)) {
+      const existingItem = transactionsMapRef.current.get(key)
+      if (existingItem) {
+        const updatedItem = { ...existingItem, ...updatedTransaction }
+        transactionsMapRef.current.set(key, updatedItem)
+      }
+    }
+    
+    console.log('Transaction updated via WebSocket:', updatedTransaction)
+  }
 
   const handleCheckStatus = async (reference: string) => {
     setStatusLoading((prev) => ({ ...prev, [reference]: true }))
     try {
-      const res = await fetch(`${baseUrl}/api/v1/transaction-status?reference=${reference}`)
+      const res = await smartFetch(`${baseUrl}/api/v1/transaction-status?reference=${reference}`)
+      
       if (res.ok) {
         const data = await res.json()
-        setStatusMap((prev) => ({ ...prev, [reference]: data.status || JSON.stringify(data) }))
+        setStatusMap((prev) => ({ ...prev, [reference]: data.status || 'Unknown' }))
       } else {
-        setStatusMap((prev) => ({ ...prev, [reference]: t("error") }))
+        setStatusMap((prev) => ({ ...prev, [reference]: 'Error checking status' }))
       }
-    } catch {
-      setStatusMap((prev) => ({ ...prev, [reference]: t("error") }))
+    } catch (error) {
+      console.error('Error checking status:', error)
+      setStatusMap((prev) => ({ ...prev, [reference]: 'Failed to check status' }))
+    } finally {
+      setStatusLoading((prev) => ({ ...prev, [reference]: false }))
     }
-    setStatusLoading((prev) => ({ ...prev, [reference]: false }))
   }
 
   const handleExportPDF = () => {
@@ -104,7 +390,7 @@ export function TransactionsContent() {
     doc.save("transactions.pdf")
   }
 
-  const filteredTransactions = transactions.filter((transaction) => {
+  const filteredTransactions = (Array.isArray(transactions) ? transactions : []).filter((transaction) => {
     const customerName = transaction.customer?.username || transaction.customer?.email || ""
     const matchesSearch =
       customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -139,6 +425,25 @@ export function TransactionsContent() {
           <p className="text-muted-foreground">{t("manageAndTrackPayments")}</p>
         </div>
         <div className="flex space-x-2">
+          {/* WebSocket Status Indicator */}
+          <div className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800">
+            <div className={`w-2 h-2 rounded-full ${
+              webSocketRef.current?.readyState === WebSocket.OPEN 
+                ? 'bg-green-500' 
+                : webSocketRef.current?.readyState === WebSocket.CONNECTING 
+                ? 'bg-yellow-500' 
+                : 'bg-red-500'
+            }`}></div>
+            <span className="text-xs text-slate-600 dark:text-slate-400">
+              {webSocketRef.current?.readyState === WebSocket.OPEN 
+                ? 'Live' 
+                : webSocketRef.current?.readyState === WebSocket.CONNECTING 
+                ? 'Connecting' 
+                : 'Offline'
+              }
+            </span>
+          </div>
+          
           <Button variant="outline" onClick={handleExportPDF}>
             <Download className="h-4 w-4 mr-2" />
             {t("export")}
@@ -294,3 +599,5 @@ export function TransactionsContent() {
     </div>
   )
 }
+
+
