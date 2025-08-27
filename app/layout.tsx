@@ -9,7 +9,7 @@ import { LanguageProvider } from "@/contexts/language-context"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Aggregator Merchant Dashboard",
+  title: "DGS Merchant Dashboard",
   description: "Professional merchant dashboard for payment management",
     // generator: 'v0.dev'
 }
