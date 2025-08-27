@@ -51,7 +51,7 @@ export const translations = {
     fromLastWeek: "from last week",
     fromYesterday: "from yesterday",
     feesPaid: "fees paid",
-    transactions: "transactions",
+    transactions: "Transactions",
 
     // Navigation
     customers: "Customers",
@@ -62,6 +62,7 @@ export const translations = {
     settings: "Settings",
 
     // Transactions
+    
     transactionHistory: "Transaction History",
     viewFilterHistory: "View and filter your transaction history",
     totalTransactions: "Total Transactions",
@@ -319,7 +320,7 @@ export const translations = {
     fromLastWeek: "de la semaine dernière",
     fromYesterday: "d'hier",
     feesPaid: "frais payés",
-    transactions: "transactions",
+    transactions: "Transactions",
 
     // Navigation
     customers: "Clients",

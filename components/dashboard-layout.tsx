@@ -156,11 +156,19 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Sidebar Header */}
         <div className="flex items-center justify-between h-20 px-6 border-b border-slate-100 dark:border-neutral-800 bg-crimson-600 dark:bg-crimson-700 flex-shrink-0">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center shadow-lg">
-              <Crown className="w-6 h-6 text-black dark:text-white" />
-            </div>
+            {/* <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center shadow-lg">
+              <img 
+                src={theme === "dark" ? "/logo_dark.png" : "/logo_light.png"} 
+                alt="Logo" 
+                className="w-6 h-6 object-contain"
+              />
+            </div> */}
             <div>
-              <span className="font-bold text-xl text-black dark:text-white">Aggregation</span>
+              <img 
+                src={theme === "dark" ? "/logo_dark.png" : "/logo_light.png"} 
+                alt="Logo" 
+                className="h-14 object-contain"
+              />
               <p className="text-xs text-black/80 dark:text-white/80">Merchant Dashboard</p>
             </div>
           </div>
@@ -206,7 +214,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <Link href="/profile" className="block">
             <div className="bg-slate-50 dark:bg-neutral-800 rounded-2xl p-4 mb-4 hover:bg-slate-100 dark:hover:bg-neutral-700 transition-colors cursor-pointer">
               <div className="flex items-center space-x-3">
-                <Avatar className="h-10 w-10 ring-2 ring-crimson-600 dark:ring-crimson-400">
+                <Avatar className="h-10 w-10 ring-2 ring-crimson-600 dark:ring-crimson-400 text-black dark:text-white">
                   <AvatarImage src={userProfile?.logo || ""} />
                   <AvatarFallback className="bg-crimson-600 text-black dark:text-white">
                     {getUserInitials()}
@@ -314,7 +322,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   variant="ghost"
                   className="flex items-center space-x-3 hover:bg-slate-50 dark:hover:bg-neutral-800 rounded-2xl px-3 py-2"
                 >
-                  <Avatar className="h-8 w-8 ring-2 ring-crimson-600">
+                  <Avatar className="h-8 w-8 ring-2 ring-crimson-600 text-black dark:text-white">
                     <AvatarImage src={userProfile?.logo || ""} />
                     <AvatarFallback className="bg-crimson-600 text-black dark:text-white">
                       {getUserInitials()}
