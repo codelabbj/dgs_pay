@@ -24,11 +24,28 @@ export function getUserData(): any {
 
 // Store tokens and user data from login response
 export function storeAuthData(response: any): void {
+  console.log('storeAuthData called with:', response)
+  
   localStorage.setItem("access", response.access)
   localStorage.setItem("refresh", response.refresh)
   localStorage.setItem("exp", response.exp)
   if (response.data) {
     localStorage.setItem("user", JSON.stringify(response.data))
+  }
+  
+  console.log('Auth data stored in localStorage:', {
+    access: localStorage.getItem("access"),
+    refresh: localStorage.getItem("refresh"),
+    exp: localStorage.getItem("exp"),
+    user: localStorage.getItem("user")
+  })
+  
+  // Dispatch custom event to notify components of auth state change
+  if (typeof window !== 'undefined') {
+    console.log('Dispatching authStateChanged event')
+    window.dispatchEvent(new CustomEvent('authStateChanged', { 
+      detail: { isAuthenticated: true } 
+    }))
   }
 }
 
@@ -38,6 +55,13 @@ export function clearAuthData(): void {
   localStorage.removeItem("refresh")
   localStorage.removeItem("exp")
   localStorage.removeItem("user")
+  
+  // Dispatch custom event to notify components of auth state change
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('authStateChanged', { 
+      detail: { isAuthenticated: false } 
+    }))
+  }
 }
 
 // Check if access token is expired
@@ -70,15 +94,63 @@ export function isRefreshTokenExpired(): boolean {
   }
 }
 
-// Check if user is authenticated
+// Check if user has any authentication data (for initial state check)
+export function hasAuthData(): boolean {
+  if (typeof window === 'undefined') {
+    return false
+  }
+  
+  const accessToken = getAccessToken()
+  const refreshToken = getRefreshToken()
+  
+  const result = !!(accessToken && refreshToken)
+  console.log('hasAuthData check:', { accessToken: !!accessToken, refreshToken: !!refreshToken, result })
+  return result
+}
+
+// Validate token format and structure
+export function isValidTokenFormat(token: string): boolean {
+  if (!token || typeof token !== 'string') return false
+  
+  // JWT tokens should have 3 parts separated by dots
+  const parts = token.split('.')
+  if (parts.length !== 3) return false
+  
+  // Each part should be base64 encoded
+  try {
+    parts.forEach(part => {
+      if (part) atob(part)
+    })
+    return true
+  } catch {
+    return false
+  }
+}
+
+// Enhanced authentication check with token validation
 export function isAuthenticated(): boolean {
+  // Check if we're in a browser environment
+  if (typeof window === 'undefined') {
+    return false
+  }
+
   const accessToken = getAccessToken()
   const refreshToken = getRefreshToken()
   
   if (!accessToken || !refreshToken) return false
   
+  // Validate token format
+  if (!isValidTokenFormat(accessToken) || !isValidTokenFormat(refreshToken)) {
+    // Clear invalid tokens
+    clearAuthData()
+    return false
+  }
+  
   // If refresh token is expired, user needs to login again
-  if (isRefreshTokenExpired()) return false
+  if (isRefreshTokenExpired()) {
+    clearAuthData()
+    return false
+  }
   
   // If access token is expired but refresh token is valid, we can refresh
   if (isAccessTokenExpired()) {
@@ -88,6 +160,22 @@ export function isAuthenticated(): boolean {
   }
   
   return true
+}
+
+// More lenient authentication check for initial state
+export function isAuthenticatedLenient(): boolean {
+  // Check if we're in a browser environment
+  if (typeof window === 'undefined') {
+    return false
+  }
+
+  const accessToken = getAccessToken()
+  const refreshToken = getRefreshToken()
+  
+  // Just check if tokens exist, don't validate format or expiration
+  const result = !!(accessToken && refreshToken)
+  console.log('isAuthenticatedLenient check:', { accessToken: !!accessToken, refreshToken: !!refreshToken, result })
+  return result
 }
 
 // Refresh access token using refresh token
@@ -109,7 +197,7 @@ export async function refreshAccessTokenInBackground(): Promise<boolean> {
         throw new Error("Base URL not configured")
       }
 
-      const response = await fetch(`${baseUrl}/api/refresh-token`, {
+      const response = await fetch(`${baseUrl}/api/v1/refresh-token`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refresh: refreshToken }),
@@ -195,22 +283,40 @@ export function stopBackgroundTokenRefresh(): void {
 
 // Smart fetch function that handles authentication automatically
 export async function smartFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  // Get current tokens
+  const accessToken = getAccessToken()
+  const refreshToken = getRefreshToken()
+  
+  // If no tokens available, throw a clear error
+  if (!accessToken || !refreshToken) {
+    console.error('smartFetch: No tokens available', { 
+      hasAccessToken: !!accessToken, 
+      hasRefreshToken: !!refreshToken,
+      url 
+    })
+    throw new Error("No access token available")
+  }
+  
   // Check if we need to refresh token before making request
   if (isAccessTokenExpired() && !isRefreshTokenExpired()) {
+    console.log('smartFetch: Access token expired, refreshing...')
     await refreshAccessTokenInBackground()
   }
 
-  const accessToken = getAccessToken()
-  if (!accessToken) {
-    throw new Error("No access token available")
+  // Get the current access token (might have been refreshed)
+  const currentAccessToken = getAccessToken()
+  if (!currentAccessToken) {
+    throw new Error("No access token available after refresh")
   }
 
   // Make request with access token
   const headers = {
     "Content-Type": "application/json",
-    "Authorization": `Bearer ${accessToken}`,
+    "Authorization": `Bearer ${currentAccessToken}`,
     ...options.headers,
   }
+
+  console.log('smartFetch: Making request with token', { url, hasToken: !!currentAccessToken })
 
   const response = await fetch(url, {
     ...options,
@@ -219,19 +325,23 @@ export async function smartFetch(url: string, options: RequestInit = {}): Promis
 
   // If we get 401, try to refresh token and retry once
   if (response.status === 401 && !isRefreshTokenExpired()) {
+    console.log('smartFetch: Got 401, attempting token refresh...')
     const refreshed = await refreshAccessTokenInBackground()
     if (refreshed) {
       const newAccessToken = getAccessToken()
-      const retryHeaders = {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${newAccessToken}`,
-        ...options.headers,
+      if (newAccessToken) {
+        const retryHeaders = {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${newAccessToken}`,
+          ...options.headers,
+        }
+        
+        console.log('smartFetch: Retrying request with new token')
+        return fetch(url, {
+          ...options,
+          headers: retryHeaders,
+        })
       }
-      
-      return fetch(url, {
-        ...options,
-        headers: retryHeaders,
-      })
     }
   }
 

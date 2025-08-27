@@ -2,7 +2,7 @@ export const translations = {
   en: {
     // Auth
     welcomeBack: "Welcome Back",
-    signInToAccount: "Sign in to your Aggregation dashboard",
+    signInToAccount: "Sign in to your DGS dashboard",
     signIn: "Sign In",
     signUp: "Sign Up",
     signOut: "Sign Out",
@@ -20,7 +20,7 @@ export const translations = {
     dontHaveAccount: "Don't have an account?",
     alreadyHaveAccount: "Already have an account?",
     createAccount: "Create Account",
-    joinpay: "Join Aggregation",
+    joinpay: "Join DGS",
     createMerchantAccount: "Create your merchant account today",
     enterCredentials: "Enter your credentials to access your account",
     fillDetails: "Fill in your details to get started",
@@ -271,7 +271,7 @@ export const translations = {
   fr: {
     // Auth
     welcomeBack: "Bon Retour",
-    signInToAccount: "Connectez-vous à votre tableau de bord Aggregation",
+    signInToAccount: "Connectez-vous à votre tableau de bord DGS",
     signIn: "Se Connecter",
     signUp: "S'Inscrire",
     signOut: "Se Déconnecter",
@@ -289,7 +289,7 @@ export const translations = {
     dontHaveAccount: "Vous n'avez pas de compte ?",
     alreadyHaveAccount: "Vous avez déjà un compte ?",
     createAccount: "Créer un Compte",
-    joinpay: "Rejoindre Aggregation",
+    joinpay: "Rejoindre DGS",
     createMerchantAccount: "Créez votre compte marchand aujourd'hui",
     enterCredentials: "Entrez vos identifiants pour accéder à votre compte",
     fillDetails: "Remplissez vos détails pour commencer",

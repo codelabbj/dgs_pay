@@ -14,8 +14,10 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { useLanguage } from "@/contexts/language-context"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { storeAuthData } from "@/utils/auth"
+import { useTheme } from "next-themes"
 
 export default function Login() {
+  const { theme, setTheme } = useTheme()
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
@@ -43,9 +45,23 @@ export default function Login() {
       
       const data = await res.json()
       if (res.ok) {
+        console.log('Login successful, storing auth data:', data)
         // Store authentication data using the utility function
         storeAuthData(data)
-        router.push("/")
+        
+        console.log('Auth data stored, checking localStorage:', {
+          access: localStorage.getItem('access'),
+          refresh: localStorage.getItem('refresh'),
+          exp: localStorage.getItem('exp'),
+          user: localStorage.getItem('user')
+        })
+        
+        // Add a small delay to ensure auth data is processed
+        console.log('Waiting 500ms before redirect...')
+        setTimeout(() => {
+          console.log('Redirecting to dashboard using router...')
+          router.push("/")
+        }, 500)
       } else {
         setApiError(data.details || data.message || "Login failed.")
       }
@@ -75,7 +91,11 @@ export default function Login() {
           {/* <div className="inline-flex items-center justify-center w-25 h-25 bg-crimson-600 rounded-3xl mb-6 shadow-2xl shadow-crimson-600/25 relative"> */}
           <div className="inline-flex items-center justify-center w-25 h-25 relative">
             {/* <Crown className="w-10 h-10 text-black dark:text-white" /> */}
-            <img src="/logo1.png" alt="Logo" className="w-45 h-36" />
+            <img 
+                src={theme === "dark" ? "/logo_dark1.png" : "/logo_light11.png"} 
+                alt="Logo" 
+                className=" h-14 w-auto"
+              />
           </div>
           {/* <h1 className="text-4xl font-bold text-neutral-900 dark:text-white mb-3">{t("welcomeBack")}</h1> */}
           <p className="text-neutral-600 dark:text-neutral-400 text-lg">{t("signInToAccount")}</p>
@@ -187,6 +207,42 @@ export default function Login() {
                   {t("signUp")}
                 </Link>
               </p>
+              
+              {/* Debug button for testing */}
+              <button
+                type="button"
+                onClick={() => {
+                  console.log('Manual localStorage check:', {
+                    access: localStorage.getItem('access'),
+                    refresh: localStorage.getItem('refresh'),
+                    exp: localStorage.getItem('exp'),
+                    user: localStorage.getItem('user')
+                  })
+                }}
+                className="mt-4 text-xs text-gray-500 hover:text-gray-700"
+              >
+                Debug: Check localStorage
+              </button>
+              
+              {/* Test authentication button */}
+              <button
+                type="button"
+                onClick={() => {
+                  const accessToken = localStorage.getItem('access')
+                  const refreshToken = localStorage.getItem('refresh')
+                  const hasTokens = !!(accessToken && refreshToken)
+                  console.log('Manual auth test:', { hasTokens, accessToken: !!accessToken, refreshToken: !!refreshToken })
+                  
+                  if (hasTokens) {
+                    console.log('✅ Authentication check passed, should be able to access dashboard')
+                  } else {
+                    console.log('❌ Authentication check failed, no tokens found')
+                  }
+                }}
+                className="mt-2 text-xs text-blue-500 hover:text-blue-700"
+              >
+                Test Authentication
+              </button>
             </div>
           </CardContent>
         </Card>

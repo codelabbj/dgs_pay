@@ -42,7 +42,7 @@ export default function Register() {
     setApiMessage("")
     if (step === "register") {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/register-customer`, {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/v1/register-customer`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

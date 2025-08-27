@@ -26,7 +26,9 @@ export default function RootLayout({
         <div className="min-h-screen flex flex-col">
           <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
             <LanguageProvider>
-              <AuthGuard>{children}</AuthGuard>
+              <AuthGuard>
+                {children}
+              </AuthGuard>
             </LanguageProvider>
           </ThemeProvider>
         </div>

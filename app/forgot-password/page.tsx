@@ -99,7 +99,7 @@ export default function ForgotPassword() {
       return
     }
     try {
-      const res = await fetch(`${baseUrl}/api/v1resetpassword`, {
+      const res = await fetch(`${baseUrl}/api/v1/resetpassword`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

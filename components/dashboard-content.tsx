@@ -1,9 +1,13 @@
 "use client"
 
+import React from "react"
 import { useState, useEffect } from "react"
+import { useAuth } from "@/hooks/use-auth"
+import { smartFetch } from "@/utils/auth"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { useLanguage } from "@/contexts/language-context"
 import {
   Eye,
   EyeOff,
@@ -30,12 +34,34 @@ import {
   AreaChart,
   Area,
 } from "recharts"
-import { useLanguage } from "@/contexts/language-context"
-import { smartFetch } from "@/utils/auth"
 
 export function DashboardContent() {
+  // Temporarily disable useAuth to test
+  // const { isLoading, requireAuth, checkAuth } = useAuth()
   const [showBalances, setShowBalances] = useState(false)
   const { t } = useLanguage()
+
+  // Temporarily disable authentication re-check
+  // useEffect(() => {
+  //   checkAuth()
+  // }, [checkAuth])
+
+  // Temporarily bypass authentication requirement
+  // if (!requireAuth()) {
+  //   return null
+  // }
+
+  // Temporarily disable loading check
+  // if (isLoading) {
+  //   return (
+  //     <div className="min-h-screen bg-slate-50/30 dark:bg-neutral-950 flex items-center justify-center">
+  //       <div className="flex items-center space-x-2">
+  //         <div className="w-8 h-8 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin"></div>
+  //         <span className="text-lg font-medium text-blue-600">Loading dashboard...</span>
+  //       </div>
+  //     </div>
+  //   )
+  // }
 
   // State for API data
   const [stats, setStats] = useState<any>(null)
@@ -44,7 +70,13 @@ export function DashboardContent() {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
 
   useEffect(() => {
-    fetchStats()
+    // Add a delay to ensure authentication is fully established
+    const timer = setTimeout(() => {
+      console.log('Dashboard content: Starting to fetch stats after delay')
+      fetchStats()
+    }, 1000) // Wait 1 second for auth to be fully established
+    
+    return () => clearTimeout(timer)
   }, [])
 
   const fetchStats = async () => {
@@ -121,6 +153,47 @@ export function DashboardContent() {
             {showBalances ? t("hideBalances") : t("showBalances")}
           </Button>
         </div>
+
+        {/* Debug Section */}
+        {/* <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
+          <h3 className="text-sm font-semibold text-yellow-800 dark:text-yellow-200 mb-2">Debug Info</h3>
+          <div className="text-xs text-yellow-700 dark:text-yellow-300 space-y-1">
+            <div>Access Token: {localStorage.getItem('access') ? '✅ Present' : '❌ Missing'}</div>
+            <div>Refresh Token: {localStorage.getItem('refresh') ? '✅ Present' : '❌ Missing'}</div>
+            <div>Expiration: {localStorage.getItem('exp') || '❌ Missing'}</div>
+            <div>User Data: {localStorage.getItem('user') ? '✅ Present' : '❌ Missing'}</div>
+            <button
+              onClick={() => {
+                console.log('Dashboard localStorage check:', {
+                  access: localStorage.getItem('access'),
+                  refresh: localStorage.getItem('refresh'),
+                  exp: localStorage.getItem('exp'),
+                  user: localStorage.getItem('user')
+                })
+              }}
+              className="text-blue-600 hover:text-blue-800 underline"
+            >
+              Log to Console
+            </button>
+            <button
+              onClick={() => {
+                const accessToken = localStorage.getItem('access')
+                const refreshToken = localStorage.getItem('refresh')
+                const hasTokens = !!(accessToken && refreshToken)
+                console.log('Manual auth check from dashboard:', { hasTokens, accessToken: !!accessToken, refreshToken: !!refreshToken })
+                
+                if (hasTokens) {
+                  console.log('✅ Dashboard auth check passed')
+                } else {
+                  console.log('❌ Dashboard auth check failed')
+                }
+              }}
+              className="text-green-600 hover:text-green-800 underline ml-2"
+            >
+              Check Auth
+            </button>
+          </div>
+        </div> */}
 
         {/* Balance Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
