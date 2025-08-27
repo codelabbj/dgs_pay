@@ -266,6 +266,7 @@ export const translations = {
     checkStatus: "Check Status",
     checking: "Checking...",
     error: "Error",
+    entrepriseName: "Entreprise Name",
 
   },
   fr: {
@@ -535,6 +536,7 @@ export const translations = {
     checkStatus: "Vérifier le statut",
     checking: "Vérification...",
     error: "Erreur",
+    entrepriseName: "Nom de l'entreprise",
   },
 }
 

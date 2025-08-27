@@ -209,7 +209,7 @@ export default function Login() {
               </p>
               
               {/* Debug button for testing */}
-              <button
+              {/* <button
                 type="button"
                 onClick={() => {
                   console.log('Manual localStorage check:', {
@@ -222,10 +222,10 @@ export default function Login() {
                 className="mt-4 text-xs text-gray-500 hover:text-gray-700"
               >
                 Debug: Check localStorage
-              </button>
+              </button> */}
               
               {/* Test authentication button */}
-              <button
+              {/* <button
                 type="button"
                 onClick={() => {
                   const accessToken = localStorage.getItem('access')
@@ -242,7 +242,7 @@ export default function Login() {
                 className="mt-2 text-xs text-blue-500 hover:text-blue-700"
               >
                 Test Authentication
-              </button>
+              </button> */}
             </div>
           </CardContent>
         </Card>
