@@ -203,8 +203,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 alt="Logo" 
                 className="h-14 object-contain"
               /> */}
-              <p className="text-lg font-bold text-black/80 dark:text-white/80">DGS</p>
-              <p className="text-xs text-black/80 dark:text-white/80">Merchant Dashboard</p>
+              <p className="text-lg font-bold text-black/80 dark:text-white/80">{t("companyShortName")}</p>
+              <p className="text-xs text-black/80 dark:text-white/80">{t("merchantDashboard")}</p>
             </div>
           </div>
           <Button

@@ -5,6 +5,7 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthGuard } from "@/components/auth-guard"
 import { LanguageProvider } from "@/contexts/language-context"
+import { DynamicLayout } from "@/components/dynamic-layout"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -21,14 +22,16 @@ export default function RootLayout({
 }) {
 
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html suppressHydrationWarning>
       <body className={inter.className}>
         <div className="min-h-screen flex flex-col">
           <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
             <LanguageProvider>
-              <AuthGuard>
-                {children}
-              </AuthGuard>
+              <DynamicLayout>
+                <AuthGuard>
+                  {children}
+                </AuthGuard>
+              </DynamicLayout>
             </LanguageProvider>
           </ThemeProvider>
         </div>

@@ -52,6 +52,7 @@ export const translations = {
     fromYesterday: "from yesterday",
     feesPaid: "fees paid",
     transactions: "Transactions",
+    noDataAvailable: "No data available",
 
     // Navigation
     customers: "Customers",
@@ -96,6 +97,8 @@ export const translations = {
     comingSoon: "coming soon...",
     loading: "Loading...",
     selectCountry: "Select country",
+    merchantDashboard: "Merchant Dashboard",
+    companyShortName: "DGS",
 
     // Countries
     benin: "Benin",
@@ -322,6 +325,7 @@ export const translations = {
     fromYesterday: "d'hier",
     feesPaid: "frais payés",
     transactions: "Transactions",
+    noDataAvailable: "Aucune donnée disponible",
 
     // Navigation
     customers: "Clients",
@@ -365,6 +369,8 @@ export const translations = {
     comingSoon: "bientôt disponible...",
     loading: "Chargement...",
     selectCountry: "Sélectionner le pays",
+    merchantDashboard: "Tableau de Bord Marchand",
+    companyShortName: "DGS",
 
     // Countries
     benin: "Bénin",

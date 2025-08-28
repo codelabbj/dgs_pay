@@ -13,12 +13,28 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined)
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguage] = useState<Language>("en")
+  const [language, setLanguage] = useState<Language>("fr") // Changed default to French
 
   useEffect(() => {
+    // Check for saved language preference first
     const savedLanguage = localStorage.getItem("language") as Language
     if (savedLanguage && (savedLanguage === "en" || savedLanguage === "fr")) {
       setLanguage(savedLanguage)
+    } else {
+      // If no saved preference, try to detect browser language
+      const browserLang = navigator.language.toLowerCase()
+      const isFrenchSpeaking = browserLang.startsWith('fr') || 
+                              browserLang.startsWith('ca') || // Canadian French
+                              browserLang.startsWith('be') || // Belgian French
+                              browserLang.startsWith('ch') || // Swiss French
+                              browserLang.startsWith('lu') || // Luxembourg French
+                              browserLang.startsWith('mc')    // Monaco French
+      
+      if (isFrenchSpeaking) {
+        setLanguage("fr")
+        localStorage.setItem("language", "fr")
+      }
+      // For all other languages, French remains the default
     }
   }, [])
 
@@ -28,7 +44,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   }
 
   const t = (key: TranslationKey): string => {
-    return translations[language][key] || translations.en[key] || key
+    return translations[language][key] || translations.fr[key] || key // Changed fallback to French
   }
 
   return (

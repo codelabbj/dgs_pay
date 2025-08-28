@@ -281,7 +281,7 @@ export function DashboardContent() {
                 </div>
               ) : (
                 <div className="text-center py-8 text-neutral-500 dark:text-neutral-400">
-                  No customer location data available
+                  {t("noDataAvailable")}
                 </div>
               )}
             </CardContent>
@@ -358,7 +358,7 @@ export function DashboardContent() {
                 </>
               ) : (
                 <div className="text-center py-8 text-neutral-500 dark:text-neutral-400">
-                  No payment method data available
+                  {t("noDataAvailable")}
                 </div>
               )}
             </CardContent>
