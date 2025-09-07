@@ -33,7 +33,7 @@ export function PayinContent() {
         description: formData.get("description"),
       }
 
-      const res = await smartFetch(`${baseUrl}/api/v1/transaction`, {
+      const res = await smartFetch(`${baseUrl}/prod/v1/api/transaction`, {
         method: "POST",
         body: JSON.stringify(payload),
       })

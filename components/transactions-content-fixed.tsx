@@ -437,129 +437,41 @@ export function TransactionsContent() {
     }
   }
 
-  const handleExportPDF = async () => {
-    try {
-      // Use the search term if available, otherwise empty string
-      const searchParam = searchTerm ? `?search=${encodeURIComponent(searchTerm)}` : ''
-      const res = await smartFetch(`${baseUrl}/prod/v1/api/pdf-transaction${searchParam}`)
-      
-      if (res.ok) {
-        const data = await res.json()
-        
-        // Create PDF using the API response data
-        const doc = new jsPDF()
-        const tableColumn = [
-          t("transactionId"),
-          t("date"),
-          t("time"),
-          t("customer"),
-          t("email"),
-          t("amount"),
-          t("method"),
-          t("status"),
-          t("reference"),
-        ]
-        
-        const tableRows = data.map((transaction: any) => {
-          const dateObj = transaction.created_at ? new Date(transaction.created_at) : null
-          return [
-            transaction.id || "-",
-            dateObj ? dateObj.toLocaleDateString() : "-",
-            dateObj ? dateObj.toLocaleTimeString() : "-",
-            transaction.beneficiary?.name || transaction.customer?.username || transaction.customer?.email || "-",
-            transaction.beneficiary?.email || transaction.customer?.email || "-",
-            transaction.amount?.toLocaleString?.() || transaction.amount || "-",
-            transaction.network || transaction.type_trans || "-",
-            transaction.status || "-",
-            transaction.reference || "-",
-          ]
-        })
-        
-        autoTable(doc, {
-          head: [tableColumn],
-          body: tableRows,
-          styles: { fontSize: 8 },
-          headStyles: { fillColor: [220, 220, 220] },
-          margin: { top: 20 },
-        })
-        
-        doc.save("transactions.pdf")
-      } else {
-        console.error('Failed to export transactions:', res.status)
-        // Fallback to client-side export if API fails
-        const doc = new jsPDF()
-        const tableColumn = [
-          t("transactionId"),
-          t("date"),
-          t("time"),
-          t("customer"),
-          t("email"),
-          t("amount"),
-          t("method"),
-          t("status"),
-          t("reference"),
-        ]
-        const tableRows = filteredTransactions.map((transaction) => {
-          const dateObj = transaction.created_at ? new Date(transaction.created_at) : null
-          return [
-            transaction.id || "-",
-            dateObj ? dateObj.toLocaleDateString() : "-",
-            dateObj ? dateObj.toLocaleTimeString() : "-",
-            transaction.customer?.username || transaction.customer?.email || "-",
-            transaction.customer?.email || "-",
-            transaction.amount?.toLocaleString?.() || transaction.amount || "-",
-            transaction.network || transaction.type_trans || "-",
-            transaction.status || "-",
-            transaction.reference || "-",
-          ]
-        })
-        autoTable(doc, {
-          head: [tableColumn],
-          body: tableRows,
-          styles: { fontSize: 8 },
-          headStyles: { fillColor: [220, 220, 220] },
-          margin: { top: 20 },
-        })
-        doc.save("transactions.pdf")
-      }
-    } catch (error) {
-      console.error('Error exporting transactions:', error)
-      // Fallback to client-side export if API fails
-      const doc = new jsPDF()
-      const tableColumn = [
-        t("transactionId"),
-        t("date"),
-        t("time"),
-        t("customer"),
-        t("email"),
-        t("amount"),
-        t("method"),
-        t("status"),
-        t("reference"),
+  const handleExportPDF = () => {
+    const doc = new jsPDF()
+    const tableColumn = [
+      t("transactionId"),
+      t("date"),
+      t("time"),
+      t("customer"),
+      t("email"),
+      t("amount"),
+      t("method"),
+      t("status"),
+      t("reference"),
+    ]
+    const tableRows = filteredTransactions.map((transaction) => {
+      const dateObj = transaction.created_at ? new Date(transaction.created_at) : null
+      return [
+        transaction.id || "-",
+        dateObj ? dateObj.toLocaleDateString() : "-",
+        dateObj ? dateObj.toLocaleTimeString() : "-",
+        transaction.customer?.username || transaction.customer?.email || "-",
+        transaction.customer?.email || "-",
+        transaction.amount?.toLocaleString?.() || transaction.amount || "-",
+        transaction.network || transaction.type_trans || "-",
+        transaction.status || "-",
+        transaction.reference || "-",
       ]
-      const tableRows = filteredTransactions.map((transaction) => {
-        const dateObj = transaction.created_at ? new Date(transaction.created_at) : null
-        return [
-          transaction.id || "-",
-          dateObj ? dateObj.toLocaleDateString() : "-",
-          dateObj ? dateObj.toLocaleTimeString() : "-",
-          transaction.customer?.username || transaction.customer?.email || "-",
-          transaction.customer?.email || "-",
-          transaction.amount?.toLocaleString?.() || transaction.amount || "-",
-          transaction.network || transaction.type_trans || "-",
-          transaction.status || "-",
-          transaction.reference || "-",
-        ]
-      })
-      autoTable(doc, {
-        head: [tableColumn],
-        body: tableRows,
-        styles: { fontSize: 8 },
-        headStyles: { fillColor: [220, 220, 220] },
-        margin: { top: 20 },
-      })
-      doc.save("transactions.pdf")
-    }
+    })
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [220, 220, 220] },
+      margin: { top: 20 },
+    })
+    doc.save("transactions.pdf")
   }
 
   const totalAmount = filteredTransactions.reduce((sum, transaction) => sum + transaction.amount, 0)

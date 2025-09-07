@@ -1,8 +1,12 @@
 "use client"
-import { useState } from 'react';
-import { Copy, Check, RefreshCw, Eye, EyeOff } from 'lucide-react';
-import { authenticatedFetch } from '@/utils/auth';
+import { useState, useEffect } from 'react';
+import { Copy, Check, RefreshCw, Eye, EyeOff, Save, AlertCircle } from 'lucide-react';
+import { authenticatedFetch, getUserData } from '@/utils/auth';
 import { useLanguage } from '@/contexts/language-context';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { toast } from '@/hooks/use-toast';
 
 export default function ApiKeysComponent() {
   const { t } = useLanguage();
@@ -18,9 +22,93 @@ export default function ApiKeysComponent() {
     secret: ''
   });
 
+  const [webhookUrls, setWebhookUrls] = useState({
+    success_url: '',
+    cancel_url: '',
+    callback_url: ''
+  });
+
+  const [isLoadingWebhook, setIsLoadingWebhook] = useState(false);
+  const [webhookError, setWebhookError] = useState<string | null>(null);
+  const [webhookSuccess, setWebhookSuccess] = useState<string | null>(null);
+
+  // Load webhook URLs from user data
+  useEffect(() => {
+    const userData = getUserData();
+    if (userData) {
+      setWebhookUrls({
+        success_url: userData.success_url || '',
+        cancel_url: userData.cancel_url || '',
+        callback_url: userData.callback_url || ''
+      });
+    }
+  }, []);
+
+  const handleWebhookUpdate = async () => {
+    setIsLoadingWebhook(true);
+    setWebhookError(null);
+    setWebhookSuccess(null);
+
+    try {
+      const payload = {
+        email: getUserData()?.email,
+        phone: getUserData()?.phone,
+        first_name: getUserData()?.first_name,
+        last_name: getUserData()?.last_name,
+        country: getUserData()?.country,
+        entreprise_name: getUserData()?.entreprise_name,
+        website: getUserData()?.website,
+        logo: getUserData()?.logo,
+        success_url: webhookUrls.success_url,
+        cancel_url: webhookUrls.cancel_url,
+        callback_url: webhookUrls.callback_url,
+        ip_adress: getUserData()?.ip_adress,
+        trade_commerce: getUserData()?.trade_commerce,
+        gerant_doc: getUserData()?.gerant_doc,
+        entreprise_number: getUserData()?.entreprise_number
+      };
+
+      const res = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BASE_URL}/v1/api/update-profile`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setWebhookSuccess('Webhook URLs updated successfully!');
+        // Update localStorage
+        localStorage.setItem('user', JSON.stringify(data));
+        toast({
+          title: "Success",
+          description: "Webhook URLs updated successfully!",
+        });
+      } else {
+        const errorData = await res.json();
+        const errorMessage = errorData.detail || errorData.message || 'Failed to update webhook URLs';
+        setWebhookError(errorMessage);
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Webhook update error:', error);
+      const errorMessage = 'Failed to update webhook URLs';
+      setWebhookError(errorMessage);
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingWebhook(false);
+    }
+  };
+
   const handleRenewKeys = async () => {
     try {
-      const res = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/v1/generate-api-key`, {
+      const res = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BASE_URL}/v1/api/generate-api-key`, {
         method: "POST",
         body: JSON.stringify({}),
       });
@@ -156,9 +244,89 @@ export default function ApiKeysComponent() {
 
           {/* Webhook Content */}
           {activeTab === 'Webhook' && (
-            <div className="p-6">
-              <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                <p>{t("webhookConfigNotice")}</p>
+            <div className="p-6 space-y-6">
+              {/* Success URL */}
+              <div className="space-y-2">
+                <Label htmlFor="success_url" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  URL de Succès
+                </Label>
+                <Input
+                  id="success_url"
+                  type="url"
+                  value={webhookUrls.success_url}
+                  onChange={(e) => setWebhookUrls(prev => ({ ...prev, success_url: e.target.value }))}
+                  disabled={isLoadingWebhook}
+                  placeholder="https://yoursite.com/success"
+                  className="w-full px-4 py-3 rounded-lg border transition-colors bg-gray-50 border-gray-300 text-gray-900 focus:border-black dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:border-black focus:outline-none focus:ring-2 focus:ring-black focus:ring-opacity-20"
+                />
+              </div>
+
+              {/* Cancel URL */}
+              <div className="space-y-2">
+                <Label htmlFor="cancel_url" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  URL d'Annulation
+                </Label>
+                <Input
+                  id="cancel_url"
+                  type="url"
+                  value={webhookUrls.cancel_url}
+                  onChange={(e) => setWebhookUrls(prev => ({ ...prev, cancel_url: e.target.value }))}
+                  disabled={isLoadingWebhook}
+                  placeholder="https://yoursite.com/cancel"
+                  className="w-full px-4 py-3 rounded-lg border transition-colors bg-gray-50 border-gray-300 text-gray-900 focus:border-black dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:border-black focus:outline-none focus:ring-2 focus:ring-black focus:ring-opacity-20"
+                />
+              </div>
+
+              {/* Callback URL */}
+              <div className="space-y-2">
+                <Label htmlFor="callback_url" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  URL de Rappel
+                </Label>
+                <Input
+                  id="callback_url"
+                  type="url"
+                  value={webhookUrls.callback_url}
+                  onChange={(e) => setWebhookUrls(prev => ({ ...prev, callback_url: e.target.value }))}
+                  disabled={isLoadingWebhook}
+                  placeholder="https://yoursite.com/callback"
+                  className="w-full px-4 py-3 rounded-lg border transition-colors bg-gray-50 border-gray-300 text-gray-900 focus:border-black dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:border-black focus:outline-none focus:ring-2 focus:ring-black focus:ring-opacity-20"
+                />
+              </div>
+
+              {/* Error and Success Messages */}
+              {webhookError && (
+                <div className="flex items-center space-x-2 text-red-600 dark:text-red-400 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                  <AlertCircle className="w-4 h-4" />
+                  <span className="text-sm">{webhookError}</span>
+                </div>
+              )}
+
+              {webhookSuccess && (
+                <div className="flex items-center space-x-2 text-green-600 dark:text-green-400 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                  <Check className="w-4 h-4" />
+                  <span className="text-sm">{webhookSuccess}</span>
+                </div>
+              )}
+
+              {/* Save Button */}
+              <div className="pt-4">
+                <Button
+                  onClick={handleWebhookUpdate}
+                  disabled={isLoadingWebhook}
+                  className="px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2 font-medium"
+                >
+                  {isLoadingWebhook ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Sauvegarde...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      Sauvegarder les URLs
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
           )}

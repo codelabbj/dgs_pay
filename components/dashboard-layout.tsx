@@ -26,6 +26,8 @@ import {
   X,
   Crown,
   ChevronDown,
+  CheckCircle,
+  AlertCircle,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 
@@ -55,6 +57,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [userProfile, setUserProfile] = useState<any>(null)
   const [isLoadingProfile, setIsLoadingProfile] = useState(true)
   const router = useRouter()
+  const pathname = usePathname()
   
   // Temporarily bypass authentication check
   // if (!requireAuth()) {
@@ -70,6 +73,35 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     }, 1000) // Wait 1 second for auth to be fully established
     
     return () => clearTimeout(timer)
+  }, [])
+
+  // Refresh user profile when pathname changes (user navigates between pages)
+  useEffect(() => {
+    if (pathname) {
+      console.log('Dashboard layout: Pathname changed, refreshing user profile')
+      loadUserProfile()
+    }
+  }, [pathname])
+
+  // Refresh user profile when window regains focus (user comes back to tab)
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('Dashboard layout: Window focused, refreshing user profile')
+      loadUserProfile()
+    }
+
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [])
+
+  // Periodic refresh every 30 seconds to keep data fresh
+  useEffect(() => {
+    const interval = setInterval(() => {
+      console.log('Dashboard layout: Periodic refresh of user profile')
+      loadUserProfile()
+    }, 30000) // Refresh every 30 seconds
+
+    return () => clearInterval(interval)
   }, [])
   
   // Temporarily disable authentication re-check
@@ -87,7 +119,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
       // Then try to fetch fresh data from API
       try {
-        const response = await smartFetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/v1/user-details`)
+        const response = await smartFetch(`${process.env.NEXT_PUBLIC_BASE_URL}/v1/api/user-details`)
         
         if (response.ok) {
           const data = await response.json()
@@ -135,9 +167,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     const lastName = userProfile.last_name || ""
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
   }
-  
-  const pathname = usePathname()
+
   const { theme, setTheme } = useTheme()
+
+  const getVerificationStatus = () => {
+    if (!userProfile) return null
+    // Check if account is verified based on account_status
+    return userProfile.account_status === 'active'
+  }
   const [isLiveMode, setIsLiveMode] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -249,12 +286,24 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <Link href="/profile" className="block">
             <div className="bg-slate-50 dark:bg-neutral-800 rounded-2xl p-4 mb-4 hover:bg-slate-100 dark:hover:bg-neutral-700 transition-colors cursor-pointer">
               <div className="flex items-center space-x-3">
-                <Avatar className="h-10 w-10 ring-2 ring-crimson-600 dark:ring-crimson-400 text-black dark:text-white">
-                  <AvatarImage src={userProfile?.logo || ""} />
-                  <AvatarFallback className="bg-crimson-600 text-black dark:text-white">
-                    {getUserInitials()}
-                  </AvatarFallback>
-                </Avatar>
+                <div className="relative">
+                  <Avatar className="h-10 w-10 ring-2 ring-crimson-600 dark:ring-crimson-400 text-black dark:text-white">
+                    <AvatarImage src={userProfile?.logo || ""} />
+                    <AvatarFallback className="bg-crimson-600 text-black dark:text-white">
+                      {getUserInitials()}
+                    </AvatarFallback>
+                  </Avatar>
+                  {/* Verification Status Icon */}
+                  {userProfile && (
+                    <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-white dark:bg-neutral-800 border-2 border-white dark:border-neutral-800 flex items-center justify-center">
+                      {getVerificationStatus() ? (
+                        <CheckCircle className="w-3 h-3 text-green-600 dark:text-green-400" />
+                      ) : (
+                        <AlertCircle className="w-3 h-3 text-yellow-600 dark:text-yellow-400" />
+                      )}
+                    </div>
+                  )}
+                </div>
                 <div className="flex-1">
                   <p className="font-medium text-neutral-900 dark:text-white">
                     {userProfile ? `${userProfile.first_name} ${userProfile.last_name}` : "Loading..."}
@@ -357,12 +406,24 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   variant="ghost"
                   className="flex items-center space-x-3 hover:bg-slate-50 dark:hover:bg-neutral-800 rounded-2xl px-3 py-2"
                 >
-                  <Avatar className="h-8 w-8 ring-2 ring-crimson-600 text-black dark:text-white">
-                    <AvatarImage src={userProfile?.logo || ""} />
-                    <AvatarFallback className="bg-crimson-600 text-black dark:text-white">
-                      {getUserInitials()}
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className="relative">
+                    <Avatar className="h-8 w-8 ring-2 ring-crimson-600 text-black dark:text-white">
+                      <AvatarImage src={userProfile?.logo || ""} />
+                      <AvatarFallback className="bg-crimson-600 text-black dark:text-white">
+                        {getUserInitials()}
+                      </AvatarFallback>
+                    </Avatar>
+                    {/* Verification Status Icon */}
+                    {userProfile && (
+                      <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-white dark:bg-neutral-800 border-2 border-white dark:border-neutral-800 flex items-center justify-center">
+                        {getVerificationStatus() ? (
+                          <CheckCircle className="w-2.5 h-2.5 text-green-600 dark:text-green-400" />
+                        ) : (
+                          <AlertCircle className="w-2.5 h-2.5 text-yellow-600 dark:text-yellow-400" />
+                        )}
+                      </div>
+                    )}
+                  </div>
                   <div className="hidden md:block text-left">
                     <p className="text-sm font-medium">
                       {userProfile ? `${userProfile.first_name} ${userProfile.last_name}` : "Loading..."}

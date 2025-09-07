@@ -15,7 +15,8 @@ import {
   X,
   Upload,
   Check,
-  AlertCircle
+  AlertCircle,
+  FileText
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -29,24 +30,31 @@ import { toast } from "@/hooks/use-toast"
 
 interface UserProfile {
   id: string
-  username: string
+  email: string
   first_name: string
   last_name: string
-  email: string
-  phone: string
-  country: string
-  entreprise_name: string
-  website: string
+  phone: string | null
+  country: string | null
+  entreprise_name: string | null
+  website: string | null
   logo: string | null
-  date_joined: string
-  last_login: string | null
+  otp: string | null
+  otp_created_at: string | null
+  ip_adress: string | null
   success_url: string | null
   cancel_url: string | null
   callback_url: string | null
-  entreprise_doc: Record<string, any>
-  is_verify: boolean
-  is_block: boolean
-  availavailable_fund: number
+  reason_for_rejection: string | null
+  account_status: string
+  customer_pay_fee: boolean
+  created_at: string
+  updated_at: string
+  fullname: string
+  is_active: boolean
+  is_partner: boolean
+  trade_commerce: string | null
+  gerant_doc: string | null
+  entreprise_number: string | null
 }
 
 export function ProfileContent() {
@@ -54,18 +62,59 @@ export function ProfileContent() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [verificationSubmitted, setVerificationSubmitted] = useState(false)
   const { t } = useLanguage()
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
 
+  const loadUserProfile = async () => {
+    setIsLoading(true)
+    setError(null)
+    
+    try {
+      const res = await smartFetch(`${baseUrl}/v1/api/user-details`, {
+        method: 'GET',
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setUserProfile(data)
+        // Update localStorage
+        localStorage.setItem('user', JSON.stringify(data))
+      } else {
+        const errorData = await res.json()
+        const errorMessage = errorData.detail || errorData.message || 'Failed to load profile'
+        setError(errorMessage)
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error('Profile load error:', error)
+      const errorMessage = 'Failed to load profile'
+      setError(errorMessage)
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   useEffect(() => {
-    // Load user profile from localStorage first
+    // Load user profile from localStorage first, then from API
     const userData = getUserData()
     if (userData) {
       setUserProfile(userData)
     }
+    // Always fetch fresh data from API
+    loadUserProfile()
   }, [])
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'logo' | 'trade_commerce' | 'gerant_doc') => {
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -77,7 +126,7 @@ export function ProfileContent() {
       const formData = new FormData()
       formData.append('file', file)
 
-      const res = await smartFetch(`${baseUrl}/api/upload`, {
+      const res = await smartFetch(`${baseUrl}/prod/v1/api/upload`, {
         method: 'POST',
         body: formData,
         headers: {
@@ -87,10 +136,12 @@ export function ProfileContent() {
 
       if (res.ok) {
         const data = await res.json()
-        setSuccess('File uploaded successfully!')
-        // Update user profile with new logo
-        if (data.logo) {
-          setUserProfile((prev: any) => ({ ...prev, logo: data.logo }))
+        setSuccess(`${field === 'logo' ? 'Logo' : field === 'trade_commerce' ? 'Trade Commerce Document' : 'Manager Document'} uploaded successfully!`)
+        
+        // Update user profile with new file URL
+        if (data.url || data.logo) {
+          const fileUrl = data.url || data.logo
+          setUserProfile((prev: any) => ({ ...prev, [field]: fileUrl }))
         }
       } else {
         const errorData = await res.json()
@@ -113,16 +164,21 @@ export function ProfileContent() {
     try {
       const formData = new FormData(e.currentTarget)
       const payload = {
-        first_name: formData.get('first_name'),
-        last_name: formData.get('last_name'),
         email: formData.get('email'),
         phone: formData.get('phone'),
+        first_name: formData.get('first_name'),
+        last_name: formData.get('last_name'),
         country: formData.get('country'),
         entreprise_name: formData.get('entreprise_name'),
         website: formData.get('website'),
+        logo: userProfile.logo,
+        ip_adress: formData.get('ip_adress'),
+        trade_commerce: userProfile.trade_commerce,
+        gerant_doc: userProfile.gerant_doc,
+        entreprise_number: formData.get('entreprise_number')
       }
 
-      const res = await smartFetch(`${baseUrl}/api/user-details`, {
+      const res = await smartFetch(`${baseUrl}/prod/v1/api/update-profile`, {
         method: 'PUT',
         body: JSON.stringify(payload),
       })
@@ -131,15 +187,41 @@ export function ProfileContent() {
         const data = await res.json()
         setUserProfile(data)
         setSuccess('Profile updated successfully!')
+        
+        // Check if verification documents were submitted
+        const hasVerificationDocs = formData.get('entreprise_number') || 
+                                   userProfile.trade_commerce || 
+                                   userProfile.gerant_doc
+        
+        if (hasVerificationDocs) {
+          setVerificationSubmitted(true)
+        }
+        
         // Update localStorage
         localStorage.setItem('user', JSON.stringify(data))
+        toast({
+          title: "Success",
+          description: "Profile updated successfully!",
+        })
       } else {
         const errorData = await res.json()
-        setError(errorData.detail || 'Failed to update profile')
+        const errorMessage = errorData.detail || errorData.message || 'Failed to update profile'
+        setError(errorMessage)
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive",
+        })
       }
     } catch (error) {
       console.error('Profile update error:', error)
-      setError('Failed to update profile')
+      const errorMessage = 'Failed to update profile'
+      setError(errorMessage)
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      })
     } finally {
       setIsLoading(false)
     }
@@ -232,29 +314,37 @@ export function ProfileContent() {
                 {/* Status Badges */}
                 <div className="mt-6 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-neutral-600 dark:text-neutral-400">{t("verificationStatus")}</span>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      userProfile.is_verify 
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                        : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
-                    }`}>
-                      {userProfile.is_verify ? t("verified") : t("pending")}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
                     <span className="text-sm text-neutral-600 dark:text-neutral-400">{t("accountStatus")}</span>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      userProfile.is_block 
-                        ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-                        : 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                      userProfile.account_status === 'active'
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                        : userProfile.account_status === 'pending'
+                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+                        : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
                     }`}>
-                      {userProfile.is_block ? t("blocked") : t("active")}
+                      {userProfile.account_status === 'active' ? t("active") : 
+                       userProfile.account_status === 'pending' ? t("pending") : 
+                       userProfile.account_status}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-neutral-600 dark:text-neutral-400">{t("availableFunds")}</span>
-                    <span className="text-sm font-medium text-neutral-900 dark:text-white">
-                      {(userProfile.availavailable_fund || 0).toLocaleString()} FCFA
+                    <span className="text-sm text-neutral-600 dark:text-neutral-400">Account Type</span>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      userProfile.is_partner 
+                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
+                        : 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
+                    }`}>
+                      {userProfile.is_partner ? "Partner" : "Customer"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-neutral-600 dark:text-neutral-400">Fee Payment</span>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      userProfile.customer_pay_fee 
+                        ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400'
+                        : 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                    }`}>
+                      {userProfile.customer_pay_fee ? "Customer Pays" : "Platform Pays"}
                     </span>
                   </div>
                 </div>
@@ -294,7 +384,7 @@ export function ProfileContent() {
                           name="first_name"
                           value={userProfile.first_name || ''}
                           onChange={(e) => setUserProfile((prev: typeof userProfile) => ({ ...prev, first_name: e.target.value }))}
-                          disabled={!isLoading}
+                          disabled={isLoading}
                           className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
                         />
                       </div>
@@ -308,7 +398,7 @@ export function ProfileContent() {
                           name="last_name"
                           value={userProfile.last_name || ''}
                           onChange={(e) => setUserProfile((prev: any) => ({ ...prev, last_name: e.target.value }))}
-                          disabled={!isLoading}
+                          disabled={isLoading}
                           className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
                         />
                       </div>
@@ -323,7 +413,7 @@ export function ProfileContent() {
                           type="email"
                           value={userProfile.email || ''}
                           onChange={(e) => setUserProfile((prev: any) => ({ ...prev, email: e.target.value }))}
-                          disabled={!isLoading}
+                          disabled={isLoading}
                           className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
                         />
                       </div>
@@ -337,7 +427,7 @@ export function ProfileContent() {
                           name="phone"
                           value={userProfile.phone || ''}
                           onChange={(e) => setUserProfile((prev: any) => ({ ...prev, phone: e.target.value }))}
-                          disabled={!isLoading}
+                          disabled={isLoading}
                           className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
                         />
                       </div>
@@ -351,7 +441,7 @@ export function ProfileContent() {
                           name="country"
                           value={userProfile.country || ''}
                           onChange={(e) => setUserProfile((prev: any) => ({ ...prev, country: e.target.value }))}
-                          disabled={!isLoading}
+                          disabled={isLoading}
                           className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
                         />
                       </div>
@@ -370,7 +460,7 @@ export function ProfileContent() {
                           name="entreprise_name"
                           value={userProfile.entreprise_name || ''}
                           onChange={(e) => setUserProfile((prev: any) => ({ ...prev, entreprise_name: e.target.value }))}
-                          disabled={!isLoading}
+                          disabled={isLoading}
                           className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
                         />
                       </div>
@@ -384,55 +474,11 @@ export function ProfileContent() {
                           name="website"
                           value={userProfile.website || ''}
                           onChange={(e) => setUserProfile((prev: any) => ({ ...prev, website: e.target.value }))}
-                          disabled={!isLoading}
+                          disabled={isLoading}
                           className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
                         />
                       </div>
 
-                      <div className="space-y-2">
-                        <Label htmlFor="success_url" className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
-                          {t("successUrl")}
-                        </Label>
-                        <Input
-                          id="success_url"
-                          name="success_url"
-                          value={userProfile.success_url || ''}
-                          onChange={(e) => setUserProfile((prev: any) => ({ ...prev, success_url: e.target.value }))}
-                          disabled={!isLoading}
-                          placeholder="https://yoursite.com/success"
-                          className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="cancel_url" className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
-                          {t("cancelUrl")}
-                        </Label>
-                        <Input
-                          id="cancel_url"
-                          name="cancel_url"
-                          value={userProfile.cancel_url || ''}
-                          onChange={(e) => setUserProfile((prev: any) => ({ ...prev, cancel_url: e.target.value }))}
-                          disabled={!isLoading}
-                          placeholder="https://yoursite.com/cancel"
-                          className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="callback_url" className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
-                          {t("callbackUrl")}
-                        </Label>
-                        <Input
-                          id="callback_url"
-                          name="callback_url"
-                          value={userProfile.callback_url || ''}
-                          onChange={(e) => setUserProfile((prev: any) => ({ ...prev, callback_url: e.target.value }))}
-                          disabled={!isLoading}
-                          placeholder="https://yoursite.com/callback"
-                          className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
-                        />
-                      </div>
 
                       <div className="space-y-2">
                         <Label htmlFor="logo" className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
@@ -444,8 +490,8 @@ export function ProfileContent() {
                             name="logo"
                             type="file"
                             accept="image/*"
-                            onChange={handleFileUpload}
-                            disabled={!isLoading}
+                            onChange={(e) => handleFileUpload(e, 'logo')}
+                            disabled={isLoading}
                             className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent pr-12"
                           />
                           {isLoading && (
@@ -467,6 +513,123 @@ export function ProfileContent() {
                           </div>
                         )}
                       </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="ip_adress" className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                          IP Address
+                        </Label>
+                        <Input
+                          id="ip_adress"
+                          name="ip_adress"
+                          value={userProfile.ip_adress || ''}
+                          onChange={(e) => setUserProfile((prev: any) => ({ ...prev, ip_adress: e.target.value }))}
+                          disabled={isLoading}
+                          placeholder="192.168.1.1"
+                          className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Business Verification Section */}
+                  <div className="mt-8 pt-6 border-t border-slate-200 dark:border-neutral-700">
+                    <div className="flex items-center space-x-3 mb-6">
+                      <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center">
+                        <FileText className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">Documents de Vérification</h3>
+                        <p className="text-sm text-neutral-600 dark:text-neutral-400">Documents requis pour la vérification du compte</p>
+                      </div>
+                    </div>
+
+                    {verificationSubmitted && (
+                      <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl">
+                        <div className="flex items-center space-x-3">
+                          <Check className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                          <div>
+                            <p className="text-sm font-medium text-blue-800 dark:text-blue-300">
+                              Documents soumis avec succès
+                            </p>
+                            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                              Un message sera envoyé à votre adresse e-mail pour vous informer que le statut de votre compte est en cours de traitement.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="entreprise_number" className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                          Numéro d'Enregistrement de l'Entreprise
+                        </Label>
+                        <Input
+                          id="entreprise_number"
+                          name="entreprise_number"
+                          value={userProfile.entreprise_number || ''}
+                          onChange={(e) => setUserProfile((prev: any) => ({ ...prev, entreprise_number: e.target.value }))}
+                          disabled={isLoading}
+                          placeholder="Entrez le numéro d'enregistrement de l'entreprise"
+                          className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="trade_commerce" className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                          Document de Commerce
+                        </Label>
+                        <div className="relative">
+                          <Input
+                            id="trade_commerce"
+                            name="trade_commerce"
+                            type="file"
+                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                            onChange={(e) => handleFileUpload(e, 'trade_commerce')}
+                            disabled={isLoading}
+                            className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent pr-12"
+                          />
+                          {isLoading && (
+                            <div className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-slate-600 text-white p-2 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors">
+                              <FileText className="w-4 h-4" />
+                            </div>
+                          )}
+                        </div>
+                        {userProfile.trade_commerce && (
+                          <div className="flex items-center space-x-2 text-sm text-green-600 dark:text-green-400 mt-2">
+                            <Check className="w-4 h-4" />
+                            <span>Document téléchargé: {userProfile.trade_commerce.split('/').pop()}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-2 md:col-span-2">
+                        <Label htmlFor="gerant_doc" className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                          Document du Gérant
+                        </Label>
+                        <div className="relative">
+                          <Input
+                            id="gerant_doc"
+                            name="gerant_doc"
+                            type="file"
+                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                            onChange={(e) => handleFileUpload(e, 'gerant_doc')}
+                            disabled={isLoading}
+                            className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent pr-12"
+                          />
+                          {isLoading && (
+                            <div className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-slate-600 text-white p-2 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors">
+                              <FileText className="w-4 h-4" />
+                            </div>
+                          )}
+                        </div>
+                        {userProfile.gerant_doc && (
+                          <div className="flex items-center space-x-2 text-sm text-green-600 dark:text-green-400 mt-2">
+                            <Check className="w-4 h-4" />
+                            <span>Document téléchargé: {userProfile.gerant_doc.split('/').pop()}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -479,15 +642,15 @@ export function ProfileContent() {
                           {t("memberSince")}
                         </Label>
                         <div className="h-12 bg-slate-50/50 dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-2xl flex items-center px-4 text-neutral-600 dark:text-neutral-400">
-                          {new Date(userProfile.date_joined).toLocaleDateString()}
+                          {new Date(userProfile.created_at).toLocaleDateString()}
                         </div>
                       </div>
                       <div className="space-y-2">
                         <Label className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
-                          {t("lastLogin")}
+                          Last Updated
                         </Label>
                         <div className="h-12 bg-slate-50/50 dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-2xl flex items-center px-4 text-neutral-600 dark:text-neutral-400">
-                          {userProfile.last_login ? new Date(userProfile.last_login).toLocaleDateString() : t("never")}
+                          {new Date(userProfile.updated_at).toLocaleDateString()}
                         </div>
                       </div>
                     </div>
@@ -520,7 +683,7 @@ export function ProfileContent() {
                     <Button
                       type="submit"
                       disabled={isLoading}
-                      className="bg-crimson-600 hover:bg-crimson-700 text-white rounded-2xl"
+                      className="bg-crimson-600 hover:bg-slate-700 text-black dark:text-white  rounded-2xl"
                     >
                       {(isLoading) ? (
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />

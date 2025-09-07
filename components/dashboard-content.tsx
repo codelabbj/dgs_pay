@@ -84,7 +84,7 @@ export function DashboardContent() {
       setLoading(true)
       setError(null)
       
-      const res = await smartFetch(`${baseUrl}/api/v1/statistic`)
+      const res = await smartFetch(`${baseUrl}/prod/v1/api/statistic`)
       
       if (res.ok) {
         const data = await res.json()

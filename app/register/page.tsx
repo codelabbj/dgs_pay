@@ -42,7 +42,7 @@ export default function Register() {
     setApiMessage("")
     if (step === "register") {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/v1/register-customer`, {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/v1/api//register-customer`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -68,7 +68,7 @@ export default function Register() {
       setIsLoading(false)
     } else if (step === "otp") {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/activate-account`, {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/v1/api/activate-account`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -163,7 +163,7 @@ export default function Register() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
+                {/* <div className="space-y-2">
                   <Label htmlFor="entrepriseName" className="text-sm font-medium text-slate-700 dark:text-slate-300">
                     {t("entrepriseName") || "Entreprise Name"}
                   </Label>
@@ -176,7 +176,7 @@ export default function Register() {
                     className="h-11 bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500"
                     required
                   />
-                </div>
+                </div> */}
 
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -196,7 +196,7 @@ export default function Register() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                {/* <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="country" className="text-sm font-medium text-slate-700 dark:text-slate-300">
                       {t("country")}
@@ -235,7 +235,7 @@ export default function Register() {
                       />
                     </div>
                   </div>
-                </div>
+                </div> */}
 
                 <div className="space-y-2">
                   <Label htmlFor="password" className="text-sm font-medium text-slate-700 dark:text-slate-300">

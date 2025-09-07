@@ -197,7 +197,7 @@ export async function refreshAccessTokenInBackground(): Promise<boolean> {
         throw new Error("Base URL not configured")
       }
 
-      const response = await fetch(`${baseUrl}/api/v1/refresh-token`, {
+      const response = await fetch(`${baseUrl}/v1/api/refresh-token`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refresh: refreshToken }),
