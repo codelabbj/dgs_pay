@@ -8,8 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
-import { Search, Download, Eye, RefreshCw, Edit } from "lucide-react"
+import { Search, Download, RefreshCw } from "lucide-react"
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
 import { useLanguage } from "@/contexts/language-context"
@@ -26,9 +25,6 @@ export function TransactionsContent() {
   const [statusMap, setStatusMap] = useState<Record<string, string>>({})
   const [statusLoading, setStatusLoading] = useState<Record<string, boolean>>({})
   const [checkStatusModal, setCheckStatusModal] = useState<{open: boolean, data: any}>({open: false, data: null})
-  const [changeStatusModal, setChangeStatusModal] = useState<{open: boolean, transaction: any}>({open: false, transaction: null})
-  const [selectedNewStatus, setSelectedNewStatus] = useState("")
-  const [changeStatusLoading, setChangeStatusLoading] = useState(false)
   const { t } = useLanguage()
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
 
@@ -344,7 +340,7 @@ export function TransactionsContent() {
   const handleCheckStatus = async (reference: string) => {
     setStatusLoading((prev) => ({ ...prev, [reference]: true }))
     try {
-      const res = await smartFetch(`${baseUrl}/api/v1/transaction-status?reference=${reference}`)
+      const res = await smartFetch(`${baseUrl}/prod/v1/api/transaction-status?reference=${reference}`)
       
       if (res.ok) {
         const data = await res.json()
@@ -364,45 +360,6 @@ export function TransactionsContent() {
     }
   }
 
-  const handleChangeStatus = async () => {
-    if (!selectedNewStatus || !changeStatusModal.transaction) return
-    
-    setChangeStatusLoading(true)
-    try {
-      const res = await smartFetch(`${baseUrl}/prod/v1/api/change-trans-status`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          status: selectedNewStatus,
-          id: changeStatusModal.transaction.id
-        })
-      })
-      
-      if (res.ok) {
-        const data = await res.json()
-        // Update the transaction in the list
-        setTransactions(prev => 
-          prev.map(tx => 
-            tx.id === changeStatusModal.transaction.id 
-              ? { ...tx, status: selectedNewStatus, ...data }
-              : tx
-          )
-        )
-        setChangeStatusModal({open: false, transaction: null})
-        setSelectedNewStatus("")
-        // Show success message or refresh the list
-        await fetchTransactions()
-      } else {
-        console.error('Failed to change status:', res.status)
-      }
-    } catch (error) {
-      console.error('Error changing status:', error)
-    } finally {
-      setChangeStatusLoading(false)
-    }
-  }
 
   const filteredTransactions = (Array.isArray(transactions) ? transactions : []).filter((transaction) => {
     const customerName = transaction.customer?.username || transaction.customer?.email || ""
@@ -738,14 +695,6 @@ export function TransactionsContent() {
                             <RefreshCw className="h-4 w-4 mr-2" />
                             {statusLoading[transaction.reference] ? t("checking") : t("checkStatus")}
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setChangeStatusModal({open: true, transaction: transaction})}
-                          >
-                            <Edit className="h-4 w-4 mr-2" />
-                            {t("changeStatus")}
-                          </Button>
                           {statusMap[transaction.reference] && (
                             <div className="mt-2 text-xs text-blue-600">{t("status")}: {statusMap[transaction.reference]}</div>
                           )}
@@ -792,73 +741,18 @@ export function TransactionsContent() {
                     <p className="text-sm">{checkStatusModal.data?.phone || '-'}</p>
                   </div>
                 </div>
-                <div className="p-4 bg-gray-50 rounded-lg">
+                {/* <div className="p-4 bg-gray-50 rounded-lg">
                   <label className="text-sm font-medium text-gray-500">{t("fullResponse")}</label>
                   <pre className="text-xs mt-2 overflow-auto max-h-40">
                     {JSON.stringify(checkStatusModal.data, null, 2)}
                   </pre>
-                </div>
+                </div> */}
               </div>
             )}
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Change Status Modal */}
-      <Dialog open={changeStatusModal.open} onOpenChange={(open) => setChangeStatusModal({open, transaction: null})}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("changeTransactionStatus")}</DialogTitle>
-            <DialogDescription>{t("selectNewStatusForTransaction")}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            {changeStatusModal.transaction && (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">{t("transactionId")}</label>
-                    <p className="text-sm">{changeStatusModal.transaction.id}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">{t("currentStatus")}</label>
-                    <div className="mt-1">{getStatusBadge(changeStatusModal.transaction.status)}</div>
-                  </div>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-500 mb-2 block">{t("newStatus")}</label>
-                  <Select value={selectedNewStatus} onValueChange={setSelectedNewStatus}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("selectStatus")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="success">{t("success")}</SelectItem>
-                      <SelectItem value="pending">{t("pending")}</SelectItem>
-                      <SelectItem value="failed">{t("failed")}</SelectItem>
-                      <SelectItem value="expired">{t("expired")}</SelectItem>
-                      <SelectItem value="canceled">{t("canceled")}</SelectItem>
-                      <SelectItem value="refund">{t("refund")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex justify-end space-x-2">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setChangeStatusModal({open: false, transaction: null})}
-                  >
-                    {t("cancel")}
-                  </Button>
-                  <Button 
-                    onClick={handleChangeStatus}
-                    disabled={!selectedNewStatus || changeStatusLoading}
-                  >
-                    {changeStatusLoading ? t("updating") : t("updateStatus")}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

@@ -26,15 +26,31 @@ export function PayinContent() {
     try {
       const formData = new FormData(e.currentTarget)
       const payload = {
-        amount: formData.get("amount"),
+        type_trans: formData.get("type_trans"),
+        phone: formData.get("phone"),
+        country_code: formData.get("country_code"),
+        transac_reference: formData.get("transac_reference"),
+        amount: Number(formData.get("amount")),
+        network: formData.get("network"),
         currency: formData.get("currency"),
-        payment_method: formData.get("payment_method"),
-        country: formData.get("country"),
+        beneficiary: {
+          name: formData.get("beneficiary_name"),
+          account_number: formData.get("beneficiary_account"),
+          email: formData.get("beneficiary_email")
+        },
+        success_url: formData.get("success_url"),
+        cancel_url: formData.get("cancel_url"),
+        callback_url: formData.get("callback_url"),
+        wave_id: formData.get("wave_id"),
         description: formData.get("description"),
+        for_customer_account: formData.get("for_customer_account") === "true"
       }
 
       const res = await smartFetch(`${baseUrl}/prod/v1/api/transaction`, {
         method: "POST",
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify(payload),
       })
 
@@ -66,10 +82,25 @@ export function PayinContent() {
           {error && <div className="mb-4 text-center text-sm text-red-600 dark:text-red-400">{error}</div>}
           {success && <div className="mb-4 text-center text-sm text-green-600 dark:text-green-400">{success}</div>}
           <form className="space-y-6" onSubmit={handleSubmit}>
+            {/* Transaction Type */}
+            <div>
+              <Label htmlFor="type_trans">Transaction Type</Label>
+              <Select name="type_trans" defaultValue="payout">
+                <SelectTrigger id="type_trans">
+                  <SelectValue placeholder="Select Transaction Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="payout">Payout</SelectItem>
+                  <SelectItem value="payin">Payin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Basic Transaction Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="amount">{t("amount")}</Label>
-                <Input name="amount" id="amount" type="number" required />
+                <Input name="amount" id="amount" type="number" defaultValue="100" required />
               </div>
               <div>
                 <Label htmlFor="currency">{t("currency")}</Label>
@@ -84,10 +115,28 @@ export function PayinContent() {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="payment_method">{t("paymentMethod")}</Label>
-                <Select name="payment_method" defaultValue="wave">
-                  <SelectTrigger id="payment_method">
-                    <SelectValue placeholder={t("selectPaymentMethod")} />
+                <Label htmlFor="phone">{t("phone")}</Label>
+                <Input name="phone" id="phone" defaultValue="2250102059707" required />
+              </div>
+              <div>
+                <Label htmlFor="country_code">Country Code</Label>
+                <Select name="country_code" defaultValue="CI">
+                  <SelectTrigger id="country_code">
+                    <SelectValue placeholder="Select Country Code" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ci">Ivory Coast</SelectItem>
+                    <SelectItem value="bj">Benin</SelectItem>
+                    {/* <SelectItem value="ML">Mali</SelectItem>
+                    <SelectItem value="BF">Burkina Faso</SelectItem> */}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="network">{t("network")}</Label>
+                <Select name="network" defaultValue="wave">
+                  <SelectTrigger id="network">
+                    <SelectValue placeholder={t("selectNetwork")} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="wave">{t("wave")}</SelectItem>
@@ -97,13 +146,72 @@ export function PayinContent() {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="country">{t("country")}</Label>
-                <Input name="country" id="country" defaultValue="SN" required />
+                <Label htmlFor="transac_reference">Transaction Reference</Label>
+                <Input name="transac_reference" id="transac_reference" defaultValue="TRANSAC12345611181" required />
               </div>
             </div>
+
+            {/* Beneficiary Information */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Beneficiary Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="beneficiary_name">Beneficiary Name</Label>
+                  <Input name="beneficiary_name" id="beneficiary_name" defaultValue="John Doe" required />
+                </div>
+                <div>
+                  <Label htmlFor="beneficiary_account">Account Number</Label>
+                  <Input name="beneficiary_account" id="beneficiary_account" defaultValue="1234567890" required />
+                </div>
+                <div className="md:col-span-2">
+                  <Label htmlFor="beneficiary_email">Beneficiary Email</Label>
+                  <Input name="beneficiary_email" id="beneficiary_email" type="email" defaultValue="aliloulayei@gmail.com" required />
+                </div>
+              </div>
+            </div>
+
+            {/* URLs */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">URLs</h3>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="success_url">Success URL</Label>
+                  <Input name="success_url" id="success_url" defaultValue="https://example.com/success" required />
+                </div>
+                <div>
+                  <Label htmlFor="cancel_url">Cancel URL</Label>
+                  <Input name="cancel_url" id="cancel_url" defaultValue="https://example.com/cancel" required />
+                </div>
+                <div>
+                  <Label htmlFor="callback_url">Callback URL</Label>
+                  <Input name="callback_url" id="callback_url" defaultValue="https://example.com/callback" required />
+                </div>
+              </div>
+            </div>
+
+            {/* Additional Fields */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="wave_id">Wave ID</Label>
+                <Input name="wave_id" id="wave_id" defaultValue="wave_1234567890" />
+              </div>
+              <div>
+                <Label htmlFor="for_customer_account">For Customer Account</Label>
+                <Select name="for_customer_account" defaultValue="false">
+                  <SelectTrigger id="for_customer_account">
+                    <SelectValue placeholder="Select Option" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="false">No</SelectItem>
+                    <SelectItem value="true">Yes</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             <div>
               <Label htmlFor="description">{t("description")}</Label>
-              <Textarea name="description" id="description" required />
+              <Textarea name="description" id="description" defaultValue="Paiement d'un service" required />
             </div>
             <Button 
               type="submit" 
