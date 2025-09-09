@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { AlertCircle, CheckCircle } from "lucide-react"
 import { useLanguage } from "@/contexts/language-context"
 import { smartFetch } from "@/utils/auth"
 
@@ -23,30 +24,25 @@ export function PayinContent() {
     setError(null)
     setSuccess(null)
 
+    // Store form reference before async operation
+    const form = e.currentTarget
+
     try {
-      const formData = new FormData(e.currentTarget)
+      const formData = new FormData(form)
       const payload = {
         type_trans: formData.get("type_trans"),
         phone: formData.get("phone"),
-        country_code: formData.get("country_code"),
-        transac_reference: formData.get("transac_reference"),
         amount: Number(formData.get("amount")),
-        network: formData.get("network"),
-        currency: formData.get("currency"),
         beneficiary: {
           name: formData.get("beneficiary_name"),
           account_number: formData.get("beneficiary_account"),
           email: formData.get("beneficiary_email")
-        },
-        success_url: formData.get("success_url"),
-        cancel_url: formData.get("cancel_url"),
-        callback_url: formData.get("callback_url"),
-        wave_id: formData.get("wave_id"),
-        description: formData.get("description"),
-        for_customer_account: formData.get("for_customer_account") === "true"
+        }
       }
 
-      const res = await smartFetch(`${baseUrl}/prod/v1/api/transaction`, {
+      console.log('Submitting transaction with payload:', payload)
+
+      const res = await smartFetch(`${baseUrl}/prod/v1/api/customer-transaction`, {
         method: "POST",
         headers: {
           'Content-Type': 'application/json',
@@ -54,17 +50,56 @@ export function PayinContent() {
         body: JSON.stringify(payload),
       })
 
+      console.log('Response status:', res.status, 'ok:', res.ok)
+
       if (res.ok) {
         const data = await res.json()
+        console.log('Success response data:', data)
+        // Clear error state first, then set success
+        setError(null)
         setSuccess(`Transaction created successfully! Reference: ${data.reference || 'N/A'}`)
-        // Reset form
-        e.currentTarget.reset()
+        // Reset form using stored reference
+        form.reset()
       } else {
+        console.log('Error response, status:', res.status)
+        // Clear success state first, then set error
+        setSuccess(null)
         const errorData = await res.json()
-        setError(errorData.detail || `Failed to create transaction: ${res.status}`)
+        console.log('Error response data:', errorData)
+        let errorMessage = 'Failed to create transaction'
+        
+        if (Array.isArray(errorData.detail)) {
+          // Handle validation errors array
+          const validationErrors = errorData.detail.map((err: any) => 
+            `${err.loc?.join('.')}: ${err.msg}`
+          ).join(', ')
+          errorMessage = `Validation errors: ${validationErrors}`
+        } else if (typeof errorData.detail === 'string') {
+          errorMessage = errorData.detail
+        } else if (typeof errorData.message === 'string') {
+          errorMessage = errorData.message
+        } else if (errorData.error) {
+          errorMessage = errorData.error
+        } else if (errorData && typeof errorData === 'object') {
+          // Extract error values from field keys
+          const fieldErrors = Object.entries(errorData).map(([field, errors]) => {
+            if (Array.isArray(errors)) {
+              return `${field}: ${errors.join(', ')}`
+            }
+            return `${field}: ${errors}`
+          }).join('\n')
+          errorMessage = fieldErrors
+        } else {
+          errorMessage = `Failed to create transaction: ${res.status} ${res.statusText}`
+        }
+        
+        setError(errorMessage)
+        console.error('Transaction creation error:', errorData)
       }
     } catch (error) {
       console.error('Error creating transaction:', error)
+      // Clear success state first, then set error
+      setSuccess(null)
       setError('Failed to create transaction')
     } finally {
       setIsLoading(false)
@@ -79,8 +114,30 @@ export function PayinContent() {
           <CardDescription>{t("fillFormPayinTransaction")}</CardDescription>
         </CardHeader>
         <CardContent>
-          {error && <div className="mb-4 text-center text-sm text-red-600 dark:text-red-400">{error}</div>}
-          {success && <div className="mb-4 text-center text-sm text-green-600 dark:text-green-400">{success}</div>}
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+              <div className="flex items-start space-x-2 text-red-600 dark:text-red-400">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Transaction Error</p>
+                  <div className="text-xs mt-2 whitespace-pre-wrap break-words bg-red-100 dark:bg-red-900/30 p-2 rounded border">
+                    {error}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          {success && (
+            <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+              <div className="flex items-center space-x-2 text-green-600 dark:text-green-400">
+                <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">Success</p>
+                  <p className="text-xs mt-1">{success}</p>
+                </div>
+              </div>
+            </div>
+          )}
           <form className="space-y-6" onSubmit={handleSubmit}>
             {/* Transaction Type */}
             <div>
@@ -103,51 +160,8 @@ export function PayinContent() {
                 <Input name="amount" id="amount" type="number" defaultValue="100" required />
               </div>
               <div>
-                <Label htmlFor="currency">{t("currency")}</Label>
-                <Select name="currency" defaultValue="XOF">
-                  <SelectTrigger id="currency">
-                    <SelectValue placeholder={t("selectCurrency")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="XOF">{t("xof")}</SelectItem>
-                    <SelectItem value="USD">{t("usd")}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
                 <Label htmlFor="phone">{t("phone")}</Label>
                 <Input name="phone" id="phone" defaultValue="2250102059707" required />
-              </div>
-              <div>
-                <Label htmlFor="country_code">Country Code</Label>
-                <Select name="country_code" defaultValue="CI">
-                  <SelectTrigger id="country_code">
-                    <SelectValue placeholder="Select Country Code" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ci">Ivory Coast</SelectItem>
-                    <SelectItem value="bj">Benin</SelectItem>
-                    {/* <SelectItem value="ML">Mali</SelectItem>
-                    <SelectItem value="BF">Burkina Faso</SelectItem> */}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="network">{t("network")}</Label>
-                <Select name="network" defaultValue="wave">
-                  <SelectTrigger id="network">
-                    <SelectValue placeholder={t("selectNetwork")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="wave">{t("wave")}</SelectItem>
-                    <SelectItem value="orange">{t("orange")}</SelectItem>
-                    <SelectItem value="free">{t("free")}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="transac_reference">Transaction Reference</Label>
-                <Input name="transac_reference" id="transac_reference" defaultValue="TRANSAC12345611181" required />
               </div>
             </div>
 
@@ -167,11 +181,12 @@ export function PayinContent() {
                   <Label htmlFor="beneficiary_email">Beneficiary Email</Label>
                   <Input name="beneficiary_email" id="beneficiary_email" type="email" defaultValue="aliloulayei@gmail.com" required />
                 </div>
+                
               </div>
             </div>
 
             {/* URLs */}
-            <div className="space-y-4">
+            {/* <div className="space-y-4">
               <h3 className="text-lg font-medium">URLs</h3>
               <div className="space-y-4">
                 <div>
@@ -187,32 +202,17 @@ export function PayinContent() {
                   <Input name="callback_url" id="callback_url" defaultValue="https://example.com/callback" required />
                 </div>
               </div>
-            </div>
+            </div> */}
 
             {/* Additional Fields */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="wave_id">Wave ID</Label>
                 <Input name="wave_id" id="wave_id" defaultValue="wave_1234567890" />
               </div>
-              <div>
-                <Label htmlFor="for_customer_account">For Customer Account</Label>
-                <Select name="for_customer_account" defaultValue="false">
-                  <SelectTrigger id="for_customer_account">
-                    <SelectValue placeholder="Select Option" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="false">No</SelectItem>
-                    <SelectItem value="true">Yes</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+              
+            </div> */}
 
-            <div>
-              <Label htmlFor="description">{t("description")}</Label>
-              <Textarea name="description" id="description" defaultValue="Paiement d'un service" required />
-            </div>
             <Button 
               type="submit" 
               className="w-full h-12 bg-black text-white hover:bg-gray-800 transition-colors font-medium" 

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Search, Download, RefreshCw } from "lucide-react"
+import { Search, Download, RefreshCw, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
 import { useLanguage } from "@/contexts/language-context"
@@ -25,6 +25,16 @@ export function TransactionsContent() {
   const [statusMap, setStatusMap] = useState<Record<string, string>>({})
   const [statusLoading, setStatusLoading] = useState<Record<string, boolean>>({})
   const [checkStatusModal, setCheckStatusModal] = useState<{open: boolean, data: any}>({open: false, data: null})
+  
+  // Server-side pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [paginationInfo, setPaginationInfo] = useState({
+    count: 0,
+    next: null as string | null,
+    previous: null as string | null,
+    totalPages: 0
+  })
   const { t } = useLanguage()
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
 
@@ -39,7 +49,7 @@ export function TransactionsContent() {
   })
 
   useEffect(() => {
-    fetchTransactions()
+    fetchTransactions(currentPage, searchTerm, statusFilter)
     
     // Setup WebSocket connection
     setupWebSocket()
@@ -60,41 +70,41 @@ export function TransactionsContent() {
       clearInterval(healthCheckInterval)
       cleanupWebSocket()
     }
+  }, [currentPage, searchTerm, statusFilter, itemsPerPage])
+
+  // Separate effect for initial load
+  useEffect(() => {
+    fetchTransactions(1, "", "all")
   }, [])
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = async (page: number = 1, search: string = "", status: string = "all") => {
     setLoading(true)
     try {
-      const res = await smartFetch(`${baseUrl}/prod/v1/api/transaction`)
+      // Build query parameters
+      const params = new URLSearchParams({
+        page: page.toString(),
+        page_size: itemsPerPage.toString()
+      })
+      
+      if (search) {
+        params.append('search', search)
+      }
+      
+      if (status !== "all") {
+        params.append('status', status)
+      }
+      
+      const res = await smartFetch(`${baseUrl}/prod/v1/api/transaction?${params.toString()}`)
       
       if (res.ok) {
         const data = await res.json()
-        // Ensure data is an array, handle different response structures
-        if (Array.isArray(data)) {
-          // Reset the transactions map for first page
-          transactionsMapRef.current.clear()
-          
-          // Add each transaction to the map
-          data.forEach((tx: any) => {
-            const key = getTransactionKey(tx)
-            transactionsMapRef.current.set(key, tx)
-          })
-          
-          setTransactions(data)
-        } else if (data && Array.isArray(data.data)) {
-          // Reset the transactions map for first page
-          transactionsMapRef.current.clear()
-          
-          // Add each transaction to the map
-          data.data.forEach((tx: any) => {
-            const key = getTransactionKey(tx)
-            transactionsMapRef.current.set(key, tx)
-          })
-          
-          setTransactions(data.data)
-        } else if (data && Array.isArray(data.results)) {
-          // Reset the transactions map for first page
-          transactionsMapRef.current.clear()
+        
+        // Handle paginated response structure
+        if (data && Array.isArray(data.results)) {
+          // Reset the transactions map for new page
+          if (page === 1) {
+            transactionsMapRef.current.clear()
+          }
           
           // Add each transaction to the map
           data.results.forEach((tx: any) => {
@@ -103,9 +113,23 @@ export function TransactionsContent() {
           })
           
           setTransactions(data.results)
+          
+          // Update pagination info
+          setPaginationInfo({
+            count: data.count || 0,
+            next: data.next,
+            previous: data.previous,
+            totalPages: Math.ceil((data.count || 0) / itemsPerPage)
+          })
         } else {
           console.log('API response structure:', data)
           setTransactions([])
+          setPaginationInfo({
+            count: 0,
+            next: null,
+            previous: null,
+            totalPages: 0
+          })
         }
       } else {
         setError(`Failed to fetch transactions: ${res.status}`)
@@ -361,17 +385,27 @@ export function TransactionsContent() {
   }
 
 
-  const filteredTransactions = (Array.isArray(transactions) ? transactions : []).filter((transaction) => {
-    const customerName = transaction.customer?.username || transaction.customer?.email || ""
-    const matchesSearch =
-      customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (transaction.reference || "").toLowerCase().includes(searchTerm.toLowerCase())
-    
-    // Status filter
-    const matchesStatus = statusFilter === "all" || transaction.status === statusFilter
-    
-    return matchesSearch && matchesStatus
-  })
+  // Server-side pagination calculations
+  const totalItems = paginationInfo.count
+  const totalPages = paginationInfo.totalPages
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = Math.min(startIndex + itemsPerPage, totalItems)
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, statusFilter, methodFilter])
+
+  // Debounced search effect
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchTerm !== "" || statusFilter !== "all") {
+        fetchTransactions(1, searchTerm, statusFilter)
+      }
+    }, 500) // 500ms delay
+
+    return () => clearTimeout(timeoutId)
+  }, [searchTerm, statusFilter])
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -396,9 +430,21 @@ export function TransactionsContent() {
 
   const handleExportPDF = async () => {
     try {
-      // Use the search term if available, otherwise empty string
-      const searchParam = searchTerm ? `?search=${encodeURIComponent(searchTerm)}` : ''
-      const res = await smartFetch(`${baseUrl}/prod/v1/api/pdf-transaction${searchParam}`)
+      // Build query parameters for export (get all data, not paginated)
+      const params = new URLSearchParams({
+        page: "1",
+        page_size: "1000" // Large number to get all data
+      })
+      
+      if (searchTerm) {
+        params.append('search', searchTerm)
+      }
+      
+      if (statusFilter !== "all") {
+        params.append('status', statusFilter)
+      }
+      
+      const res = await smartFetch(`${baseUrl}/prod/v1/api/transaction?${params.toString()}`)
       
       if (res.ok) {
         const data = await res.json()
@@ -417,7 +463,7 @@ export function TransactionsContent() {
           t("reference"),
         ]
         
-        const tableRows = data.map((transaction: any) => {
+        const tableRows = data.results.map((transaction: any) => {
           const dateObj = transaction.created_at ? new Date(transaction.created_at) : null
           return [
             transaction.id || "-",
@@ -443,7 +489,7 @@ export function TransactionsContent() {
         doc.save("transactions.pdf")
       } else {
         console.error('Failed to export transactions:', res.status)
-        // Fallback to client-side export if API fails
+        // Fallback to current page data if API fails
         const doc = new jsPDF()
         const tableColumn = [
           t("transactionId"),
@@ -456,14 +502,14 @@ export function TransactionsContent() {
           t("status"),
           t("reference"),
         ]
-        const tableRows = filteredTransactions.map((transaction) => {
+        const tableRows = transactions.map((transaction) => {
           const dateObj = transaction.created_at ? new Date(transaction.created_at) : null
           return [
             transaction.id || "-",
             dateObj ? dateObj.toLocaleDateString() : "-",
             dateObj ? dateObj.toLocaleTimeString() : "-",
-            transaction.customer?.username || transaction.customer?.email || "-",
-            transaction.customer?.email || "-",
+            transaction.beneficiary?.name || transaction.customer?.username || transaction.customer?.email || "-",
+            transaction.beneficiary?.email || transaction.customer?.email || "-",
             transaction.amount?.toLocaleString?.() || transaction.amount || "-",
             transaction.network || transaction.type_trans || "-",
             transaction.status || "-",
@@ -481,7 +527,7 @@ export function TransactionsContent() {
       }
     } catch (error) {
       console.error('Error exporting transactions:', error)
-      // Fallback to client-side export if API fails
+      // Fallback to current page data if API fails
       const doc = new jsPDF()
       const tableColumn = [
         t("transactionId"),
@@ -494,14 +540,14 @@ export function TransactionsContent() {
         t("status"),
         t("reference"),
       ]
-      const tableRows = filteredTransactions.map((transaction) => {
+      const tableRows = transactions.map((transaction) => {
         const dateObj = transaction.created_at ? new Date(transaction.created_at) : null
         return [
           transaction.id || "-",
           dateObj ? dateObj.toLocaleDateString() : "-",
           dateObj ? dateObj.toLocaleTimeString() : "-",
-          transaction.customer?.username || transaction.customer?.email || "-",
-          transaction.customer?.email || "-",
+          transaction.beneficiary?.name || transaction.customer?.username || transaction.customer?.email || "-",
+          transaction.beneficiary?.email || transaction.customer?.email || "-",
           transaction.amount?.toLocaleString?.() || transaction.amount || "-",
           transaction.network || transaction.type_trans || "-",
           transaction.status || "-",
@@ -519,8 +565,8 @@ export function TransactionsContent() {
     }
   }
 
-  const totalAmount = filteredTransactions.reduce((sum, transaction) => sum + transaction.amount, 0)
-  const completedTransactions = filteredTransactions.filter((t) => t.status === "success" || t.status === "completed").length
+  const totalAmount = transactions.reduce((sum, transaction) => sum + (transaction.amount || 0), 0)
+  const completedTransactions = transactions.filter((t) => t.status === "success" || t.status === "completed").length
 
   return (
     <div className="p-6 space-y-6">
@@ -564,7 +610,12 @@ export function TransactionsContent() {
             <CardTitle className="text-sm font-medium">{t("totalTransactions")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{filteredTransactions.length}</div>
+            <div className="text-2xl font-bold">{totalItems}</div>
+            {totalPages > 1 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Page {currentPage} of {totalPages}
+              </p>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -573,6 +624,11 @@ export function TransactionsContent() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{completedTransactions}</div>
+            {totalPages > 1 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Showing {transactions.filter(t => t.status === "success" || t.status === "completed").length} on this page
+              </p>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -581,6 +637,11 @@ export function TransactionsContent() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalAmount.toLocaleString()} FCFA</div>
+            {totalPages > 1 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Page amount: {transactions.reduce((sum, transaction) => sum + (transaction.amount || 0), 0).toLocaleString()} FCFA
+              </p>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -589,11 +650,18 @@ export function TransactionsContent() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {filteredTransactions.length > 0
-                ? Math.round((completedTransactions / filteredTransactions.length) * 100)
+              {transactions.length > 0
+                ? Math.round((completedTransactions / transactions.length) * 100)
                 : 0}
               %
             </div>
+            {totalPages > 1 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Page success rate: {transactions.length > 0
+                  ? Math.round((transactions.filter(t => t.status === "success" || t.status === "completed").length / transactions.length) * 100)
+                  : 0}%
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -622,10 +690,10 @@ export function TransactionsContent() {
               <SelectContent>
                 <SelectItem value="all">{t("allStatus")}</SelectItem>
                 <SelectItem value="success">{t("success")}</SelectItem>
-                <SelectItem value="pending">{t("pending")}</SelectItem>
+                <SelectItem value="pening">{t("pending")}</SelectItem>
                 <SelectItem value="failed">{t("failed")}</SelectItem>
                 <SelectItem value="expired">{t("expired")}</SelectItem>
-                <SelectItem value="canceled">{t("canceled")}</SelectItem>
+                {/* <SelectItem value="canceled">{t("canceled")}</SelectItem> */}
                 <SelectItem value="refund">{t("refund")}</SelectItem>
               </SelectContent>
             </Select>
@@ -661,12 +729,12 @@ export function TransactionsContent() {
                   <TableRow>
                     <TableCell colSpan={7} className="text-center">{t("loading")}</TableCell>
                   </TableRow>
-                ) : filteredTransactions.length === 0 ? (
+                ) : transactions.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center">{t("noTransactionsFound")}</TableCell>
                   </TableRow>
                 ) : (
-                  filteredTransactions.map((transaction) => (
+                  transactions.map((transaction) => (
                     <TableRow key={transaction.id}>
                       <TableCell className="font-medium">{transaction.id}</TableCell>
                       <TableCell>
@@ -706,6 +774,104 @@ export function TransactionsContent() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-2 py-4">
+              <div className="flex items-center space-x-2">
+                <p className="text-sm text-muted-foreground">
+                  Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems} results
+                </p>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                {/* Items per page selector */}
+                <div className="flex items-center space-x-2">
+                  <p className="text-sm text-muted-foreground">Rows per page:</p>
+                  <Select value={itemsPerPage.toString()} onValueChange={(value) => {
+                    setItemsPerPage(Number(value))
+                    setCurrentPage(1)
+                  }}>
+                    <SelectTrigger className="w-20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5</SelectItem>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Page navigation */}
+                <div className="flex items-center space-x-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage === 1 || !paginationInfo.previous}
+                  >
+                    <ChevronsLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(currentPage - 1)}
+                    disabled={currentPage === 1 || !paginationInfo.previous}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  
+                  {/* Page numbers */}
+                  <div className="flex items-center space-x-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNumber;
+                      if (totalPages <= 5) {
+                        pageNumber = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNumber = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNumber = totalPages - 4 + i;
+                      } else {
+                        pageNumber = currentPage - 2 + i;
+                      }
+                      
+                      return (
+                        <Button
+                          key={pageNumber}
+                          variant={currentPage === pageNumber ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(pageNumber)}
+                          className="w-8 h-8 p-0"
+                        >
+                          {pageNumber}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                    disabled={currentPage === totalPages || !paginationInfo.next}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={currentPage === totalPages || !paginationInfo.next}
+                  >
+                    <ChevronsRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
