@@ -310,8 +310,10 @@ export async function smartFetch(url: string, options: RequestInit = {}): Promis
   }
 
   // Make request with access token
+  // Don't set Content-Type for FormData uploads - let browser set it with proper boundary
+  const isFormData = options.body instanceof FormData
   const headers = {
-    "Content-Type": "application/json",
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
     "Authorization": `Bearer ${currentAccessToken}`,
     ...options.headers,
   }
@@ -331,7 +333,7 @@ export async function smartFetch(url: string, options: RequestInit = {}): Promis
       const newAccessToken = getAccessToken()
       if (newAccessToken) {
         const retryHeaders = {
-          "Content-Type": "application/json",
+          ...(isFormData ? {} : { "Content-Type": "application/json" }),
           "Authorization": `Bearer ${newAccessToken}`,
           ...options.headers,
         }

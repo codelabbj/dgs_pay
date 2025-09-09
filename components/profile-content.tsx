@@ -63,6 +63,28 @@ export function ProfileContent() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [verificationSubmitted, setVerificationSubmitted] = useState(false)
+  
+  // State to store uploaded file URLs temporarily
+  const [uploadedFiles, setUploadedFiles] = useState<{
+    logo?: string
+    trade_commerce?: string
+    gerant_doc?: string
+  }>({})
+  
+  // State to store individual file upload success messages
+  const [fileUploadSuccess, setFileUploadSuccess] = useState<{
+    logo?: string
+    trade_commerce?: string
+    gerant_doc?: string
+  }>({})
+  
+  // State to store selected file names
+  const [selectedFileNames, setSelectedFileNames] = useState<{
+    logo?: string
+    trade_commerce?: string
+    gerant_doc?: string
+  }>({})
+  
   const { t } = useLanguage()
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
 
@@ -82,7 +104,9 @@ export function ProfileContent() {
         localStorage.setItem('user', JSON.stringify(data))
       } else {
         const errorData = await res.json()
-        const errorMessage = errorData.detail || errorData.message || 'Failed to load profile'
+        const errorMessage = typeof errorData.detail === 'string' ? errorData.detail : 
+                            typeof errorData.message === 'string' ? errorData.message :
+                            'Failed to load profile'
         setError(errorMessage)
         toast({
           title: "Error",
@@ -118,9 +142,12 @@ export function ProfileContent() {
     const file = e.target.files?.[0]
     if (!file) return
 
+    // Store the selected file name
+    setSelectedFileNames((prev) => ({ ...prev, [field]: file.name }))
+
     setIsLoading(true)
     setError(null)
-    setSuccess(null)
+    // Don't clear global success state for file uploads - use individual success states
 
     try {
       const formData = new FormData()
@@ -136,16 +163,42 @@ export function ProfileContent() {
 
       if (res.ok) {
         const data = await res.json()
-        setSuccess(`${field === 'logo' ? 'Logo' : field === 'trade_commerce' ? 'Trade Commerce Document' : 'Manager Document'} uploaded successfully!`)
+        console.log('File upload response:', data)
+        console.log('Field being uploaded:', field)
         
-        // Update user profile with new file URL
-        if (data.url || data.logo) {
-          const fileUrl = data.url || data.logo
-          setUserProfile((prev: any) => ({ ...prev, [field]: fileUrl }))
+        const successMessage = `${field === 'logo' ? 'Logo' : field === 'trade_commerce' ? 'Trade Commerce Document' : 'Manager Document'} uploaded successfully!`
+        
+        // Store individual success message
+        setFileUploadSuccess((prev) => ({ ...prev, [field]: successMessage }))
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => {
+          setFileUploadSuccess((prev) => {
+            const newSuccess = { ...prev }
+            delete newSuccess[field]
+            return newSuccess
+          })
+        }, 3000)
+        
+        // Store uploaded file URL in temporary state
+        if (data.file || data.url || data.logo) {
+          const fileUrl = data.file || data.url || data.logo
+          console.log('Setting uploaded file URL:', fileUrl, 'for field:', field)
+          setUploadedFiles((prev) => {
+            const newFiles = { ...prev, [field]: fileUrl }
+            console.log('Updated uploadedFiles state:', newFiles)
+            return newFiles
+          })
+        } else {
+          console.log('No URL found in upload response for field:', field)
+          console.log('Available data properties:', Object.keys(data))
         }
       } else {
         const errorData = await res.json()
-        setError(errorData.detail || 'Failed to upload file')
+        const errorMessage = typeof errorData.detail === 'string' ? errorData.detail : 
+                            typeof errorData.message === 'string' ? errorData.message :
+                            'Failed to upload file'
+        setError(errorMessage)
       }
     } catch (error) {
       console.error('Upload error:', error)
@@ -164,21 +217,37 @@ export function ProfileContent() {
     try {
       const formData = new FormData(e.currentTarget)
       const payload = {
-        email: formData.get('email'),
-        phone: formData.get('phone'),
-        first_name: formData.get('first_name'),
-        last_name: formData.get('last_name'),
-        country: formData.get('country'),
-        entreprise_name: formData.get('entreprise_name'),
-        website: formData.get('website'),
-        logo: userProfile.logo,
-        ip_adress: formData.get('ip_adress'),
-        trade_commerce: userProfile.trade_commerce,
-        gerant_doc: userProfile.gerant_doc,
-        entreprise_number: formData.get('entreprise_number')
+        email: emptyStringToNull(formData.get('email')),
+        phone: emptyStringToNull(formData.get('phone')),
+        first_name: emptyStringToNull(formData.get('first_name')),
+        last_name: emptyStringToNull(formData.get('last_name')),
+        country: emptyStringToNull(formData.get('country')),
+        entreprise_name: emptyStringToNull(formData.get('entreprise_name')),
+        website: emptyStringToNull(formData.get('website')),
+        logo: uploadedFiles.logo || userProfile.logo || null,
+        ip_adress: emptyStringToNull(formData.get('ip_adress')),
+        trade_commerce: uploadedFiles.trade_commerce || userProfile.trade_commerce || null,
+        gerant_doc: uploadedFiles.gerant_doc || userProfile.gerant_doc || null,
+        entreprise_number: emptyStringToNull(formData.get('entreprise_number')),
+        success_url: emptyStringToNull(formData.get('success_url')) || userProfile.success_url || `${window.location.origin}/success`,
+        cancel_url: emptyStringToNull(formData.get('cancel_url')) || userProfile.cancel_url || `${window.location.origin}/cancel`,
+        callback_url: emptyStringToNull(formData.get('callback_url')) || userProfile.callback_url || `${window.location.origin}/callback`
       }
 
-      const res = await smartFetch(`${baseUrl}/prod/v1/api/update-profile`, {
+      // Debug logging
+      console.log('Uploaded files state:', uploadedFiles)
+      console.log('User profile files:', {
+        logo: userProfile.logo,
+        trade_commerce: userProfile.trade_commerce,
+        gerant_doc: userProfile.gerant_doc
+      })
+      console.log('Payload file fields:', {
+        logo: payload.logo,
+        trade_commerce: payload.trade_commerce,
+        gerant_doc: payload.gerant_doc
+      })
+
+      const res = await smartFetch(`${baseUrl}/v1/api/update-profile`, {
         method: 'PUT',
         body: JSON.stringify(payload),
       })
@@ -188,10 +257,15 @@ export function ProfileContent() {
         setUserProfile(data)
         setSuccess('Profile updated successfully!')
         
+        // Clear uploaded files state after successful update
+        setUploadedFiles({})
+        setFileUploadSuccess({})
+        setSelectedFileNames({})
+        
         // Check if verification documents were submitted
         const hasVerificationDocs = formData.get('entreprise_number') || 
-                                   userProfile.trade_commerce || 
-                                   userProfile.gerant_doc
+                                   uploadedFiles.trade_commerce || userProfile.trade_commerce || 
+                                   uploadedFiles.gerant_doc || userProfile.gerant_doc
         
         if (hasVerificationDocs) {
           setVerificationSubmitted(true)
@@ -205,7 +279,20 @@ export function ProfileContent() {
         })
       } else {
         const errorData = await res.json()
-        const errorMessage = errorData.detail || errorData.message || 'Failed to update profile'
+        let errorMessage = 'Failed to update profile'
+        
+        if (Array.isArray(errorData.detail)) {
+          // Handle validation errors array
+          const validationErrors = errorData.detail.map((err: any) => 
+            `${err.loc?.join('.')}: ${err.msg}`
+          ).join(', ')
+          errorMessage = `Validation errors: ${validationErrors}`
+        } else if (typeof errorData.detail === 'string') {
+          errorMessage = errorData.detail
+        } else if (typeof errorData.message === 'string') {
+          errorMessage = errorData.message
+        }
+        
         setError(errorMessage)
         toast({
           title: "Error",
@@ -235,6 +322,36 @@ export function ProfileContent() {
     const firstInitial = firstName.charAt(0).toUpperCase()
     const lastInitial = lastName.charAt(0).toUpperCase()
     return `${firstInitial}${lastInitial}`
+  }
+
+  // Helper function to get current file URL (uploaded or existing)
+  const getCurrentFileUrl = (field: 'logo' | 'trade_commerce' | 'gerant_doc') => {
+    return uploadedFiles[field] || userProfile?.[field]
+  }
+
+  // Helper function to clear uploaded file
+  const clearUploadedFile = (field: 'logo' | 'trade_commerce' | 'gerant_doc') => {
+    setUploadedFiles((prev) => {
+      const newFiles = { ...prev }
+      delete newFiles[field]
+      return newFiles
+    })
+    setFileUploadSuccess((prev) => {
+      const newSuccess = { ...prev }
+      delete newSuccess[field]
+      return newSuccess
+    })
+    setSelectedFileNames((prev) => {
+      const newNames = { ...prev }
+      delete newNames[field]
+      return newNames
+    })
+  }
+
+  // Helper function to convert empty strings to null
+  const emptyStringToNull = (value: any) => {
+    if (value === '' || value === undefined) return null
+    return value
   }
 
   if (isLoading) {
@@ -500,16 +617,41 @@ export function ProfileContent() {
                             </div>
                           )}
                         </div>
-                        {success && (
+                        {fileUploadSuccess.logo && (
                           <div className="flex items-center space-x-2 text-sm text-green-600 dark:text-green-400 mt-2">
                             <Check className="w-4 h-4" />
-                            <span>{success}</span>
+                            <span>{fileUploadSuccess.logo}</span>
+                          </div>
+                        )}
+                        {selectedFileNames.logo && !fileUploadSuccess.logo && (
+                          <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mt-2">
+                            <div className="flex items-center space-x-2 text-sm text-blue-600 dark:text-blue-400">
+                              <FileText className="w-4 h-4" />
+                              <span>Selected: {selectedFileNames.logo}</span>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => clearUploadedFile('logo')}
+                              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 h-6 w-6 p-0"
+                            >
+                              <X className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        )}
+                        {getCurrentFileUrl('logo') && !selectedFileNames.logo && !fileUploadSuccess.logo && (
+                          <div className="flex items-center justify-between bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 mt-2">
+                            <div className="flex items-center space-x-2 text-sm text-green-600 dark:text-green-400">
+                              <Check className="w-4 h-4" />
+                              <span>Existing file: {getCurrentFileUrl('logo')?.split('/').pop()}</span>
+                            </div>
                           </div>
                         )}
                         {error && (
                           <div className="flex items-center space-x-2 text-sm text-red-600 dark:text-red-400 mt-2">
                             <AlertCircle className="w-4 h-4" />
-                            <span>{error}</span>
+                            <span>{typeof error === 'string' ? error : JSON.stringify(error)}</span>
                           </div>
                         )}
                       </div>
@@ -559,7 +701,30 @@ export function ProfileContent() {
                       </div>
                     )}
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Show verification message for pending/approved accounts */}
+                    {(userProfile?.account_status === 'pending' || userProfile?.account_status === 'approved') && (
+                      <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-2xl">
+                        <div className="flex items-center space-x-3">
+                          <Check className="w-5 h-5 text-green-600 dark:text-green-400" />
+                          <div>
+                            <p className="text-sm font-medium text-green-800 dark:text-green-300">
+                              {userProfile?.account_status === 'pending' 
+                                ? 'Documents en cours de vérification' 
+                                : 'Compte approuvé - Documents vérifiés'}
+                            </p>
+                            <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                              {userProfile?.account_status === 'pending' 
+                                ? 'Vos documents sont en cours de vérification. Vous serez notifié par e-mail une fois la vérification terminée.'
+                                : 'Votre compte a été approuvé et vos documents ont été vérifiés avec succès.'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Only show document upload form if account status is not pending or approved */}
+                    {userProfile?.account_status !== 'pending' && userProfile?.account_status !== 'approved' && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
                         <Label htmlFor="entreprise_number" className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                           Numéro d'Enregistrement de l'Entreprise
@@ -595,10 +760,35 @@ export function ProfileContent() {
                             </div>
                           )}
                         </div>
-                        {userProfile.trade_commerce && (
+                        {fileUploadSuccess.trade_commerce && (
                           <div className="flex items-center space-x-2 text-sm text-green-600 dark:text-green-400 mt-2">
                             <Check className="w-4 h-4" />
-                            <span>Document téléchargé: {userProfile.trade_commerce.split('/').pop()}</span>
+                            <span>{fileUploadSuccess.trade_commerce}</span>
+                          </div>
+                        )}
+                        {selectedFileNames.trade_commerce && !fileUploadSuccess.trade_commerce && (
+                          <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mt-2">
+                            <div className="flex items-center space-x-2 text-sm text-blue-600 dark:text-blue-400">
+                              <FileText className="w-4 h-4" />
+                              <span>Selected: {selectedFileNames.trade_commerce}</span>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => clearUploadedFile('trade_commerce')}
+                              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 h-6 w-6 p-0"
+                            >
+                              <X className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        )}
+                        {getCurrentFileUrl('trade_commerce') && !selectedFileNames.trade_commerce && !fileUploadSuccess.trade_commerce && (
+                          <div className="flex items-center justify-between bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 mt-2">
+                            <div className="flex items-center space-x-2 text-sm text-green-600 dark:text-green-400">
+                              <Check className="w-4 h-4" />
+                              <span>Existing file: {getCurrentFileUrl('trade_commerce')?.split('/').pop()}</span>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -623,15 +813,92 @@ export function ProfileContent() {
                             </div>
                           )}
                         </div>
-                        {userProfile.gerant_doc && (
+                        {fileUploadSuccess.gerant_doc && (
                           <div className="flex items-center space-x-2 text-sm text-green-600 dark:text-green-400 mt-2">
                             <Check className="w-4 h-4" />
-                            <span>Document téléchargé: {userProfile.gerant_doc.split('/').pop()}</span>
+                            <span>{fileUploadSuccess.gerant_doc}</span>
+                          </div>
+                        )}
+                        {selectedFileNames.gerant_doc && !fileUploadSuccess.gerant_doc && (
+                          <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mt-2">
+                            <div className="flex items-center space-x-2 text-sm text-blue-600 dark:text-blue-400">
+                              <FileText className="w-4 h-4" />
+                              <span>Selected: {selectedFileNames.gerant_doc}</span>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => clearUploadedFile('gerant_doc')}
+                              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 h-6 w-6 p-0"
+                            >
+                              <X className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        )}
+                        {getCurrentFileUrl('gerant_doc') && !selectedFileNames.gerant_doc && !fileUploadSuccess.gerant_doc && (
+                          <div className="flex items-center justify-between bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 mt-2">
+                            <div className="flex items-center space-x-2 text-sm text-green-600 dark:text-green-400">
+                              <Check className="w-4 h-4" />
+                              <span>Existing file: {getCurrentFileUrl('gerant_doc')?.split('/').pop()}</span>
+                            </div>
                           </div>
                         )}
                       </div>
                     </div>
+                    )}
                   </div>
+
+                  {/* URL Configuration */}
+                  {/* <div className="mt-8 pt-6 border-t border-slate-200 dark:border-neutral-700">
+                    <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">URL Configuration</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="success_url" className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                          Success URL
+                        </Label>
+                        <Input
+                          id="success_url"
+                          name="success_url"
+                          value={userProfile.success_url || `${window.location.origin}/success`}
+                          onChange={(e) => setUserProfile((prev: any) => ({ ...prev, success_url: e.target.value }))}
+                          disabled={isLoading}
+                          placeholder="https://yoursite.com/success"
+                          className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="cancel_url" className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                          Cancel URL
+                        </Label>
+                        <Input
+                          id="cancel_url"
+                          name="cancel_url"
+                          value={userProfile.cancel_url || `${window.location.origin}/cancel`}
+                          onChange={(e) => setUserProfile((prev: any) => ({ ...prev, cancel_url: e.target.value }))}
+                          disabled={isLoading}
+                          placeholder="https://yoursite.com/cancel"
+                          className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
+                        />
+                      </div>
+
+                      <div className="space-y-2 md:col-span-2">
+                        <Label htmlFor="callback_url" className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                          Callback URL
+                        </Label>
+                        <Input
+                          id="callback_url"
+                          name="callback_url"
+                          value={userProfile.callback_url || `${window.location.origin}/callback`}
+                          onChange={(e) => setUserProfile((prev: any) => ({ ...prev, callback_url: e.target.value }))}
+                          disabled={isLoading}
+                          placeholder="https://yoursite.com/callback"
+                          className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+                  </div> */}
 
                   {/* Account Information */}
                   <div className="mt-8 pt-6 border-t border-slate-200 dark:border-neutral-700">
