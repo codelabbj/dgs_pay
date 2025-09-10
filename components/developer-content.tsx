@@ -22,6 +22,11 @@ export default function ApiKeysComponent() {
     secret: ''
   });
 
+  const [hasRealData, setHasRealData] = useState({
+    public: false,
+    secret: false
+  });
+
   const [webhookUrls, setWebhookUrls] = useState({
     success_url: '',
     cancel_url: '',
@@ -115,6 +120,7 @@ export default function ApiKeysComponent() {
       const data = await res.json();
       if (res.ok && data.public_key && data.secret_key) {
         setApiKeys({ public: data.public_key, secret: data.secret_key });
+        setHasRealData({ public: true, secret: true });
       } else {
         alert(data.message || data.detail || t("failedToRenewApiKeys"));
       }
@@ -124,6 +130,11 @@ export default function ApiKeysComponent() {
   };
 
   const handleCopy = async (key: string, value: string) => {
+    // Don't copy if there's no real data
+    if (!hasRealData[key as keyof typeof hasRealData]) {
+      return;
+    }
+    
     try {
       await navigator.clipboard.writeText(value);
       setCopiedStates(prev => ({ ...prev, [key]: true }));
@@ -145,6 +156,13 @@ export default function ApiKeysComponent() {
   const maskKey = (key: string) => {
     if (key.length <= 8) return key;
     return key.substring(0, 8) + '•'.repeat(key.length - 16) + key.substring(key.length - 8);
+  };
+
+  const getDisplayValue = (key: 'public' | 'secret') => {
+    if (!hasRealData[key]) {
+      return '••••••••••••••••••••••••••••••••••••••••';
+    }
+    return key === 'secret' && !visibilityStates.secret ? maskKey(apiKeys[key]) : apiKeys[key];
   };
 
   return (
@@ -186,13 +204,18 @@ export default function ApiKeysComponent() {
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    value={apiKeys.public}
+                    value={getDisplayValue('public')}
                     readOnly
                     className="flex-1 px-4 py-3 rounded-lg border transition-colors bg-gray-50 border-gray-300 text-gray-900 focus:border-black dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:border-black focus:outline-none focus:ring-2 focus:ring-black focus:ring-opacity-20"
                   />
                   <button
                     onClick={() => handleCopy('public', apiKeys.public)}
-                    className="px-4 py-3 bg-black text-white rounded-lg hover:bg-grey-600 transition-colors flex items-center gap-2 font-medium"
+                    disabled={!hasRealData.public}
+                    className={`px-4 py-3 rounded-lg transition-colors flex items-center gap-2 font-medium ${
+                      hasRealData.public 
+                        ? 'bg-black text-white hover:bg-grey-600' 
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
                   >
                     {copiedStates.public ? <Check size={16} /> : <Copy size={16} />}
                     {copiedStates.public ? t("copied") : t("copy")}
@@ -208,19 +231,29 @@ export default function ApiKeysComponent() {
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    value={visibilityStates.secret ? apiKeys.secret : maskKey(apiKeys.secret)}
+                    value={getDisplayValue('secret')}
                     readOnly
                     className="flex-1 px-4 py-3 rounded-lg border transition-colors bg-gray-50 border-gray-300 text-gray-900 focus:border-black-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:border-black-500 focus:outline-none focus:ring-2 focus:ring-black-500 focus:ring-opacity-20"
                   />
                   <button
                     onClick={() => toggleVisibility('secret')}
-                    className="px-3 py-3 rounded-lg border transition-colors bg-white border-gray-300 text-gray-600 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
+                    disabled={!hasRealData.secret}
+                    className={`px-3 py-3 rounded-lg border transition-colors ${
+                      hasRealData.secret 
+                        ? 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600' 
+                        : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-600 dark:border-gray-500'
+                    }`}
                   >
                     {visibilityStates.secret ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                   <button
                     onClick={() => handleCopy('secret', apiKeys.secret)}
-                    className="px-4 py-3 bg-black text-white rounded-lg hover:bg-black-600 transition-colors flex items-center gap-2 font-medium"
+                    disabled={!hasRealData.secret}
+                    className={`px-4 py-3 rounded-lg transition-colors flex items-center gap-2 font-medium ${
+                      hasRealData.secret 
+                        ? 'bg-black text-white hover:bg-black-600' 
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
                   >
                     {copiedStates.secret ? <Check size={16} /> : <Copy size={16} />}
                     {copiedStates.secret ? t("copied") : t("copy")}

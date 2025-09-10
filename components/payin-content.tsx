@@ -15,8 +15,17 @@ export function PayinContent() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [transactionType, setTransactionType] = useState<string>("payout")
+  const [selectedNetwork, setSelectedNetwork] = useState<string>("")
   const { t } = useLanguage()
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
+
+  const CHOICE_NETWORK = [
+    { value: "mtn", label: "MTN" },
+    { value: "wave", label: "Wave" },
+    { value: "wave_marchant", label: "Wave Merchant" },
+    { value: "orange", label: "Orange" }
+  ]
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -29,11 +38,24 @@ export function PayinContent() {
 
     try {
       const formData = new FormData(form)
-      const payload = {
-        type_trans: formData.get("type_trans"),
+      const typeTrans = formData.get("type_trans") as string
+      
+      let payload: any = {
+        type_trans: typeTrans,
         phone: formData.get("phone"),
-        amount: Number(formData.get("amount")),
-        beneficiary: {
+        amount: Number(formData.get("amount"))
+      }
+
+      // Handle withdrawal type with specific payload structure
+      if (typeTrans === "withdrawal") {
+        payload.network = formData.get("network")
+        // Only add code if network is wave_marchant
+        if (formData.get("network") === "wave_marchant") {
+          payload.code = formData.get("code")
+        }
+      } else {
+        // Handle payout/payin types with beneficiary information
+        payload.beneficiary = {
           name: formData.get("beneficiary_name"),
           account_number: formData.get("beneficiary_account"),
           email: formData.get("beneficiary_email")
@@ -42,7 +64,12 @@ export function PayinContent() {
 
       console.log('Submitting transaction with payload:', payload)
 
-      const res = await smartFetch(`${baseUrl}/prod/v1/api/customer-transaction`, {
+      // Use different API endpoint for withdrawal transactions
+      const apiEndpoint = typeTrans === "withdrawal" 
+        ? `${baseUrl}/prod/v1/api/withdrawal`
+        : `${baseUrl}/prod/v1/api/customer-transaction`
+
+      const res = await smartFetch(apiEndpoint, {
         method: "POST",
         headers: {
           'Content-Type': 'application/json',
@@ -57,7 +84,14 @@ export function PayinContent() {
         console.log('Success response data:', data)
         // Clear error state first, then set success
         setError(null)
-        setSuccess(`Transaction created successfully! Reference: ${data.reference || 'N/A'}`)
+        
+        // Different success message for withdrawal transactions
+        if (typeTrans === "withdrawal") {
+          setSuccess(`Transaction de retrait créée avec succès! Référence: ${data.reference || 'N/A'}. Un e-mail sera envoyé à votre adresse e-mail après le traitement de la transaction.`)
+        } else {
+          setSuccess(`Transaction created successfully! Reference: ${data.reference || 'N/A'}`)
+        }
+        
         // Reset form using stored reference
         form.reset()
       } else {
@@ -142,13 +176,19 @@ export function PayinContent() {
             {/* Transaction Type */}
             <div>
               <Label htmlFor="type_trans">Transaction Type</Label>
-              <Select name="type_trans" defaultValue="payout">
+              <Select 
+                name="type_trans" 
+                defaultValue="payout"
+                value={transactionType}
+                onValueChange={setTransactionType}
+              >
                 <SelectTrigger id="type_trans">
                   <SelectValue placeholder="Select Transaction Type" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="payout">Payout</SelectItem>
                   <SelectItem value="payin">Payin</SelectItem>
+                  <SelectItem value="withdrawal">Withdrawal</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -165,25 +205,59 @@ export function PayinContent() {
               </div>
             </div>
 
-            {/* Beneficiary Information */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Beneficiary Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="beneficiary_name">Beneficiary Name</Label>
-                  <Input name="beneficiary_name" id="beneficiary_name" defaultValue="John Doe" required />
-                </div>
-                <div>
-                  <Label htmlFor="beneficiary_account">Account Number</Label>
-                  <Input name="beneficiary_account" id="beneficiary_account" defaultValue="1234567890" required />
-                </div>
-                <div className="md:col-span-2">
-                  <Label htmlFor="beneficiary_email">Beneficiary Email</Label>
-                  <Input name="beneficiary_email" id="beneficiary_email" type="email" defaultValue="aliloulayei@gmail.com" required />
-                </div>
-                
+            {/* Network Field - Only for withdrawal */}
+            {transactionType === "withdrawal" && (
+              <div>
+                <Label htmlFor="network">Network</Label>
+                <Select 
+                  name="network" 
+                  value={selectedNetwork}
+                  onValueChange={setSelectedNetwork}
+                  required
+                >
+                  <SelectTrigger id="network">
+                    <SelectValue placeholder="Select Network" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CHOICE_NETWORK.map((network) => (
+                      <SelectItem key={network.value} value={network.value}>
+                        {network.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            </div>
+            )}
+
+            {/* Code Field - Only for withdrawal with wave_marchant */}
+            {transactionType === "withdrawal" && selectedNetwork === "wave_marchant" && (
+              <div>
+                <Label htmlFor="code">Code</Label>
+                <Input name="code" id="code" placeholder="Enter code" required />
+              </div>
+            )}
+
+            {/* Beneficiary Information - Only for payout/payin */}
+            {transactionType !== "withdrawal" && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Beneficiary Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="beneficiary_name">Beneficiary Name</Label>
+                    <Input name="beneficiary_name" id="beneficiary_name" defaultValue="John Doe" required />
+                  </div>
+                  <div>
+                    <Label htmlFor="beneficiary_account">Account Number</Label>
+                    <Input name="beneficiary_account" id="beneficiary_account" defaultValue="1234567890" required />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label htmlFor="beneficiary_email">Beneficiary Email</Label>
+                    <Input name="beneficiary_email" id="beneficiary_email" type="email" defaultValue="aliloulayei@gmail.com" required />
+                  </div>
+                  
+                </div>
+              </div>
+            )}
 
             {/* URLs */}
             {/* <div className="space-y-4">
