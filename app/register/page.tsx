@@ -33,8 +33,38 @@ export default function Register() {
   const [otp, setOtp] = useState("")
   const [step, setStep] = useState("register") // 'register' or 'otp'
   const [apiMessage, setApiMessage] = useState("")
+  const [apiError, setApiError] = useState(false)
   const router = useRouter()
   const { t } = useLanguage()
+
+  const toNullIfEmpty = (value: string | null | undefined) => {
+    if (value == null) return null
+    return value.trim() === "" ? null : value
+  }
+
+  const extractApiMessage = (data: any): string => {
+    try {
+      if (!data) return "An error occurred."
+      if (typeof data === "string") return data
+      if (typeof data.message === "string" && data.message.trim()) return data.message
+      if (data.detail) {
+        if (typeof data.detail === "string" && data.detail.trim()) return data.detail
+        if (Array.isArray(data.detail)) {
+          const msgs = data.detail
+            .map((d: any) => {
+              if (!d) return null
+              if (typeof d === "string") return d
+              if (typeof d.msg === "string") return d.msg
+              if (typeof d.message === "string") return d.message
+              return null
+            })
+            .filter(Boolean)
+          if (msgs.length) return msgs.join(", ")
+        }
+      }
+    } catch {}
+    return "An error occurred."
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,24 +76,28 @@ export default function Register() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            email: formData.email,
-            phone: formData.phone,
-            first_name: formData.firstName,
-            last_name: formData.lastName,
-            country: formData.country,
-            password: formData.password,
-            entreprise_name: formData.entrepriseName,
+            email: toNullIfEmpty(formData.email),
+            phone: toNullIfEmpty(formData.phone),
+            first_name: toNullIfEmpty(formData.firstName),
+            last_name: toNullIfEmpty(formData.lastName),
+            country: toNullIfEmpty(formData.country),
+            password: toNullIfEmpty(formData.password),
+            confirm_password: toNullIfEmpty(formData.confirmPassword),
+            entreprise_name: toNullIfEmpty(formData.entrepriseName),
           }),
         })
         const data = await res.json()
         if (res.ok) {
-          setApiMessage(data.message)
+          setApiMessage(data.message || "")
+          setApiError(false)
           setStep("otp")
         } else {
-          setApiMessage(data.message || data.message || "Registration failed.")
+          setApiMessage(extractApiMessage(data))
+          setApiError(true)
         }
       } catch (err) {
         setApiMessage("Registration failed.")
+        setApiError(true)
       }
       setIsLoading(false)
     } else if (step === "otp") {
@@ -78,14 +112,17 @@ export default function Register() {
         })
         const data = await res.json()
         if (res.ok) {
-          setApiMessage(data.message)
+          setApiMessage(data.message || "")
+          setApiError(false)
           // Redirect to login after activation
           setTimeout(() => router.push("/login"), 2000)
         } else {
-          setApiMessage(data.message || "Activation failed.")
+          setApiMessage(extractApiMessage(data) || "Activation failed.")
+          setApiError(true)
         }
       } catch (err) {
         setApiMessage("Activation failed.")
+        setApiError(true)
       }
       setIsLoading(false)
     }
@@ -124,7 +161,13 @@ export default function Register() {
           </CardHeader>
           <CardContent>
             {apiMessage && (
-              <div className="mb-4 text-center text-sm text-blue-600 dark:text-blue-400">{apiMessage}</div>
+              <div
+                className={`mb-4 text-center text-sm ${
+                  apiError ? "text-red-600 dark:text-red-400" : "text-blue-600 dark:text-blue-400"
+                }`}
+              >
+                {apiMessage}
+              </div>
             )}
             {step === "register" ? (
               <form onSubmit={handleSubmit} className="space-y-5">
@@ -360,7 +403,7 @@ export default function Register() {
                   {isLoading ? (
                     <div className="flex items-center space-x-2">
                       <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                      <span>{t("verifyingOtp") || "Verifying OTP..."}</span>
+                      <span>{t("verifyOtp") || "Verifying OTP..."}</span>
                     </div>
                   ) : (
                     <div className="flex items-center space-x-2">
