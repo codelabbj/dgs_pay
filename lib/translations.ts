@@ -164,6 +164,8 @@ export const translations = {
     webhookConfigNotice: "Webhook configuration will be displayed here.",
     securityNoticeTitle: "Security Notice:",
     securityNotice: "Keep your private API keys and secrets secure. Never expose them in client-side code or public repositories.",
+    chooseFile: "Choose File",
+    noFileChosen: "No file chosen",
 
     // profile
 
@@ -453,6 +455,8 @@ export const translations = {
     webhookConfigNotice: "La configuration du webhook sera affichée ici.",
     securityNoticeTitle: "Avis de sécurité :",
     securityNotice: "Gardez vos clés API privées et secrets en sécurité. Ne les exposez jamais dans le code côté client ou dans des dépôts publics.",
+    chooseFile: "Choisir un fichier",
+    noFileChosen: "Aucun fichier choisi",
 
     // profile
     // profile: "Profil",
@@ -474,7 +478,7 @@ export const translations = {
     cancel: "Annuler",
     save: "Enregistrer",
     saving: "Enregistrement...",
-    uploading: "Téléchargement...",
+    uploading: "Téléversement...",
     personalDetails: "Détails personnels",
     // firstName: "Prénom",
     // lastName: "Nom",

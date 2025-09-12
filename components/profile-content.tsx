@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { 
   User, 
@@ -16,7 +16,8 @@ import {
   Upload,
   Check,
   AlertCircle,
-  FileText
+  FileText,
+  RefreshCw
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -85,6 +86,17 @@ export function ProfileContent() {
     gerant_doc?: string
   }>({})
   
+  // Loading state per upload field
+  const [uploading, setUploading] = useState<{
+    logo?: boolean
+    trade_commerce?: boolean
+    gerant_doc?: boolean
+  }>({})
+  
+  const logoInputRef = useRef<HTMLInputElement | null>(null)
+  const tradeCommerceInputRef = useRef<HTMLInputElement | null>(null)
+  const gerantDocInputRef = useRef<HTMLInputElement | null>(null)
+  
   const { t } = useLanguage()
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
 
@@ -145,7 +157,7 @@ export function ProfileContent() {
     // Store the selected file name
     setSelectedFileNames((prev) => ({ ...prev, [field]: file.name }))
 
-    setIsLoading(true)
+    setUploading((prev) => ({ ...prev, [field]: true }))
     setError(null)
     // Don't clear global success state for file uploads - use individual success states
 
@@ -204,7 +216,7 @@ export function ProfileContent() {
       console.error('Upload error:', error)
       setError('Failed to upload file')
     } finally {
-      setIsLoading(false)
+      setUploading((prev) => ({ ...prev, [field]: false }))
     }
   }
 
@@ -393,8 +405,8 @@ export function ProfileContent() {
               <CardHeader className="text-center pb-6 pt-8">
                 <div className="relative mx-auto mb-4">
                   <div className="w-24 h-24 rounded-full bg-gradient-to-br from-slate-500 via-slate-400 to-slate-600 flex items-center justify-center text-white text-2xl font-bold overflow-hidden relative shadow-lg">
-                    {userProfile?.logo ? (
-                      <img src={userProfile.logo} alt="Company logo" className="w-full h-full object-cover" />
+                    {getCurrentFileUrl('logo') ? (
+                      <img src={getCurrentFileUrl('logo') as string} alt="Company logo" className="w-full h-full object-cover" />
                     ) : (
                       <span className="text-2xl font-bold drop-shadow-sm">{getUserInitials()}</span>
                     )}
@@ -454,16 +466,7 @@ export function ProfileContent() {
                       {userProfile.is_partner ? "Partner" : "Customer"}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-neutral-600 dark:text-neutral-400">Fee Payment</span>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      userProfile.customer_pay_fee 
-                        ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400'
-                        : 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                    }`}>
-                      {userProfile.customer_pay_fee ? "Customer Pays" : "Platform Pays"}
-                    </span>
-                  </div>
+                  
                 </div>
               </CardContent>
             </Card>
@@ -609,13 +612,31 @@ export function ProfileContent() {
                             accept="image/*"
                             onChange={(e) => handleFileUpload(e, 'logo')}
                             disabled={isLoading}
-                            className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent pr-12"
+                            ref={logoInputRef}
+                            className="hidden"
                           />
-                          {isLoading && (
-                            <div className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-slate-600 text-white p-2 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors">
-                              <Upload className="w-4 h-4" />
-                            </div>
-                          )}
+                          <div className="h-12 bg-slate-50/50 dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-2xl flex items-center justify-between px-4">
+                            <span className="text-sm text-neutral-600 dark:text-neutral-400 truncate">
+                              {selectedFileNames.logo || getCurrentFileUrl('logo')?.split('/').pop() || t("noFileChosen")}
+                            </span>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => logoInputRef.current?.click()}
+                              className="h-8 px-3"
+                              disabled={uploading.logo}
+                            >
+                              {uploading.logo ? (
+                                <span className="flex items-center space-x-2">
+                                  <RefreshCw className="w-3 h-3 animate-spin" />
+                                  <span>{t("uploading") || "Uploading..."}</span>
+                                </span>
+                              ) : (
+                                t("chooseFile")
+                              )}
+                            </Button>
+                          </div>
                         </div>
                         {fileUploadSuccess.logo && (
                           <div className="flex items-center space-x-2 text-sm text-green-600 dark:text-green-400 mt-2">
@@ -627,7 +648,7 @@ export function ProfileContent() {
                           <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mt-2">
                             <div className="flex items-center space-x-2 text-sm text-blue-600 dark:text-blue-400">
                               <FileText className="w-4 h-4" />
-                              <span>Selected: {selectedFileNames.logo}</span>
+                              <span>{selectedFileNames.logo}</span>
                             </div>
                             <Button
                               type="button"
@@ -644,7 +665,7 @@ export function ProfileContent() {
                           <div className="flex items-center justify-between bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 mt-2">
                             <div className="flex items-center space-x-2 text-sm text-green-600 dark:text-green-400">
                               <Check className="w-4 h-4" />
-                              <span>Existing file: {getCurrentFileUrl('logo')?.split('/').pop()}</span>
+                              <span>{getCurrentFileUrl('logo')?.split('/').pop()}</span>
                             </div>
                           </div>
                         )}
@@ -680,7 +701,7 @@ export function ProfileContent() {
                         <FileText className="w-5 h-5 text-orange-600 dark:text-orange-400" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">Documents de Vérification</h3>
+                        <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">Vérification de compte</h3>
                         <p className="text-sm text-neutral-600 dark:text-neutral-400">Documents requis pour la vérification du compte</p>
                       </div>
                     </div>
@@ -752,13 +773,31 @@ export function ProfileContent() {
                             accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                             onChange={(e) => handleFileUpload(e, 'trade_commerce')}
                             disabled={isLoading}
-                            className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent pr-12"
+                            ref={tradeCommerceInputRef}
+                            className="hidden"
                           />
-                          {isLoading && (
-                            <div className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-slate-600 text-white p-2 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors">
-                              <FileText className="w-4 h-4" />
-                            </div>
-                          )}
+                          <div className="h-12 bg-slate-50/50 dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-2xl flex items-center justify-between px-4">
+                            <span className="text-sm text-neutral-600 dark:text-neutral-400 truncate">
+                              {selectedFileNames.trade_commerce || getCurrentFileUrl('trade_commerce')?.split('/').pop() || t("noFileChosen")}
+                            </span>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => tradeCommerceInputRef.current?.click()}
+                              className="h-8 px-3"
+                              disabled={uploading.trade_commerce}
+                            >
+                              {uploading.trade_commerce ? (
+                                <span className="flex items-center space-x-2">
+                                  <RefreshCw className="w-3 h-3 animate-spin" />
+                                  <span>{t("uploading") || "Uploading..."}</span>
+                                </span>
+                              ) : (
+                                t("chooseFile")
+                              )}
+                            </Button>
+                          </div>
                         </div>
                         {fileUploadSuccess.trade_commerce && (
                           <div className="flex items-center space-x-2 text-sm text-green-600 dark:text-green-400 mt-2">
@@ -770,7 +809,7 @@ export function ProfileContent() {
                           <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mt-2">
                             <div className="flex items-center space-x-2 text-sm text-blue-600 dark:text-blue-400">
                               <FileText className="w-4 h-4" />
-                              <span>Selected: {selectedFileNames.trade_commerce}</span>
+                              <span>{selectedFileNames.trade_commerce}</span>
                             </div>
                             <Button
                               type="button"
@@ -787,7 +826,7 @@ export function ProfileContent() {
                           <div className="flex items-center justify-between bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 mt-2">
                             <div className="flex items-center space-x-2 text-sm text-green-600 dark:text-green-400">
                               <Check className="w-4 h-4" />
-                              <span>Existing file: {getCurrentFileUrl('trade_commerce')?.split('/').pop()}</span>
+                              <span>{getCurrentFileUrl('trade_commerce')?.split('/').pop()}</span>
                             </div>
                           </div>
                         )}
@@ -805,13 +844,31 @@ export function ProfileContent() {
                             accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                             onChange={(e) => handleFileUpload(e, 'gerant_doc')}
                             disabled={isLoading}
-                            className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent pr-12"
+                            ref={gerantDocInputRef}
+                            className="hidden"
                           />
-                          {isLoading && (
-                            <div className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-slate-600 text-white p-2 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors">
-                              <FileText className="w-4 h-4" />
-                            </div>
-                          )}
+                          <div className="h-12 bg-slate-50/50 dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-2xl flex items-center justify-between px-4">
+                            <span className="text-sm text-neutral-600 dark:text-neutral-400 truncate">
+                              {selectedFileNames.gerant_doc || getCurrentFileUrl('gerant_doc')?.split('/').pop() || t("noFileChosen")}
+                            </span>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => gerantDocInputRef.current?.click()}
+                              className="h-8 px-3"
+                              disabled={uploading.gerant_doc}
+                            >
+                              {uploading.gerant_doc ? (
+                                <span className="flex items-center space-x-2">
+                                  <RefreshCw className="w-3 h-3 animate-spin" />
+                                  <span>{t("uploading") || "Uploading..."}</span>
+                                </span>
+                              ) : (
+                                t("chooseFile")
+                              )}
+                            </Button>
+                          </div>
                         </div>
                         {fileUploadSuccess.gerant_doc && (
                           <div className="flex items-center space-x-2 text-sm text-green-600 dark:text-green-400 mt-2">
@@ -823,7 +880,7 @@ export function ProfileContent() {
                           <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mt-2">
                             <div className="flex items-center space-x-2 text-sm text-blue-600 dark:text-blue-400">
                               <FileText className="w-4 h-4" />
-                              <span>Selected: {selectedFileNames.gerant_doc}</span>
+                              <span>{selectedFileNames.gerant_doc}</span>
                             </div>
                             <Button
                               type="button"
@@ -840,7 +897,7 @@ export function ProfileContent() {
                           <div className="flex items-center justify-between bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 mt-2">
                             <div className="flex items-center space-x-2 text-sm text-green-600 dark:text-green-400">
                               <Check className="w-4 h-4" />
-                              <span>Existing file: {getCurrentFileUrl('gerant_doc')?.split('/').pop()}</span>
+                              <span>{getCurrentFileUrl('gerant_doc')?.split('/').pop()}</span>
                             </div>
                           </div>
                         )}

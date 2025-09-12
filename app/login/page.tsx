@@ -63,6 +63,12 @@ export default function Login() {
           router.push("/")
         }, 500)
       } else {
+        const inactive = data && data.detail && typeof data.detail === "object" && data.detail.is_active === false
+        if (inactive) {
+          router.push(`/register?activate=1&email=${encodeURIComponent(formData.email)}`)
+          setIsLoading(false)
+          return
+        }
         setApiError(data.detail || data.message || "Login failed.")
       }
     } catch (err) {

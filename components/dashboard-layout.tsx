@@ -173,7 +173,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const getVerificationStatus = () => {
     if (!userProfile) return null
     // Check if account is verified based on account_status
-    return userProfile.account_status === 'active'
+    return userProfile.account_status === 'verify'
   }
   const [isLiveMode, setIsLiveMode] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)

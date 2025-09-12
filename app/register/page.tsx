@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Eye, EyeOff, Mail, Lock, User, Phone, ArrowRight, Building2 } from "lucide-react"
@@ -19,6 +19,7 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isResending, setIsResending] = useState(false)
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -36,6 +37,22 @@ export default function Register() {
   const [apiError, setApiError] = useState(false)
   const router = useRouter()
   const { t } = useLanguage()
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search)
+      const shouldActivate = params.get("activate") === "1"
+      const emailFromQuery = params.get("email")
+      if (shouldActivate) {
+        setStep("otp")
+        if (emailFromQuery) {
+          setFormData((prev) => ({ ...prev, email: emailFromQuery }))
+        }
+        setApiMessage("")
+        setApiError(false)
+      }
+    } catch {}
+  }, [])
 
   const toNullIfEmpty = (value: string | null | undefined) => {
     if (value == null) return null
@@ -66,6 +83,37 @@ export default function Register() {
     return "An error occurred."
   }
 
+  const handleResendOtp = async () => {
+    setIsResending(true)
+    setApiMessage("")
+    setApiError(false)
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/v1/api/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: formData.email }),
+      })
+      if (res.ok) {
+        try {
+          const data = await res.json()
+          const msg = extractApiMessage(data)
+          setApiMessage(msg || t("otpResent"))
+        } catch {
+          setApiMessage(t("otpResent"))
+        }
+        setApiError(false)
+      } else {
+        const data = await res.json()
+        setApiMessage(extractApiMessage(data) || t("failedToResendOtp"))
+        setApiError(true)
+      }
+    } catch (err) {
+      setApiMessage(t("failedToResendOtp"))
+      setApiError(true)
+    }
+    setIsResending(false)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
@@ -88,7 +136,7 @@ export default function Register() {
         })
         const data = await res.json()
         if (res.ok) {
-          setApiMessage(data.message || "")
+          setApiMessage(extractApiMessage(data) || "")
           setApiError(false)
           setStep("otp")
         } else {
@@ -112,7 +160,7 @@ export default function Register() {
         })
         const data = await res.json()
         if (res.ok) {
-          setApiMessage(data.message || "")
+          setApiMessage(extractApiMessage(data) || "")
           setApiError(false)
           // Redirect to login after activation
           setTimeout(() => router.push("/login"), 2000)
@@ -412,6 +460,17 @@ export default function Register() {
                     </div>
                   )}
                 </Button>
+                <div className="text-center">
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="text-crimson-600 hover:text-crimson-700"
+                    onClick={handleResendOtp}
+                    disabled={isResending}
+                  >
+                    {isResending ? t("sending") : t("resendOtp")}
+                  </Button>
+                </div>
               </form>
             )}
             <div className="mt-6 text-center">

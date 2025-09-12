@@ -178,7 +178,7 @@ export function SettingContent() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="px-8 pb-8">
+            <CardContent className="px-6 pb-6">
               <form onSubmit={handlePasswordChange}>
                 <div className="space-y-6">
                   <div className="space-y-2">
@@ -297,7 +297,7 @@ export function SettingContent() {
               </div>
             </div>
           </CardHeader>
-          <CardContent className="px-8 pb-8">
+          <CardContent className="px-6 pb-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
@@ -329,18 +329,7 @@ export function SettingContent() {
                 </div>
               </div>
               
-              <div className="space-y-2">
-                <Label className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
-                  Fee Payment
-                </Label>
-                <div className={`h-12 rounded-2xl flex items-center px-4 font-medium ${
-                  userProfile.customer_pay_fee 
-                    ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400'
-                    : 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                }`}>
-                  {userProfile.customer_pay_fee ? "Customer Pays" : "Platform Pays"}
-                </div>
-              </div>
+              
             </div>
           </CardContent>
         </Card>
@@ -348,7 +337,7 @@ export function SettingContent() {
         {/* Error and Success Messages */}
         {(error || success) && (
           <Card className="mt-8 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-2xl rounded-3xl overflow-hidden">
-            <CardContent className="px-8 py-6">
+            <CardContent className="px-6 py-4">
               {error && (
                 <div className="flex items-center space-x-3 text-red-600 dark:text-red-400">
                   <AlertCircle className="w-5 h-5" />

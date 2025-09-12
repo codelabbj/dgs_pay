@@ -159,10 +159,14 @@ export default function ApiKeysComponent() {
   };
 
   const getDisplayValue = (key: 'public' | 'secret') => {
+    if (key === 'secret') {
+      // Show exactly what we get from the API, no masking or placeholders
+      return apiKeys.secret;
+    }
     if (!hasRealData[key]) {
       return '••••••••••••••••••••••••••••••••••••••••';
     }
-    return key === 'secret' && !visibilityStates.secret ? maskKey(apiKeys[key]) : apiKeys[key];
+    return apiKeys[key];
   };
 
   return (
@@ -235,7 +239,7 @@ export default function ApiKeysComponent() {
                     readOnly
                     className="flex-1 px-4 py-3 rounded-lg border transition-colors bg-gray-50 border-gray-300 text-gray-900 focus:border-black-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:border-black-500 focus:outline-none focus:ring-2 focus:ring-black-500 focus:ring-opacity-20"
                   />
-                  <button
+                  {/* <button
                     onClick={() => toggleVisibility('secret')}
                     disabled={!hasRealData.secret}
                     className={`px-3 py-3 rounded-lg border transition-colors ${
@@ -245,7 +249,7 @@ export default function ApiKeysComponent() {
                     }`}
                   >
                     {visibilityStates.secret ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
+                  </button> */}
                   <button
                     onClick={() => handleCopy('secret', apiKeys.secret)}
                     disabled={!hasRealData.secret}
