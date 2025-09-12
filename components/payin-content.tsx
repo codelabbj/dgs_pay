@@ -197,11 +197,11 @@ export function PayinContent() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="amount">{t("amount")}</Label>
-                <Input name="amount" id="amount" type="number" defaultValue="100" required />
+                <Input name="amount" id="amount" type="number"  required />
               </div>
               <div>
                 <Label htmlFor="phone">{t("phone")}</Label>
-                <Input name="phone" id="phone" defaultValue="2250102059707" required />
+                <Input name="phone" id="phone"  required />
               </div>
             </div>
 
@@ -244,15 +244,15 @@ export function PayinContent() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="beneficiary_name">Beneficiary Name</Label>
-                    <Input name="beneficiary_name" id="beneficiary_name" defaultValue="John Doe" required />
+                    <Input name="beneficiary_name" id="beneficiary_name"  required />
                   </div>
                   <div>
                     <Label htmlFor="beneficiary_account">Account Number</Label>
-                    <Input name="beneficiary_account" id="beneficiary_account" defaultValue="1234567890" required />
+                    <Input name="beneficiary_account" id="beneficiary_account"  required />
                   </div>
                   <div className="md:col-span-2">
                     <Label htmlFor="beneficiary_email">Beneficiary Email</Label>
-                    <Input name="beneficiary_email" id="beneficiary_email" type="email" defaultValue="aliloulayei@gmail.com" required />
+                    <Input name="beneficiary_email" id="beneficiary_email" type="email"  required />
                   </div>
                   
                 </div>
