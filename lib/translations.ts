@@ -323,7 +323,7 @@ export const translations = {
     dashboard: "Tableau de Bord",
     welcomeBack2: "Bon retour, John ! Voici un aperçu de votre entreprise.",
     totalRevenue: "Chiffre d'Affaires Total",
-    operationBalance: "Solde d'Exploitation",
+    operationBalance: "Solde d'opération",
     availableBalance: "Solde Disponible",
     showBalances: "Afficher les Soldes",
     hideBalances: "Masquer les Soldes",
