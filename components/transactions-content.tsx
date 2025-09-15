@@ -472,7 +472,9 @@ export function TransactionsContent() {
             transaction.beneficiary?.name || transaction.customer?.username || transaction.customer?.email || "-",
             transaction.beneficiary?.email || transaction.customer?.email || "-",
             transaction.amount?.toLocaleString?.() || transaction.amount || "-",
-            transaction.network || transaction.type_trans || "-",
+            (transaction.network && transaction.type_trans
+              ? `${transaction.network} (${transaction.type_trans})`
+              : (transaction.network || transaction.type_trans || "-")),
             transaction.status || "-",
             transaction.reference || "-",
           ]
@@ -511,7 +513,9 @@ export function TransactionsContent() {
             transaction.beneficiary?.name || transaction.customer?.username || transaction.customer?.email || "-",
             transaction.beneficiary?.email || transaction.customer?.email || "-",
             transaction.amount?.toLocaleString?.() || transaction.amount || "-",
-            transaction.network || transaction.type_trans || "-",
+            (transaction.network && transaction.type_trans
+              ? `${transaction.network} (${transaction.type_trans})`
+              : (transaction.network || transaction.type_trans || "-")),
             transaction.status || "-",
             transaction.reference || "-",
           ]
@@ -549,7 +553,9 @@ export function TransactionsContent() {
           transaction.beneficiary?.name || transaction.customer?.username || transaction.customer?.email || "-",
           transaction.beneficiary?.email || transaction.customer?.email || "-",
           transaction.amount?.toLocaleString?.() || transaction.amount || "-",
-          transaction.network || transaction.type_trans || "-",
+          (transaction.network && transaction.type_trans
+            ? `${transaction.network} (${transaction.type_trans})`
+            : (transaction.network || transaction.type_trans || "-")),
           transaction.status || "-",
           transaction.reference || "-",
         ]
@@ -750,7 +756,7 @@ export function TransactionsContent() {
                         </div>
                       </TableCell>
                       <TableCell className="font-medium">{transaction.amount?.toLocaleString?.() || transaction.amount || "-"} {transaction.currency || ""}</TableCell>
-                      <TableCell>{transaction.network || transaction.type_trans || "-"}</TableCell>
+                      <TableCell>{transaction.network && transaction.type_trans ? `${transaction.network} (${transaction.type_trans})` : (transaction.network || transaction.type_trans || "-")}</TableCell>
                       <TableCell>{getStatusBadge(transaction.status)}</TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-2">
