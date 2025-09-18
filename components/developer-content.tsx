@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect } from 'react';
-import { Copy, Check, RefreshCw, Eye, EyeOff, Save, AlertCircle } from 'lucide-react';
+import { Copy, Check, RefreshCw, Eye, EyeOff, Save, AlertCircle, ExternalLink } from 'lucide-react';
 import { authenticatedFetch, getUserData } from '@/utils/auth';
 import { useLanguage } from '@/contexts/language-context';
 import { Input } from '@/components/ui/input';
@@ -172,12 +172,19 @@ export default function ApiKeysComponent() {
   return (
     <div className="min-h-screen transition-colors duration-300 ">
       <div className="max-w-4xl mx-auto p-6">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-black-500 dark:text-white">
-            {t("developers")}
-          </h1>
-        </div>
+      {/* Header */}
+      <div className="mb-8 flex items-center justify-between">
+        <h1 className="text-3xl font-bold text-black-500 dark:text-white">
+          {t("developers")}
+        </h1>
+        <Button
+          onClick={() => window.open('https://documenter.getpostman.com/view/39341809/2sB3HnMLqx', '_blank', 'noopener,noreferrer')}
+          className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2 font-medium"
+        >
+          <ExternalLink className="w-4 h-4" />
+          API Docs
+        </Button>
+      </div>
 
         {/* Tab Navigation */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
