@@ -22,6 +22,8 @@ export function TransactionsContent() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [methodFilter, setMethodFilter] = useState("all")
+  const [startDate, setStartDate] = useState("")
+  const [endDate, setEndDate] = useState("")
   const [statusMap, setStatusMap] = useState<Record<string, string>>({})
   const [statusLoading, setStatusLoading] = useState<Record<string, boolean>>({})
   const [checkStatusModal, setCheckStatusModal] = useState<{open: boolean, data: any}>({open: false, data: null})
@@ -70,7 +72,7 @@ export function TransactionsContent() {
       clearInterval(healthCheckInterval)
       cleanupWebSocket()
     }
-  }, [currentPage, searchTerm, statusFilter, itemsPerPage])
+  }, [currentPage, searchTerm, statusFilter, itemsPerPage, startDate, endDate])
 
   // Separate effect for initial load
   useEffect(() => {
@@ -92,6 +94,13 @@ export function TransactionsContent() {
       
       if (status !== "all") {
         params.append('status', status)
+      }
+      
+      if (startDate) {
+        params.append('start_date', startDate)
+      }
+      if (endDate) {
+        params.append('end_date', endDate)
       }
       
       const res = await smartFetch(`${baseUrl}/prod/v1/api/transaction?${params.toString()}`)
@@ -394,18 +403,18 @@ export function TransactionsContent() {
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, statusFilter, methodFilter])
+  }, [searchTerm, statusFilter, methodFilter, startDate, endDate])
 
   // Debounced search effect
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (searchTerm !== "" || statusFilter !== "all") {
+      if (searchTerm !== "" || statusFilter !== "all" || startDate || endDate) {
         fetchTransactions(1, searchTerm, statusFilter)
       }
     }, 500) // 500ms delay
 
     return () => clearTimeout(timeoutId)
-  }, [searchTerm, statusFilter])
+  }, [searchTerm, statusFilter, startDate, endDate])
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -442,6 +451,13 @@ export function TransactionsContent() {
       
       if (statusFilter !== "all") {
         params.append('status', statusFilter)
+      }
+      
+      if (startDate) {
+        params.append('start_date', startDate)
+      }
+      if (endDate) {
+        params.append('end_date', endDate)
       }
       
       const res = await smartFetch(`${baseUrl}/prod/v1/api/transaction?${params.toString()}`)
@@ -687,6 +703,23 @@ export function TransactionsContent() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
+              />
+            </div>
+            <div className="flex gap-2 w-full md:w-auto">
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full md:w-40"
+                placeholder="Start date"
+              />
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full md:w-40"
+                placeholder="End date"
+                min={startDate || undefined}
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
