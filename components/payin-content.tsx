@@ -17,6 +17,7 @@ export function PayinContent() {
   const [success, setSuccess] = useState<string | null>(null)
   const [transactionType, setTransactionType] = useState<string>("payout")
   const [selectedNetwork, setSelectedNetwork] = useState<string>("")
+  const [selectedCountry, setSelectedCountry] = useState<string>("ci")
   const { t } = useLanguage()
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
 
@@ -25,6 +26,12 @@ export function PayinContent() {
     { value: "wave", label: "Wave" },
     { value: "wave_marchant", label: "Wave Merchant" },
     { value: "orange", label: "Orange" }
+  ]
+
+  const COUNTRY_OPTIONS = [
+    { value: "ci", label: "Ivory Coast (+225)", dialCode: "+225" },
+    { value: "bf", label: "Burkina Faso (+226)", dialCode: "+226" },
+    { value: "sn", label: "Senegal (+221)", dialCode: "+221" },
   ]
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -40,9 +47,29 @@ export function PayinContent() {
       const formData = new FormData(form)
       const typeTrans = formData.get("type_trans") as string
       
+      // Build phone with country code
+      const rawPhoneInput = String(formData.get("phone") || "").trim()
+      const country = COUNTRY_OPTIONS.find(c => c.value === selectedCountry)
+      const countryDial = country?.dialCode || ""
+      const countryDigits = countryDial.replace("+", "")
+      let formattedPhone = rawPhoneInput
+      if (rawPhoneInput) {
+        if (rawPhoneInput.startsWith("+")) {
+          formattedPhone = rawPhoneInput
+        } else {
+          const digitsOnly = rawPhoneInput.replace(/\D/g, "")
+          if (countryDigits && digitsOnly.startsWith(countryDigits)) {
+            formattedPhone = "+" + digitsOnly
+          } else {
+            const localWithoutLeadingZero = digitsOnly.startsWith("0") ? digitsOnly.slice(1) : digitsOnly
+            formattedPhone = countryDial + localWithoutLeadingZero
+          }
+        }
+      }
+
       let payload: any = {
         type_trans: typeTrans,
-        phone: formData.get("phone"),
+        phone: formattedPhone,
         amount: Number(formData.get("amount"))
       }
 
@@ -201,7 +228,19 @@ export function PayinContent() {
               </div>
               <div>
                 <Label htmlFor="phone">{t("phone")}</Label>
-                <Input name="phone" id="phone"  required />
+                <div className="flex gap-2">
+                  <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+                    <SelectTrigger className="w-44" id="country">
+                      <SelectValue placeholder="Country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COUNTRY_OPTIONS.map((c) => (
+                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input name="phone" id="phone" type="tel" placeholder="Phone number" required />
+                </div>
               </div>
             </div>
 
