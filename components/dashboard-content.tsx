@@ -197,7 +197,7 @@ export function DashboardContent() {
 
         {/* Balance Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-3xl overflow-hidden group">
+          {/* <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-3xl overflow-hidden group">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="p-3 bg-emerald-600 rounded-2xl shadow-lg">
@@ -218,7 +218,7 @@ export function DashboardContent() {
                 <span className="text-sm text-neutral-500 dark:text-neutral-400">{t("fromLastWeek")}</span>
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
 
           <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-3xl overflow-hidden group">
             <CardHeader className="pb-3">
