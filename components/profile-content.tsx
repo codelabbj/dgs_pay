@@ -445,14 +445,15 @@ export function ProfileContent() {
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-neutral-600 dark:text-neutral-400">{t("accountStatus")}</span>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      userProfile.account_status === 'active'
+                      userProfile.account_status === 'active' || userProfile.account_status === 'verify'
                         ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
                         : userProfile.account_status === 'pending'
                         ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
                         : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
                     }`}>
-                      {userProfile.account_status === 'active' ? t("active") : 
-                       userProfile.account_status === 'pending' ? t("pending") : 
+                      {userProfile.account_status === 'active' ? t("active") :
+                       userProfile.account_status === 'pending' ? t("pending") :
+                       userProfile.account_status === 'verify' ? t("verified") :
                        userProfile.account_status}
                     </span>
                   </div>
@@ -722,29 +723,33 @@ export function ProfileContent() {
                       </div>
                     )}
 
-                    {/* Show verification message for pending/approved accounts */}
-                    {(userProfile?.account_status === 'pending' || userProfile?.account_status === 'approved') && (
+                    {/* Show verification message for pending/approved/verify accounts */}
+                    {(userProfile?.account_status === 'pending' || userProfile?.account_status === 'approved' || userProfile?.account_status === 'verify') && (
                       <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-2xl">
                         <div className="flex items-center space-x-3">
                           <Check className="w-5 h-5 text-green-600 dark:text-green-400" />
                           <div>
                             <p className="text-sm font-medium text-green-800 dark:text-green-300">
-                              {userProfile?.account_status === 'pending' 
-                                ? 'Documents en cours de vérification' 
-                                : 'Compte approuvé - Documents vérifiés'}
+                              {userProfile?.account_status === 'pending'
+                                ? 'Documents en cours de vérification'
+                                : userProfile?.account_status === 'approved'
+                                  ? 'Compte approuvé - Documents vérifiés'
+                                  : 'Compte vérifié - Documents vérifiés'}
                             </p>
                             <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                              {userProfile?.account_status === 'pending' 
+                              {userProfile?.account_status === 'pending'
                                 ? 'Vos documents sont en cours de vérification. Vous serez notifié par e-mail une fois la vérification terminée.'
-                                : 'Votre compte a été approuvé et vos documents ont été vérifiés avec succès.'}
+                                : userProfile?.account_status === 'approved'
+                                  ? 'Votre compte a été approuvé et vos documents ont été vérifiés avec succès.'
+                                  : 'Votre compte est vérifié et vos documents ont été validés avec succès.'}
                             </p>
                           </div>
                         </div>
                       </div>
                     )}
 
-                    {/* Only show document upload form if account status is not pending or approved */}
-                    {userProfile?.account_status !== 'pending' && userProfile?.account_status !== 'approved' && (
+                    {/* Only show document upload form if account status is not pending, approved, or verify */}
+                    {userProfile?.account_status !== 'pending' && userProfile?.account_status !== 'approved' && userProfile?.account_status !== 'verify' && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
                         <Label htmlFor="entreprise_number" className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
