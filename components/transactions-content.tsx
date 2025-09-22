@@ -8,11 +8,12 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Search, Download, RefreshCw, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
+import { Search, Download, RefreshCw, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Copy } from "lucide-react"
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
 import { useLanguage } from "@/contexts/language-context"
 import { smartFetch, getAccessToken } from "@/utils/auth"
+import { toast } from "@/hooks/use-toast"
 
 export function TransactionsContent() {
   // Transaction management component with status checking and updating
@@ -468,7 +469,7 @@ export function TransactionsContent() {
         // Create PDF using the API response data
         const doc = new jsPDF()
         const tableColumn = [
-          t("transactionId"),
+          t("reference"),
           t("date"),
           t("time"),
           t("customer"),
@@ -476,13 +477,13 @@ export function TransactionsContent() {
           t("amount"),
           t("method"),
           t("status"),
-          t("reference"),
+          // keep a separate explicit reference column out; first column now is reference
         ]
         
         const tableRows = data.results.map((transaction: any) => {
           const dateObj = transaction.created_at ? new Date(transaction.created_at) : null
           return [
-            transaction.id || "-",
+            transaction.reference || "-",
             dateObj ? dateObj.toLocaleDateString() : "-",
             dateObj ? dateObj.toLocaleTimeString() : "-",
             transaction.beneficiary?.name || transaction.customer?.username || transaction.customer?.email || "-",
@@ -492,7 +493,7 @@ export function TransactionsContent() {
               ? `${transaction.network} (${transaction.type_trans})`
               : (transaction.network || transaction.type_trans || "-")),
             transaction.status || "-",
-            transaction.reference || "-",
+            // removed duplicate reference column
           ]
         })
         
@@ -510,7 +511,7 @@ export function TransactionsContent() {
         // Fallback to current page data if API fails
         const doc = new jsPDF()
         const tableColumn = [
-          t("transactionId"),
+          t("reference"),
           t("date"),
           t("time"),
           t("customer"),
@@ -518,12 +519,12 @@ export function TransactionsContent() {
           t("amount"),
           t("method"),
           t("status"),
-          t("reference"),
+          // first column now is reference
         ]
         const tableRows = transactions.map((transaction) => {
           const dateObj = transaction.created_at ? new Date(transaction.created_at) : null
           return [
-            transaction.id || "-",
+            transaction.reference || "-",
             dateObj ? dateObj.toLocaleDateString() : "-",
             dateObj ? dateObj.toLocaleTimeString() : "-",
             transaction.beneficiary?.name || transaction.customer?.username || transaction.customer?.email || "-",
@@ -533,7 +534,7 @@ export function TransactionsContent() {
               ? `${transaction.network} (${transaction.type_trans})`
               : (transaction.network || transaction.type_trans || "-")),
             transaction.status || "-",
-            transaction.reference || "-",
+            // removed duplicate reference column
           ]
         })
         autoTable(doc, {
@@ -550,7 +551,7 @@ export function TransactionsContent() {
       // Fallback to current page data if API fails
       const doc = new jsPDF()
       const tableColumn = [
-        t("transactionId"),
+        t("reference"),
         t("date"),
         t("time"),
         t("customer"),
@@ -558,12 +559,12 @@ export function TransactionsContent() {
         t("amount"),
         t("method"),
         t("status"),
-        t("reference"),
+        // first column now is reference
       ]
       const tableRows = transactions.map((transaction) => {
         const dateObj = transaction.created_at ? new Date(transaction.created_at) : null
         return [
-          transaction.id || "-",
+          transaction.reference || "-",
           dateObj ? dateObj.toLocaleDateString() : "-",
           dateObj ? dateObj.toLocaleTimeString() : "-",
           transaction.beneficiary?.name || transaction.customer?.username || transaction.customer?.email || "-",
@@ -573,7 +574,7 @@ export function TransactionsContent() {
             ? `${transaction.network} (${transaction.type_trans})`
             : (transaction.network || transaction.type_trans || "-")),
           transaction.status || "-",
-          transaction.reference || "-",
+          // removed duplicate reference column
         ]
       })
       autoTable(doc, {
@@ -589,6 +590,15 @@ export function TransactionsContent() {
 
   const totalAmount = transactions.reduce((sum, transaction) => sum + (transaction.amount || 0), 0)
   const completedTransactions = transactions.filter((t) => t.status === "success" || t.status === "completed").length
+
+  const handleCopy = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      toast({ title: t("copied") })
+    } catch (e) {
+      console.error('Failed to copy:', e)
+    }
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -754,7 +764,7 @@ export function TransactionsContent() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{t("transactionId")}</TableHead>
+                  <TableHead>{t("reference")}</TableHead>
                   <TableHead>{t("dateAndTime")}</TableHead>
                   <TableHead>{t("customer")}</TableHead>
                   <TableHead>{t("amount")}</TableHead>
@@ -775,7 +785,21 @@ export function TransactionsContent() {
                 ) : (
                   transactions.map((transaction) => (
                     <TableRow key={transaction.id}>
-                      <TableCell className="font-medium">{transaction.id}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center">
+                          <span className="truncate max-w-[160px]">{transaction.reference || "-"}</span>
+                          {transaction.reference && (
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(transaction.reference)}
+                              className="ml-2 text-muted-foreground hover:text-foreground"
+                              title={t("copy")}
+                            >
+                              <Copy className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <div>
                           <div className="font-medium">{transaction.created_at ? new Date(transaction.created_at).toLocaleDateString() : "-"}</div>
@@ -931,7 +955,19 @@ export function TransactionsContent() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium text-gray-500">{t("reference")}</label>
-                    <p className="text-sm">{checkStatusModal.data?.reference || '-'}</p>
+                    <p className="text-sm flex items-center">
+                      <span className="truncate">{checkStatusModal.data?.reference || '-'}</span>
+                      {checkStatusModal.data?.reference && (
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(checkStatusModal.data.reference)}
+                          className="ml-2 text-muted-foreground hover:text-foreground"
+                          title={t("copy")}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </button>
+                      )}
+                    </p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-500">{t("status")}</label>
