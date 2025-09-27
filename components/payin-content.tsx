@@ -80,8 +80,12 @@ export function PayinContent() {
         if (formData.get("network") === "wave_marchant") {
           payload.code = formData.get("code")
         }
+      } else if (typeTrans === "recharge") {
+        // Handle recharge type with specific payload structure
+        payload.payment_image = "https://dgs-pay.com/profile"
+        payload.account_number = formData.get("account_number")
       } else {
-        // Handle payout/payin types with beneficiary information
+        // Handle payout type with beneficiary information
         payload.beneficiary = {
           name: formData.get("beneficiary_name"),
           account_number: formData.get("beneficiary_account"),
@@ -91,10 +95,15 @@ export function PayinContent() {
 
       console.log('Submitting transaction with payload:', payload)
 
-      // Use different API endpoint for withdrawal transactions
-      const apiEndpoint = typeTrans === "withdrawal" 
-        ? `${baseUrl}/prod/v1/api/withdrawal`
-        : `${baseUrl}/prod/v1/api/customer-transaction`
+      // Use different API endpoint based on transaction type
+      let apiEndpoint
+      if (typeTrans === "withdrawal") {
+        apiEndpoint = `${baseUrl}/prod/v1/api/withdrawal`
+      } else if (typeTrans === "recharge") {
+        apiEndpoint = `${baseUrl}/prod/v1/api/recharge`
+      } else {
+        apiEndpoint = `${baseUrl}/prod/v1/api/customer-transaction`
+      }
 
       const res = await smartFetch(apiEndpoint, {
         method: "POST",
@@ -112,9 +121,11 @@ export function PayinContent() {
         // Clear error state first, then set success
         setError(null)
         
-        // Different success message for withdrawal transactions
+        // Different success message based on transaction type
         if (typeTrans === "withdrawal") {
           setSuccess(`Transaction de retrait créée avec succès! Référence: ${data.reference || 'N/A'}. Un e-mail sera envoyé à votre adresse e-mail après le traitement de la transaction.`)
+        } else if (typeTrans === "recharge") {
+          setSuccess(`Recharge transaction created successfully! Reference: ${data.reference || 'N/A'}, Status: ${data.status || 'N/A'}`)
         } else {
           setSuccess(`Transaction created successfully! Reference: ${data.reference || 'N/A'}`)
         }
@@ -214,7 +225,7 @@ export function PayinContent() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="payout">Payout</SelectItem>
-                  <SelectItem value="payin">Payin</SelectItem>
+                  <SelectItem value="recharge">Recharge</SelectItem>
                   <SelectItem value="withdrawal">Withdrawal</SelectItem>
                 </SelectContent>
               </Select>
@@ -276,8 +287,16 @@ export function PayinContent() {
               </div>
             )}
 
-            {/* Beneficiary Information - Only for payout/payin */}
-            {transactionType !== "withdrawal" && (
+            {/* Account Number Field - Only for recharge */}
+            {transactionType === "recharge" && (
+              <div>
+                <Label htmlFor="account_number">Account Number</Label>
+                <Input name="account_number" id="account_number" placeholder="Enter account number" required />
+              </div>
+            )}
+
+            {/* Beneficiary Information - Only for payout */}
+            {transactionType === "payout" && (
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">Beneficiary Information</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

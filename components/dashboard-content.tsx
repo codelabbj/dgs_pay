@@ -141,7 +141,7 @@ export function DashboardContent() {
         <div className="flex items-center justify-between sticky top-0 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md z-10 py-4 -mx-6 px-6 border-b border-slate-100 dark:border-neutral-800">
           <div>
             <h1 className="text-4xl font-bold text-neutral-900 dark:text-white mb-2">{t("dashboard")}</h1>
-            <p className="text-neutral-600 dark:text-neutral-400 text-lg">{t("welcomeBack2")}</p>
+            {/* <p className="text-neutral-600 dark:text-neutral-400 text-lg">{t("welcomeBack2")}</p> */}
           </div>
           <Button
             variant="outline"
@@ -196,30 +196,56 @@ export function DashboardContent() {
         </div> */}
 
         {/* Balance Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-3xl overflow-hidden group">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Total Fee Card */}
+          <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-3xl overflow-hidden group">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <div className="p-3 bg-emerald-600 rounded-2xl shadow-lg">
-                  <TrendingUp className="h-6 w-6 text-white" />
+                <div className="p-3 bg-blue-600 rounded-2xl shadow-lg">
+                  <CreditCard className="h-6 w-6 text-white" />
                 </div>
-                <ArrowUpRight className="h-5 w-5 text-emerald-600 group-hover:scale-110 transition-transform" />
+                <ArrowUpRight className="h-5 w-5 text-blue-600 group-hover:scale-110 transition-transform" />
               </div>
               <CardTitle className="text-sm font-medium text-neutral-600 dark:text-neutral-400 mt-4">
-                {t("operationBalance")}
+                Frais Totaux
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">
-                {formatCurrency(stats?.all_operation_amount)}
+                {formatCurrency(stats?.total_fee)}
               </div>
               <div className="flex items-center space-x-2">
-                <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 rounded-full">+8.2%</Badge>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">{t("fromLastWeek")}</span>
+                <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 rounded-full">+12.5%</Badge>
+                <span className="text-sm text-neutral-500 dark:text-neutral-400">Ce mois</span>
               </div>
             </CardContent>
-          </Card> */}
+          </Card>
 
+          {/* Total Success Transactions Card */}
+          <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-3xl overflow-hidden group">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="p-3 bg-green-600 rounded-2xl shadow-lg">
+                  <TrendingUp className="h-6 w-6 text-white" />
+                </div>
+                <ArrowUpRight className="h-5 w-5 text-green-600 group-hover:scale-110 transition-transform" />
+              </div>
+              <CardTitle className="text-sm font-medium text-neutral-600 dark:text-neutral-400 mt-4">
+                Transactions Réussies
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">
+                {stats?.total_success_transaction ? stats.total_success_transaction.toLocaleString() : '••••••'}
+              </div>
+              <div className="flex items-center space-x-2">
+                <Badge className="bg-green-100 text-green-800 hover:bg-green-100 rounded-full">+15.3%</Badge>
+                <span className="text-sm text-neutral-500 dark:text-neutral-400">Ce mois</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Available Balance Card */}
           <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-3xl overflow-hidden group">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -242,7 +268,96 @@ export function DashboardContent() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Operation Balance Card */}
+          {/* <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-3xl overflow-hidden group">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="p-3 bg-emerald-600 rounded-2xl shadow-lg">
+                  <TrendingUp className="h-6 w-6 text-white" />
+                </div>
+                <ArrowUpRight className="h-5 w-5 text-emerald-600 group-hover:scale-110 transition-transform" />
+              </div>
+              <CardTitle className="text-sm font-medium text-neutral-600 dark:text-neutral-400 mt-4">
+                {t("operationBalance")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">
+                {formatCurrency(stats?.all_operation_amount)}
+              </div>
+              <div className="flex items-center space-x-2">
+                <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 rounded-full">+8.2%</Badge>
+                <span className="text-sm text-neutral-500 dark:text-neutral-400">{t("fromLastWeek")}</span>
+              </div>
+            </CardContent>
+          </Card> */}
         </div>
+
+        {/* Transaction Success Chart */}
+        <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl rounded-3xl overflow-hidden">
+          <CardHeader>
+            <CardTitle className="text-lg font-bold text-neutral-900 dark:text-white">Aperçu des Transactions Réussies</CardTitle>
+            <CardDescription className="text-neutral-600 dark:text-neutral-400">
+              Tendance des transactions réussies dans le temps
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {stats?.total_success_transaction ? (
+              <div className="space-y-6">
+                {/* Success Rate Bar Chart */}
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={[
+                      { name: 'Réussies', value: stats.total_success_transaction, color: '#10b981' },
+                      { name: 'Total', value: stats.total_success_transaction + (stats.total_success_transaction * 0.1), color: '#6b7280' }
+                    ]}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis dataKey="name" stroke="#6b7280" />
+                      <YAxis stroke="#6b7280" />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "white",
+                          border: "1px solid #f1f5f9",
+                          borderRadius: "16px",
+                          boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
+                        }}
+                        formatter={(value) => [value.toLocaleString(), 'Transactions']}
+                      />
+                      <Bar dataKey="value" fill="#10b981" radius={[8, 8, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                
+                {/* Success Metrics */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-2xl">
+                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                      {stats.total_success_transaction.toLocaleString()}
+                    </div>
+                    <div className="text-sm text-green-700 dark:text-green-300">Transactions Réussies</div>
+                  </div>
+                  <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-2xl">
+                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                      {formatCurrency(stats.total_fee)}
+                    </div>
+                    <div className="text-sm text-blue-700 dark:text-blue-300">Frais Totaux Collectés</div>
+                  </div>
+                  <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-2xl">
+                    <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                      {stats.total_success_transaction > 0 ? '95.2%' : '0%'}
+                    </div>
+                    <div className="text-sm text-purple-700 dark:text-purple-300">Taux de Réussite</div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-neutral-500 dark:text-neutral-400">
+                Aucune donnée de transaction disponible
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -288,7 +403,7 @@ export function DashboardContent() {
           </Card>
 
           {/* Payment Methods */}
-          <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl rounded-3xl overflow-hidden">
+          {/* <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl rounded-3xl overflow-hidden">
             <CardHeader>
               <CardTitle className="text-lg font-bold text-neutral-900 dark:text-white">{t("mostUsedPayment")}</CardTitle>
               <CardDescription className="text-neutral-600 dark:text-neutral-400">
@@ -362,7 +477,7 @@ export function DashboardContent() {
                 </div>
               )}
             </CardContent>
-          </Card>
+          </Card> */}
         </div>
       </div>
     </div>
