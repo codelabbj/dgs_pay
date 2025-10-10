@@ -473,7 +473,10 @@ export function TransactionsContent() {
           t("date"),
           t("time"),
           t("customer"),
-          t("email"),
+          t("phone"),
+          t("beneficiary"),
+          t("beneficiaryEmail"),
+          t("accountNumber"),
           t("amount"),
           t("method"),
           t("status"),
@@ -486,8 +489,11 @@ export function TransactionsContent() {
             transaction.reference || "-",
             dateObj ? dateObj.toLocaleDateString() : "-",
             dateObj ? dateObj.toLocaleTimeString() : "-",
-            transaction.beneficiary?.name || transaction.customer?.username || transaction.customer?.email || "-",
-            transaction.beneficiary?.email || transaction.customer?.email || "-",
+            transaction.customer?.username || transaction.customer?.email || "-",
+            transaction.phone || "-",
+            transaction.beneficiary?.name || "-",
+            transaction.beneficiary?.email || "-",
+            transaction.beneficiary?.account_number || "-",
             transaction.amount?.toLocaleString?.() || transaction.amount || "-",
             (transaction.network && transaction.type_trans
               ? `${transaction.network} (${transaction.type_trans})`
@@ -515,7 +521,10 @@ export function TransactionsContent() {
           t("date"),
           t("time"),
           t("customer"),
-          t("email"),
+          t("phone"),
+          t("beneficiary"),
+          t("beneficiaryEmail"),
+          t("accountNumber"),
           t("amount"),
           t("method"),
           t("status"),
@@ -527,8 +536,11 @@ export function TransactionsContent() {
             transaction.reference || "-",
             dateObj ? dateObj.toLocaleDateString() : "-",
             dateObj ? dateObj.toLocaleTimeString() : "-",
-            transaction.beneficiary?.name || transaction.customer?.username || transaction.customer?.email || "-",
-            transaction.beneficiary?.email || transaction.customer?.email || "-",
+            transaction.customer?.username || transaction.customer?.email || "-",
+            transaction.phone || "-",
+            transaction.beneficiary?.name || "-",
+            transaction.beneficiary?.email || "-",
+            transaction.beneficiary?.account_number || "-",
             transaction.amount?.toLocaleString?.() || transaction.amount || "-",
             (transaction.network && transaction.type_trans
               ? `${transaction.network} (${transaction.type_trans})`
@@ -555,7 +567,10 @@ export function TransactionsContent() {
         t("date"),
         t("time"),
         t("customer"),
-        t("email"),
+        t("phone"),
+        t("beneficiary"),
+        t("beneficiaryEmail"),
+        t("accountNumber"),
         t("amount"),
         t("method"),
         t("status"),
@@ -567,8 +582,11 @@ export function TransactionsContent() {
           transaction.reference || "-",
           dateObj ? dateObj.toLocaleDateString() : "-",
           dateObj ? dateObj.toLocaleTimeString() : "-",
-          transaction.beneficiary?.name || transaction.customer?.username || transaction.customer?.email || "-",
-          transaction.beneficiary?.email || transaction.customer?.email || "-",
+          transaction.customer?.username || transaction.customer?.email || "-",
+          transaction.phone || "-",
+          transaction.beneficiary?.name || "-",
+          transaction.beneficiary?.email || "-",
+          transaction.beneficiary?.account_number || "-",
           transaction.amount?.toLocaleString?.() || transaction.amount || "-",
           (transaction.network && transaction.type_trans
             ? `${transaction.network} (${transaction.type_trans})`
@@ -766,7 +784,9 @@ export function TransactionsContent() {
                 <TableRow>
                   <TableHead>{t("reference")}</TableHead>
                   <TableHead>{t("dateAndTime")}</TableHead>
-                  <TableHead>{t("customer")}</TableHead>
+                  {/* <TableHead>{t("customer")}</TableHead> */}
+                  <TableHead>{t("phone")}</TableHead>
+                  <TableHead>{t("beneficiary")}</TableHead>
                   <TableHead>{t("amount")}</TableHead>
                   <TableHead>{t("method")}</TableHead>
                   <TableHead>{t("status")}</TableHead>
@@ -776,11 +796,11 @@ export function TransactionsContent() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center">{t("loading")}</TableCell>
+                    <TableCell colSpan={9} className="text-center">{t("loading")}</TableCell>
                   </TableRow>
                 ) : transactions.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center">{t("noTransactionsFound")}</TableCell>
+                    <TableCell colSpan={9} className="text-center">{t("noTransactionsFound")}</TableCell>
                   </TableRow>
                 ) : (
                   transactions.map((transaction) => (
@@ -806,10 +826,25 @@ export function TransactionsContent() {
                           <div className="text-sm text-muted-foreground">{transaction.created_at ? new Date(transaction.created_at).toLocaleTimeString() : "-"}</div>
                         </div>
                       </TableCell>
-                      <TableCell>
+                      {/* <TableCell>
                         <div>
                           <div className="font-medium">{transaction.customer?.username || transaction.customer?.email || "-"}</div>
                           <div className="text-sm text-muted-foreground">{transaction.customer?.email || "-"}</div>
+                        </div>
+                      </TableCell> */}
+                      <TableCell>
+                        <div className="font-medium">{transaction.phone || "-"}</div>
+                        {transaction.country_code && (
+                          <div className="text-sm text-muted-foreground">{transaction.country_code}</div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{transaction.beneficiary?.name || "-"}</div>
+                          <div className="text-sm text-muted-foreground">{transaction.beneficiary?.email || "-"}</div>
+                          {transaction.beneficiary?.account_number && (
+                            <div className="text-xs text-muted-foreground">Account: {transaction.beneficiary.account_number}</div>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell className="font-medium">{transaction.amount?.toLocaleString?.() || transaction.amount || "-"} {transaction.currency || ""}</TableCell>
@@ -975,11 +1010,27 @@ export function TransactionsContent() {
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-500">{t("amount")}</label>
-                    <p className="text-sm">{checkStatusModal.data?.amount || '-'}</p>
+                    <p className="text-sm">{checkStatusModal.data?.amount || '-'} {checkStatusModal.data?.currency || ''}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-500">{t("phone")}</label>
                     <p className="text-sm">{checkStatusModal.data?.phone || '-'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">{t("beneficiary")}</label>
+                    <p className="text-sm">{checkStatusModal.data?.beneficiary?.name || '-'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">{t("beneficiaryEmail")}</label>
+                    <p className="text-sm">{checkStatusModal.data?.beneficiary?.email || '-'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">{t("accountNumber")}</label>
+                    <p className="text-sm">{checkStatusModal.data?.beneficiary?.account_number || '-'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">{t("network")}</label>
+                    <p className="text-sm">{checkStatusModal.data?.network || '-'}</p>
                   </div>
                 </div>
                 {/* <div className="p-4 bg-gray-50 rounded-lg">
