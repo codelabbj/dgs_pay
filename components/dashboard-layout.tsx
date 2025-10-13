@@ -187,6 +187,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigation = [
     { name: t("dashboard"), href: "/", icon: BarChart3 },
     { name: t("transactions"), href: "/transactions", icon: CreditCard },
+    { name: t("balance"), href: "/balance", icon: Wallet },
     // { name: t("customers"), href: "/customers", icon: Users },
     // { name: t("payDirect"), href: "/payouts", icon: Wallet },
     // { name: t("myStore"), href: "/store", icon: Store },

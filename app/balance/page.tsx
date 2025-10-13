@@ -1,10 +1,10 @@
 import { DashboardLayout } from "@/components/dashboard-layout"
-import { DirectContent } from "@/components/direct-content"
+import { BalanceContent } from "@/components/balance-content"
 
-export default function Direct() {
+export default function BalancePage() {
   return (
     <DashboardLayout>
-      <DirectContent />
+      <BalanceContent />
     </DashboardLayout>
   )
 }

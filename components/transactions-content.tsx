@@ -8,26 +8,103 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Search, Download, RefreshCw, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Copy } from "lucide-react"
+import { Search, Download, RefreshCw, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Copy, RotateCcw, DollarSign, ArrowUpRight, ArrowDownLeft } from "lucide-react"
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
 import { useLanguage } from "@/contexts/language-context"
 import { smartFetch, getAccessToken } from "@/utils/auth"
 import { toast } from "@/hooks/use-toast"
 
+// Types for the new API
+interface Transaction {
+  uid: string
+  reference: string
+  type_trans: "payin" | "payout"
+  type_trans_display: string
+  amount: number
+  formatted_amount: string
+  phone: string
+  status: "processing" | "completed" | "failed"
+  status_display: string
+  operator_name: string
+  description: string
+  client_reference: string
+  commission_amount: number
+  customer_balance_after: number | null
+  error_message: string
+  created_at: string
+  completed_at: string | null
+  external_id?: string
+  redirection_url?: string
+  is_finalized: boolean
+  can_be_refunded: boolean
+  refund_requested: boolean
+  refund_requested_at: string | null
+}
+
+interface TransactionListResponse {
+  count: number
+  next: string | null
+  previous: string | null
+  results: Transaction[]
+}
+
+interface PayinPayload {
+  operator_code: string
+  amount: number
+  phone: string
+  description: string
+  success_url: string
+  cancel_url: string
+  client_reference: string
+  currency: string
+  beneficiary: {
+    name: string
+    account_number: string
+    email: string
+  }
+}
+
+interface PayoutPayload {
+  operator_code: string
+  amount: number
+  phone: string
+  beneficiary_first_name: string
+  beneficiary_last_name: string
+  description: string
+  client_reference: string
+  currency: string
+  beneficiary: {
+    name: string
+    account_number: string
+    email: string
+  }
+}
+
+interface SyncResponse {
+  message: string
+  reference: string
+  old_status: string
+  new_status: string
+  wave_status: string | null
+  payment_status: string
+}
+
 export function TransactionsContent() {
-  // Transaction management component with status checking and updating
-  const [transactions, setTransactions] = useState<any[]>([])
+  // Transaction management component with new API integration
+  const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
-  const [methodFilter, setMethodFilter] = useState("all")
+  const [typeFilter, setTypeFilter] = useState("all")
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
   const [statusMap, setStatusMap] = useState<Record<string, string>>({})
   const [statusLoading, setStatusLoading] = useState<Record<string, boolean>>({})
-  const [checkStatusModal, setCheckStatusModal] = useState<{open: boolean, data: any}>({open: false, data: null})
+  const [checkStatusModal, setCheckStatusModal] = useState<{open: boolean, data: Transaction | null}>({open: false, data: null})
+  const [syncLoading, setSyncLoading] = useState<Record<string, boolean>>({})
+  const [refundLoading, setRefundLoading] = useState<Record<string, boolean>>({})
   
   // Server-side pagination state
   const [currentPage, setCurrentPage] = useState(1)
@@ -41,106 +118,116 @@ export function TransactionsContent() {
   const { t } = useLanguage()
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
 
-  // WebSocket references and state
-  const webSocketRef = useRef<WebSocket | null>(null)
-  const webSocketReconnectAttempts = useRef(0)
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const transactionsMapRef = useRef(new Map())
-  const wsHealth = useRef({
-    lastMessageTime: 0,
-    messageCount: 0
+  // Modal states for creating transactions
+  const [payinModal, setPayinModal] = useState(false)
+  const [payoutModal, setPayoutModal] = useState(false)
+  const [payinForm, setPayinForm] = useState({
+    operator_code: "wave-ci",
+    amount: "",
+    phone: "",
+    description: "",
+    success_url: "https://codelab.bj",
+    cancel_url: "https://djofo.codelab.bj",
+    client_reference: "",
+    currency: "XOF",
+    beneficiary_name: "",
+    beneficiary_account_number: "",
+    beneficiary_email: ""
+  })
+  const [payoutForm, setPayoutForm] = useState({
+    operator_code: "wave-ci",
+    amount: "",
+    phone: "",
+    beneficiary_first_name: "",
+    beneficiary_last_name: "",
+    description: "",
+    client_reference: "",
+    currency: "XOF",
+    beneficiary_name: "",
+    beneficiary_account_number: "",
+    beneficiary_email: ""
   })
 
+  // COMMENTED OUT: Old WebSocket implementation
+  // const webSocketRef = useRef<WebSocket | null>(null)
+  // const webSocketReconnectAttempts = useRef(0)
+  // const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  // const transactionsMapRef = useRef(new Map())
+  // const wsHealth = useRef({
+  //   lastMessageTime: 0,
+  //   messageCount: 0
+  // })
+
   useEffect(() => {
-    fetchTransactions(currentPage, searchTerm, statusFilter)
-    
-    // Setup WebSocket connection
-    setupWebSocket()
-    
-    // Add health check interval for WebSocket
-    const healthCheckInterval = setInterval(() => {
-      const now = Date.now()
-      const minutesSinceLastMessage = (now - wsHealth.current.lastMessageTime) / (1000 * 60)
-      
-      if (wsHealth.current.lastMessageTime > 0 && minutesSinceLastMessage > 5) {
-        console.warn('No WebSocket messages received in 5 minutes, reconnecting...')
-        setupWebSocket() // Force reconnection
-      }
-    }, 60000) // Check every minute
-    
-    // Cleanup function
-    return () => {
-      clearInterval(healthCheckInterval)
-      cleanupWebSocket()
-    }
-  }, [currentPage, searchTerm, statusFilter, itemsPerPage, startDate, endDate])
+    fetchTransactions(currentPage, searchTerm, statusFilter, typeFilter)
+  }, [currentPage, searchTerm, statusFilter, typeFilter, itemsPerPage, startDate, endDate])
 
   // Separate effect for initial load
   useEffect(() => {
-    fetchTransactions(1, "", "all")
+    fetchTransactions(1, "", "all", "all")
   }, [])
 
-  const fetchTransactions = async (page: number = 1, search: string = "", status: string = "all") => {
+  // COMMENTED OUT: Old WebSocket setup
+  // useEffect(() => {
+  //   fetchTransactions(currentPage, searchTerm, statusFilter)
+  //   
+  //   // Setup WebSocket connection
+  //   setupWebSocket()
+  //   
+  //   // Add health check interval for WebSocket
+  //   const healthCheckInterval = setInterval(() => {
+  //     const now = Date.now()
+  //     const minutesSinceLastMessage = (now - wsHealth.current.lastMessageTime) / (1000 * 60)
+  //     
+  //     if (wsHealth.current.lastMessageTime > 0 && minutesSinceLastMessage > 5) {
+  //       console.warn('No WebSocket messages received in 5 minutes, reconnecting...')
+  //       setupWebSocket() // Force reconnection
+  //     }
+  //   }, 60000) // Check every minute
+  //   
+  //   // Cleanup function
+  //   return () => {
+  //     clearInterval(healthCheckInterval)
+  //     cleanupWebSocket()
+  //   }
+  // }, [currentPage, searchTerm, statusFilter, itemsPerPage, startDate, endDate])
+
+  // Separate effect for initial load
+  // useEffect(() => {
+  //   fetchTransactions(1, "", "all")
+  // }, [])
+
+  // New API implementation for fetching transactions
+  const fetchTransactions = async (page: number = 1, search: string = "", status: string = "all", type: string = "all") => {
     setLoading(true)
     try {
-      // Build query parameters
+      // Build query parameters for new API
       const params = new URLSearchParams({
-        page: page.toString(),
-        page_size: itemsPerPage.toString()
+        page: page.toString()
       })
-      
-      if (search) {
-        params.append('search', search)
-      }
       
       if (status !== "all") {
         params.append('status', status)
       }
       
-      if (startDate) {
-        params.append('start_date', startDate)
-      }
-      if (endDate) {
-        params.append('end_date', endDate)
+      if (type !== "all") {
+        params.append('type', type)
       }
       
-      const res = await smartFetch(`${baseUrl}/prod/v1/api/transaction?${params.toString()}`)
+      const res = await smartFetch(`${baseUrl}/api/v2/transactions/?${params.toString()}`)
       
       if (res.ok) {
-        const data = await res.json()
+        const data: TransactionListResponse = await res.json()
         
-        // Handle paginated response structure
-        if (data && Array.isArray(data.results)) {
-          // Reset the transactions map for new page
-          if (page === 1) {
-            transactionsMapRef.current.clear()
-          }
-          
-          // Add each transaction to the map
-          data.results.forEach((tx: any) => {
-            const key = getTransactionKey(tx)
-            transactionsMapRef.current.set(key, tx)
-          })
-          
-          setTransactions(data.results)
-          
-          // Update pagination info
-          setPaginationInfo({
-            count: data.count || 0,
-            next: data.next,
-            previous: data.previous,
-            totalPages: Math.ceil((data.count || 0) / itemsPerPage)
-          })
-        } else {
-          console.log('API response structure:', data)
-          setTransactions([])
-          setPaginationInfo({
-            count: 0,
-            next: null,
-            previous: null,
-            totalPages: 0
-          })
-        }
+        setTransactions(data.results)
+        
+        // Update pagination info
+        setPaginationInfo({
+          count: data.count || 0,
+          next: data.next,
+          previous: data.previous,
+          totalPages: Math.ceil((data.count || 0) / itemsPerPage)
+        })
       } else {
         setError(`Failed to fetch transactions: ${res.status}`)
       }
@@ -152,247 +239,546 @@ export function TransactionsContent() {
     }
   }
 
-  // Create a function to generate a composite key for transactions
-  const getTransactionKey = (transaction: any) => {
-    const id = transaction.id || transaction.reference || transaction.transaction_id
-    if (!id) {
-      console.error('Could not extract ID from transaction:', transaction)
-      return `unknown-${Math.random().toString(36).substring(2, 11)}`
-    }
-    return id.toString()
-  }
+  // COMMENTED OUT: Old fetchTransactions implementation
+  // const fetchTransactions = async (page: number = 1, search: string = "", status: string = "all") => {
+  //   setLoading(true)
+  //   try {
+  //     // Build query parameters
+  //     const params = new URLSearchParams({
+  //       page: page.toString(),
+  //       page_size: itemsPerPage.toString()
+  //     })
+  //     
+  //     if (search) {
+  //       params.append('search', search)
+  //     }
+  //     
+  //     if (status !== "all") {
+  //       params.append('status', status)
+  //     }
+  //     
+  //     if (startDate) {
+  //       params.append('start_date', startDate)
+  //     }
+  //     if (endDate) {
+  //       params.append('end_date', endDate)
+  //     }
+  //     
+  //     const res = await smartFetch(`${baseUrl}/prod/v1/api/transaction?${params.toString()}`)
+  //     
+  //     if (res.ok) {
+  //       const data = await res.json()
+  //       
+  //       // Handle paginated response structure
+  //       if (data && Array.isArray(data.results)) {
+  //         // Reset the transactions map for new page
+  //         if (page === 1) {
+  //           transactionsMapRef.current.clear()
+  //         }
+  //         
+  //         // Add each transaction to the map
+  //         data.results.forEach((tx: any) => {
+  //           const key = getTransactionKey(tx)
+  //           transactionsMapRef.current.set(key, tx)
+  //         })
+  //         
+  //         setTransactions(data.results)
+  //         
+  //         // Update pagination info
+  //         setPaginationInfo({
+  //           count: data.count || 0,
+  //           next: data.next,
+  //           previous: data.previous,
+  //           totalPages: Math.ceil((data.count || 0) / itemsPerPage)
+  //         })
+  //       } else {
+  //         console.log('API response structure:', data)
+  //         setTransactions([])
+  //         setPaginationInfo({
+  //           count: 0,
+  //           next: null,
+  //           previous: null,
+  //           totalPages: 0
+  //         })
+  //       }
+  //     } else {
+  //       setError(`Failed to fetch transactions: ${res.status}`)
+  //     }
+  //   } catch (error) {
+  //     console.error('Error fetching transactions:', error)
+  //     setError('Failed to fetch transactions')
+  //   } finally {
+  //     setLoading(false)
+  //   }
+  // }
 
-  // WebSocket setup and management functions
-  const setupWebSocket = () => {
-    const token = getAccessToken()
-    if (!token) {
-      console.log('No access token available for WebSocket connection')
-      return
-    }
-
-    // Clean up existing connection
-    cleanupWebSocket()
-
+  // New API functions
+  const syncTransaction = async (transactionUid: string) => {
+    setSyncLoading(prev => ({ ...prev, [transactionUid]: true }))
     try {
-      // Replace with your actual WebSocket URL when API is available
-      const wsUrl = `${baseUrl?.replace('http', 'ws')}/ws/transactions?token=${encodeURIComponent(token)}`
-      console.log('Attempting to connect to WebSocket:', wsUrl)
-      
-      webSocketRef.current = new WebSocket(wsUrl)
-
-      // Set connection timeout
-      const connectionTimeout = setTimeout(() => {
-        if (webSocketRef.current?.readyState !== WebSocket.OPEN) {
-          handleConnectionFailure('Connection timeout')
-        }
-      }, 5000)
-
-      webSocketRef.current.onopen = () => {
-        clearTimeout(connectionTimeout)
-        console.log('WebSocket connected successfully')
-        webSocketReconnectAttempts.current = 0
-        startPingInterval()
-      }
-
-      webSocketRef.current.onclose = (event) => {
-        clearTimeout(connectionTimeout)
-        handleWebSocketClose(event)
-      }
-
-      webSocketRef.current.onerror = (error) => {
-        console.error('WebSocket error:', error)
-        handleConnectionFailure('Connection failed')
-      }
-
-      webSocketRef.current.onmessage = handleWebSocketMessage
-
-    } catch (error) {
-      console.error('WebSocket setup failed:', error)
-      handleConnectionFailure('Failed to initialize WebSocket')
-    }
-  }
-
-  const cleanupWebSocket = () => {
-    if (webSocketRef.current) {
-      webSocketRef.current.close()
-      webSocketRef.current = null
-    }
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current)
-    }
-  }
-
-  const startPingInterval = () => {
-    const pingInterval = setInterval(() => {
-      if (webSocketRef.current?.readyState === WebSocket.OPEN) {
-        try {
-          webSocketRef.current.send(JSON.stringify({ type: 'ping' }))
-        } catch (error) {
-          console.error('Failed to send ping:', error)
-          cleanupWebSocket()
-          setupWebSocket()
-        }
-      } else {
-        clearInterval(pingInterval)
-      }
-    }, 30000)
-
-    // Store the interval ID for cleanup
-    if (webSocketRef.current) {
-      (webSocketRef.current as any).pingInterval = pingInterval
-    }
-  }
-
-  const handleConnectionFailure = (message: string) => {
-    console.error(message)
-    
-    // Implement exponential backoff
-    const backoffDelay = Math.min(1000 * Math.pow(2, webSocketReconnectAttempts.current), 30000)
-    webSocketReconnectAttempts.current++
-
-    reconnectTimeoutRef.current = setTimeout(() => {
-      setupWebSocket()
-    }, backoffDelay)
-  }
-
-  const handleWebSocketMessage = (event: MessageEvent) => {
-    try {
-      const data = JSON.parse(event.data)
-      wsHealth.current = {
-        lastMessageTime: Date.now(),
-        messageCount: wsHealth.current.messageCount + 1
-      }
-
-      console.log('WebSocket message received:', data)
-
-      switch (data.type) {
-        case 'transaction_update':
-          handleTransactionUpdate(data.transaction)
-          break
-        case 'new_transaction':
-          handleNewTransaction(data.transaction)
-          break
-        case 'pong':
-          console.log('Received pong from server')
-          break
-        case 'error':
-          console.error('Server error:', data.message)
-          break
-        default:
-          if (data.transaction) {
-            const existingTransaction = transactionsMapRef.current.has(getTransactionKey(data.transaction))
-            if (existingTransaction) {
-              handleTransactionUpdate(data.transaction)
-            } else {
-              handleNewTransaction(data.transaction)
-            }
-          }
-      }
-
-    } catch (error) {
-      console.error('Error processing WebSocket message:', error)
-    }
-  }
-
-  const handleWebSocketClose = (event: CloseEvent) => {
-    cleanupWebSocket()
-    
-    const reason = getCloseReason(event.code)
-    console.log(`WebSocket closed: ${reason}`)
-
-    if (event.code !== 1000) {
-      handleConnectionFailure(reason)
-    }
-  }
-
-  const getCloseReason = (code: number): string => {
-    const closeReasons: Record<number, string> = {
-      1000: 'Normal closure',
-      1001: 'Going away',
-      1002: 'Protocol error',
-      1003: 'Unsupported data',
-      1005: 'No status received',
-      1006: 'Abnormal closure',
-      1007: 'Invalid frame payload data',
-      1008: 'Policy violation',
-      1009: 'Message too big',
-      1010: 'Mandatory extension',
-      1011: 'Internal server error',
-      1012: 'Service restart',
-      1013: 'Try again later',
-      1014: 'Bad gateway',
-      1015: 'TLS handshake'
-    }
-
-    return closeReasons[code] || `Unknown reason (${code})`
-  }
-
-  // Handle new transaction from WebSocket
-  const handleNewTransaction = (transaction: any) => {
-    const key = getTransactionKey(transaction)
-    
-    // Check if we already have this transaction
-    if (!transactionsMapRef.current.has(key)) {
-      // Add to our map
-      transactionsMapRef.current.set(key, transaction)
-      
-      // Add to state (at the beginning)
-      setTransactions(prev => [transaction, ...prev])
-      console.log('New transaction added via WebSocket:', transaction)
-    }
-  }
-  
-  // Handle transaction updates from WebSocket
-  const handleTransactionUpdate = (updatedTransaction: any) => {
-    const key = getTransactionKey(updatedTransaction)
-    
-    console.log('Received update for transaction:', key, updatedTransaction)
-    
-    // Update the transaction in our state
-    setTransactions(prev => 
-      prev.map(item => {
-        if (getTransactionKey(item) === key) {
-          // Update the transaction with new data
-          return { ...item, ...updatedTransaction }
-        }
-        return item
+      const res = await smartFetch(`${baseUrl}/api/v2/transactions/${transactionUid}/sync/`, {
+        method: 'POST'
       })
-    )
-    
-    // Update the transaction in our map
-    if (transactionsMapRef.current.has(key)) {
-      const existingItem = transactionsMapRef.current.get(key)
-      if (existingItem) {
-        const updatedItem = { ...existingItem, ...updatedTransaction }
-        transactionsMapRef.current.set(key, updatedItem)
-      }
-    }
-    
-    console.log('Transaction updated via WebSocket:', updatedTransaction)
-  }
-
-  const handleCheckStatus = async (reference: string) => {
-    setStatusLoading((prev) => ({ ...prev, [reference]: true }))
-    try {
-      const res = await smartFetch(`${baseUrl}/prod/v1/api/transaction-status?reference=${reference}`)
       
       if (res.ok) {
-        const data = await res.json()
-        setStatusMap((prev) => ({ ...prev, [reference]: data.status || 'Unknown' }))
-        // Show the full response in modal
-        setCheckStatusModal({open: true, data: data})
+        const data: SyncResponse = await res.json()
+        toast({
+          title: t("success"),
+          description: data.message
+        })
+        // Refresh transactions to get updated status
+        fetchTransactions(currentPage, searchTerm, statusFilter, typeFilter)
       } else {
-        setStatusMap((prev) => ({ ...prev, [reference]: 'Error checking status' }))
-        setCheckStatusModal({open: true, data: {error: `Failed to check status: ${res.status}`}})
+        toast({
+          title: t("error"),
+          description: `Failed to sync transaction: ${res.status}`,
+          variant: "destructive"
+        })
       }
     } catch (error) {
-      console.error('Error checking status:', error)
-      setStatusMap((prev) => ({ ...prev, [reference]: 'Failed to check status' }))
-      setCheckStatusModal({open: true, data: {error: 'Failed to check status'}})
+      console.error('Error syncing transaction:', error)
+      toast({
+        title: t("error"),
+        description: "Failed to sync transaction",
+        variant: "destructive"
+      })
     } finally {
-      setStatusLoading((prev) => ({ ...prev, [reference]: false }))
+      setSyncLoading(prev => ({ ...prev, [transactionUid]: false }))
     }
   }
+
+  const getTransactionDetails = async (reference: string) => {
+    setStatusLoading(prev => ({ ...prev, [reference]: true }))
+    try {
+      const res = await smartFetch(`${baseUrl}/api/v2/transactions/${reference}/`)
+      
+      if (res.ok) {
+        const data: Transaction = await res.json()
+        setCheckStatusModal({ open: true, data })
+      } else {
+        toast({
+          title: t("error"),
+          description: `Failed to get transaction details: ${res.status}`,
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error('Error getting transaction details:', error)
+      toast({
+        title: t("error"),
+        description: "Failed to get transaction details",
+        variant: "destructive"
+      })
+    } finally {
+      setStatusLoading(prev => ({ ...prev, [reference]: false }))
+    }
+  }
+
+  const requestRefund = async (reference: string) => {
+    setRefundLoading(prev => ({ ...prev, [reference]: true }))
+    try {
+      const res = await smartFetch(`${baseUrl}/api/v2/transactions/${reference}/request-refund/`, {
+        method: 'POST'
+      })
+      
+      if (res.ok) {
+        toast({
+          title: t("success"),
+          description: "Refund requested successfully"
+        })
+        // Refresh transactions
+        fetchTransactions(currentPage, searchTerm, statusFilter, typeFilter)
+      } else {
+        toast({
+          title: t("error"),
+          description: `Failed to request refund: ${res.status}`,
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error('Error requesting refund:', error)
+      toast({
+        title: t("error"),
+        description: "Failed to request refund",
+        variant: "destructive"
+      })
+    } finally {
+      setRefundLoading(prev => ({ ...prev, [reference]: false }))
+    }
+  }
+
+  const createPayin = async () => {
+    try {
+      const payload: PayinPayload = {
+        operator_code: payinForm.operator_code,
+        amount: parseInt(payinForm.amount),
+        phone: payinForm.phone,
+        description: payinForm.description,
+        success_url: payinForm.success_url,
+        cancel_url: payinForm.cancel_url,
+        client_reference: payinForm.client_reference,
+        currency: payinForm.currency,
+        beneficiary: {
+          name: payinForm.beneficiary_name,
+          account_number: payinForm.beneficiary_account_number,
+          email: payinForm.beneficiary_email
+        }
+      }
+
+      const res = await smartFetch(`${baseUrl}/api/v2/payin/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      })
+      
+      if (res.ok) {
+        const data: Transaction = await res.json()
+        toast({
+          title: t("success"),
+          description: "Payin created successfully"
+        })
+        setPayinModal(false)
+        setPayinForm({
+          operator_code: "wave-ci",
+          amount: "",
+          phone: "",
+          description: "",
+          success_url: "https://codelab.bj",
+          cancel_url: "https://djofo.codelab.bj",
+          client_reference: "",
+          currency: "XOF",
+          beneficiary_name: "",
+          beneficiary_account_number: "",
+          beneficiary_email: ""
+        })
+        // Refresh transactions
+        fetchTransactions(currentPage, searchTerm, statusFilter, typeFilter)
+      } else {
+        toast({
+          title: t("error"),
+          description: `Failed to create payin: ${res.status}`,
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error('Error creating payin:', error)
+      toast({
+        title: t("error"),
+        description: "Failed to create payin",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const createPayout = async () => {
+    try {
+      const payload: PayoutPayload = {
+        operator_code: payoutForm.operator_code,
+        amount: parseInt(payoutForm.amount),
+        phone: payoutForm.phone,
+        beneficiary_first_name: payoutForm.beneficiary_first_name,
+        beneficiary_last_name: payoutForm.beneficiary_last_name,
+        description: payoutForm.description,
+        client_reference: payoutForm.client_reference,
+        currency: payoutForm.currency,
+        beneficiary: {
+          name: payoutForm.beneficiary_name,
+          account_number: payoutForm.beneficiary_account_number,
+          email: payoutForm.beneficiary_email
+        }
+      }
+
+      const res = await smartFetch(`${baseUrl}/api/v2/payout/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      })
+      
+      if (res.ok) {
+        const data: Transaction = await res.json()
+        toast({
+          title: t("success"),
+          description: "Payout created successfully"
+        })
+        setPayoutModal(false)
+        setPayoutForm({
+          operator_code: "wave-ci",
+          amount: "",
+          phone: "",
+          beneficiary_first_name: "",
+          beneficiary_last_name: "",
+          description: "",
+          client_reference: "",
+          currency: "XOF",
+          beneficiary_name: "",
+          beneficiary_account_number: "",
+          beneficiary_email: ""
+        })
+        // Refresh transactions
+        fetchTransactions(currentPage, searchTerm, statusFilter, typeFilter)
+      } else {
+        toast({
+          title: t("error"),
+          description: `Failed to create payout: ${res.status}`,
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error('Error creating payout:', error)
+      toast({
+        title: t("error"),
+        description: "Failed to create payout",
+        variant: "destructive"
+      })
+    }
+  }
+
+  // COMMENTED OUT: Old transaction key function
+  // const getTransactionKey = (transaction: any) => {
+  //   const id = transaction.id || transaction.reference || transaction.transaction_id
+  //   if (!id) {
+  //     console.error('Could not extract ID from transaction:', transaction)
+  //     return `unknown-${Math.random().toString(36).substring(2, 11)}`
+  //   }
+  //   return id.toString()
+  // }
+
+  // COMMENTED OUT: Old WebSocket implementation
+  // const setupWebSocket = () => {
+  //   const token = getAccessToken()
+  //   if (!token) {
+  //     console.log('No access token available for WebSocket connection')
+  //     return
+  //   }
+
+  //   // Clean up existing connection
+  //   cleanupWebSocket()
+
+  //   try {
+  //     // Replace with your actual WebSocket URL when API is available
+  //     const wsUrl = `${baseUrl?.replace('http', 'ws')}/ws/transactions?token=${encodeURIComponent(token)}`
+  //     console.log('Attempting to connect to WebSocket:', wsUrl)
+  //     
+  //     webSocketRef.current = new WebSocket(wsUrl)
+
+  //     // Set connection timeout
+  //     const connectionTimeout = setTimeout(() => {
+  //       if (webSocketRef.current?.readyState !== WebSocket.OPEN) {
+  //         handleConnectionFailure('Connection timeout')
+  //       }
+  //     }, 5000)
+
+  //     webSocketRef.current.onopen = () => {
+  //       clearTimeout(connectionTimeout)
+  //       console.log('WebSocket connected successfully')
+  //       webSocketReconnectAttempts.current = 0
+  //       startPingInterval()
+  //     }
+
+  //     webSocketRef.current.onclose = (event) => {
+  //       clearTimeout(connectionTimeout)
+  //       handleWebSocketClose(event)
+  //     }
+
+  //     webSocketRef.current.onerror = (error) => {
+  //       console.error('WebSocket error:', error)
+  //       handleConnectionFailure('Connection failed')
+  //     }
+
+  //     webSocketRef.current.onmessage = handleWebSocketMessage
+
+  //   } catch (error) {
+  //     console.error('WebSocket setup failed:', error)
+  //     handleConnectionFailure('Failed to initialize WebSocket')
+  //   }
+  // }
+
+  // const cleanupWebSocket = () => {
+  //   if (webSocketRef.current) {
+  //     webSocketRef.current.close()
+  //     webSocketRef.current = null
+  //   }
+  //   if (reconnectTimeoutRef.current) {
+  //     clearTimeout(reconnectTimeoutRef.current)
+  //   }
+  // }
+
+  // const startPingInterval = () => {
+  //   const pingInterval = setInterval(() => {
+  //     if (webSocketRef.current?.readyState === WebSocket.OPEN) {
+  //       try {
+  //         webSocketRef.current.send(JSON.stringify({ type: 'ping' }))
+  //       } catch (error) {
+  //         console.error('Failed to send ping:', error)
+  //         cleanupWebSocket()
+  //         setupWebSocket()
+  //       }
+  //     } else {
+  //       clearInterval(pingInterval)
+  //     }
+  //   }, 30000)
+
+  //   // Store the interval ID for cleanup
+  //   if (webSocketRef.current) {
+  //     (webSocketRef.current as any).pingInterval = pingInterval
+  //   }
+  // }
+
+  // const handleConnectionFailure = (message: string) => {
+  //   console.error(message)
+  //   
+  //   // Implement exponential backoff
+  //   const backoffDelay = Math.min(1000 * Math.pow(2, webSocketReconnectAttempts.current), 30000)
+  //   webSocketReconnectAttempts.current++
+
+  //   reconnectTimeoutRef.current = setTimeout(() => {
+  //     setupWebSocket()
+  //   }, backoffDelay)
+  // }
+
+  // const handleWebSocketMessage = (event: MessageEvent) => {
+  //   try {
+  //     const data = JSON.parse(event.data)
+  //     wsHealth.current = {
+  //       lastMessageTime: Date.now(),
+  //       messageCount: wsHealth.current.messageCount + 1
+  //     }
+
+  //     console.log('WebSocket message received:', data)
+
+  //     switch (data.type) {
+  //       case 'transaction_update':
+  //         handleTransactionUpdate(data.transaction)
+  //         break
+  //       case 'new_transaction':
+  //         handleNewTransaction(data.transaction)
+  //         break
+  //       case 'pong':
+  //         console.log('Received pong from server')
+  //         break
+  //       case 'error':
+  //         console.error('Server error:', data.message)
+  //         break
+  //       default:
+  //         if (data.transaction) {
+  //           const existingTransaction = transactionsMapRef.current.has(getTransactionKey(data.transaction))
+  //           if (existingTransaction) {
+  //             handleTransactionUpdate(data.transaction)
+  //           } else {
+  //             handleNewTransaction(data.transaction)
+  //           }
+  //         }
+  //     }
+
+  //   } catch (error) {
+  //     console.error('Error processing WebSocket message:', error)
+  //   }
+  // }
+
+  // const handleWebSocketClose = (event: CloseEvent) => {
+  //   cleanupWebSocket()
+  //   
+  //   const reason = getCloseReason(event.code)
+  //   console.log(`WebSocket closed: ${reason}`)
+
+  //   if (event.code !== 1000) {
+  //     handleConnectionFailure(reason)
+  //   }
+  // }
+
+  // const getCloseReason = (code: number): string => {
+  //   const closeReasons: Record<number, string> = {
+  //     1000: 'Normal closure',
+  //     1001: 'Going away',
+  //     1002: 'Protocol error',
+  //     1003: 'Unsupported data',
+  //     1005: 'No status received',
+  //     1006: 'Abnormal closure',
+  //     1007: 'Invalid frame payload data',
+  //     1008: 'Policy violation',
+  //     1009: 'Message too big',
+  //     1010: 'Mandatory extension',
+  //     1011: 'Internal server error',
+  //     1012: 'Service restart',
+  //     1013: 'Try again later',
+  //     1014: 'Bad gateway',
+  //     1015: 'TLS handshake'
+  //   }
+
+  //   return closeReasons[code] || `Unknown reason (${code})`
+  // }
+
+  // // Handle new transaction from WebSocket
+  // const handleNewTransaction = (transaction: any) => {
+  //   const key = getTransactionKey(transaction)
+  //   
+  //   // Check if we already have this transaction
+  //   if (!transactionsMapRef.current.has(key)) {
+  //     // Add to our map
+  //     transactionsMapRef.current.set(key, transaction)
+  //     
+  //     // Add to state (at the beginning)
+  //     setTransactions(prev => [transaction, ...prev])
+  //     console.log('New transaction added via WebSocket:', transaction)
+  //   }
+  // }
+  
+  // // Handle transaction updates from WebSocket
+  // const handleTransactionUpdate = (updatedTransaction: any) => {
+  //   const key = getTransactionKey(updatedTransaction)
+  //   
+  //   console.log('Received update for transaction:', key, updatedTransaction)
+  //   
+  //   // Update the transaction in our state
+  //   setTransactions(prev => 
+  //     prev.map(item => {
+  //       if (getTransactionKey(item) === key) {
+  //         // Update the transaction with new data
+  //         return { ...item, ...updatedTransaction }
+  //       }
+  //       return item
+  //     })
+  //   )
+  //   
+  //   // Update the transaction in our map
+  //   if (transactionsMapRef.current.has(key)) {
+  //     const existingItem = transactionsMapRef.current.get(key)
+  //     if (existingItem) {
+  //       const updatedItem = { ...existingItem, ...updatedTransaction }
+  //       transactionsMapRef.current.set(key, updatedItem)
+  //     }
+  //   }
+  //   
+  //   console.log('Transaction updated via WebSocket:', updatedTransaction)
+  // }
+
+  // COMMENTED OUT: Old status check implementation
+  // const handleCheckStatus = async (reference: string) => {
+  //   setStatusLoading((prev) => ({ ...prev, [reference]: true }))
+  //   try {
+  //     const res = await smartFetch(`${baseUrl}/prod/v1/api/transaction-status?reference=${reference}`)
+  //     
+  //     if (res.ok) {
+  //       const data = await res.json()
+  //       setStatusMap((prev) => ({ ...prev, [reference]: data.status || 'Unknown' }))
+  //       // Show the full response in modal
+  //       setCheckStatusModal({open: true, data: data})
+  //     } else {
+  //       setStatusMap((prev) => ({ ...prev, [reference]: 'Error checking status' }))
+  //       setCheckStatusModal({open: true, data: {error: `Failed to check status: ${res.status}`}})
+  //     }
+  //   } catch (error) {
+  //     console.error('Error checking status:', error)
+  //     setStatusMap((prev) => ({ ...prev, [reference]: 'Failed to check status' }))
+  //     setCheckStatusModal({open: true, data: {error: 'Failed to check status'}})
+  //   } finally {
+  //     setStatusLoading((prev) => ({ ...prev, [reference]: false }))
+  //   }
+  // }
 
 
   // Server-side pagination calculations
@@ -404,67 +790,62 @@ export function TransactionsContent() {
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, statusFilter, methodFilter, startDate, endDate])
+  }, [searchTerm, statusFilter, typeFilter, startDate, endDate])
 
   // Debounced search effect
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (searchTerm !== "" || statusFilter !== "all" || startDate || endDate) {
-        fetchTransactions(1, searchTerm, statusFilter)
+      if (searchTerm !== "" || statusFilter !== "all" || typeFilter !== "all" || startDate || endDate) {
+        fetchTransactions(1, searchTerm, statusFilter, typeFilter)
       }
     }, 500) // 500ms delay
 
     return () => clearTimeout(timeoutId)
-  }, [searchTerm, statusFilter, startDate, endDate])
+  }, [searchTerm, statusFilter, typeFilter, startDate, endDate])
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "success":
       case "completed":
-        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">{t("success")}</Badge>
-      case "pending":
-      case "pening":
-        return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">{t("pending")}</Badge>
+        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">{t("completed")}</Badge>
+      case "processing":
+        return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">{t("processing")}</Badge>
       case "failed":
         return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">{t("failed")}</Badge>
-      case "expired":
-        return <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-100">{t("expired")}</Badge>
-      case "canceled":
-        return <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">{t("canceled")}</Badge>
-      case "refund":
-        return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">{t("refund")}</Badge>
       default:
         return <Badge variant="secondary">{status}</Badge>
     }
   }
 
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case "payin":
+        return <ArrowDownLeft className="h-4 w-4 text-green-600" />
+      case "payout":
+        return <ArrowUpRight className="h-4 w-4 text-red-600" />
+      default:
+        return <DollarSign className="h-4 w-4" />
+    }
+  }
+
   const handleExportPDF = async () => {
     try {
-      // Build query parameters for export (get all data, not paginated)
+      // Build query parameters for export using new API
       const params = new URLSearchParams({
-        page: "1",
-        page_size: "1000" // Large number to get all data
+        page: "1"
       })
-      
-      if (searchTerm) {
-        params.append('search', searchTerm)
-      }
       
       if (statusFilter !== "all") {
         params.append('status', statusFilter)
       }
       
-      if (startDate) {
-        params.append('start_date', startDate)
-      }
-      if (endDate) {
-        params.append('end_date', endDate)
+      if (typeFilter !== "all") {
+        params.append('type', typeFilter)
       }
       
-      const res = await smartFetch(`${baseUrl}/prod/v1/api/transaction?${params.toString()}`)
+      const res = await smartFetch(`${baseUrl}/api/v2/transactions/?${params.toString()}`)
       
       if (res.ok) {
-        const data = await res.json()
+        const data: TransactionListResponse = await res.json()
         
         // Create PDF using the API response data
         const doc = new jsPDF()
@@ -472,34 +853,26 @@ export function TransactionsContent() {
           t("reference"),
           t("date"),
           t("time"),
-          t("customer"),
+          "Type",
           t("phone"),
-          t("beneficiary"),
-          t("beneficiaryEmail"),
-          t("accountNumber"),
           t("amount"),
-          t("method"),
+          "Operator",
           t("status"),
-          // keep a separate explicit reference column out; first column now is reference
+          t("description")
         ]
         
-        const tableRows = data.results.map((transaction: any) => {
+        const tableRows = data.results.map((transaction: Transaction) => {
           const dateObj = transaction.created_at ? new Date(transaction.created_at) : null
           return [
             transaction.reference || "-",
             dateObj ? dateObj.toLocaleDateString() : "-",
             dateObj ? dateObj.toLocaleTimeString() : "-",
-            transaction.customer?.username || transaction.customer?.email || "-",
+            transaction.type_trans_display || "-",
             transaction.phone || "-",
-            transaction.beneficiary?.name || "-",
-            transaction.beneficiary?.email || "-",
-            transaction.beneficiary?.account_number || "-",
-            transaction.amount?.toLocaleString?.() || transaction.amount || "-",
-            (transaction.network && transaction.type_trans
-              ? `${transaction.network} (${transaction.type_trans})`
-              : (transaction.network || transaction.type_trans || "-")),
-            transaction.status || "-",
-            // removed duplicate reference column
+            transaction.formatted_amount || "-",
+            transaction.operator_name || "-",
+            transaction.status_display || "-",
+            transaction.description || "-"
           ]
         })
         
@@ -520,15 +893,12 @@ export function TransactionsContent() {
           t("reference"),
           t("date"),
           t("time"),
-          t("customer"),
+          "Type",
           t("phone"),
-          t("beneficiary"),
-          t("beneficiaryEmail"),
-          t("accountNumber"),
           t("amount"),
-          t("method"),
+          "Operator",
           t("status"),
-          // first column now is reference
+          t("description")
         ]
         const tableRows = transactions.map((transaction) => {
           const dateObj = transaction.created_at ? new Date(transaction.created_at) : null
@@ -536,17 +906,12 @@ export function TransactionsContent() {
             transaction.reference || "-",
             dateObj ? dateObj.toLocaleDateString() : "-",
             dateObj ? dateObj.toLocaleTimeString() : "-",
-            transaction.customer?.username || transaction.customer?.email || "-",
+            transaction.type_trans_display || "-",
             transaction.phone || "-",
-            transaction.beneficiary?.name || "-",
-            transaction.beneficiary?.email || "-",
-            transaction.beneficiary?.account_number || "-",
-            transaction.amount?.toLocaleString?.() || transaction.amount || "-",
-            (transaction.network && transaction.type_trans
-              ? `${transaction.network} (${transaction.type_trans})`
-              : (transaction.network || transaction.type_trans || "-")),
-            transaction.status || "-",
-            // removed duplicate reference column
+            transaction.formatted_amount || "-",
+            transaction.operator_name || "-",
+            transaction.status_display || "-",
+            transaction.description || "-"
           ]
         })
         autoTable(doc, {
@@ -566,15 +931,12 @@ export function TransactionsContent() {
         t("reference"),
         t("date"),
         t("time"),
-        t("customer"),
+        t("type"),
         t("phone"),
-        t("beneficiary"),
-        t("beneficiaryEmail"),
-        t("accountNumber"),
         t("amount"),
-        t("method"),
+        t("operator"),
         t("status"),
-        // first column now is reference
+        t("description")
       ]
       const tableRows = transactions.map((transaction) => {
         const dateObj = transaction.created_at ? new Date(transaction.created_at) : null
@@ -582,17 +944,12 @@ export function TransactionsContent() {
           transaction.reference || "-",
           dateObj ? dateObj.toLocaleDateString() : "-",
           dateObj ? dateObj.toLocaleTimeString() : "-",
-          transaction.customer?.username || transaction.customer?.email || "-",
+          transaction.type_trans_display || "-",
           transaction.phone || "-",
-          transaction.beneficiary?.name || "-",
-          transaction.beneficiary?.email || "-",
-          transaction.beneficiary?.account_number || "-",
-          transaction.amount?.toLocaleString?.() || transaction.amount || "-",
-          (transaction.network && transaction.type_trans
-            ? `${transaction.network} (${transaction.type_trans})`
-            : (transaction.network || transaction.type_trans || "-")),
-          transaction.status || "-",
-          // removed duplicate reference column
+          transaction.formatted_amount || "-",
+          transaction.operator_name || "-",
+          transaction.status_display || "-",
+          transaction.description || "-"
         ]
       })
       autoTable(doc, {
@@ -607,7 +964,7 @@ export function TransactionsContent() {
   }
 
   const totalAmount = transactions.reduce((sum, transaction) => sum + (transaction.amount || 0), 0)
-  const completedTransactions = transactions.filter((t) => t.status === "success" || t.status === "completed").length
+  const completedTransactions = transactions.filter((t) => t.status === "completed").length
 
   const handleCopy = async (text: string) => {
     try {
@@ -627,25 +984,14 @@ export function TransactionsContent() {
           <p className="text-muted-foreground">{t("manageAndTrackPayments")}</p>
         </div>
         <div className="flex space-x-2">
-          {/* WebSocket Status Indicator */}
-          <div className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800">
-            <div className={`w-2 h-2 rounded-full ${
-              webSocketRef.current?.readyState === WebSocket.OPEN 
-                ? 'bg-green-500' 
-                : webSocketRef.current?.readyState === WebSocket.CONNECTING 
-                ? 'bg-yellow-500' 
-                : 'bg-red-500'
-            }`}></div>
-            <span className="text-xs text-slate-600 dark:text-slate-400">
-              {webSocketRef.current?.readyState === WebSocket.OPEN 
-                ? 'Live' 
-                : webSocketRef.current?.readyState === WebSocket.CONNECTING 
-                ? 'Connecting' 
-                : 'Offline'
-              }
-            </span>
-          </div>
-          
+          <Button variant="outline" onClick={() => setPayinModal(true)}>
+            <ArrowDownLeft className="h-4 w-4 mr-2" />
+            Create Payin
+          </Button>
+          <Button variant="outline" onClick={() => setPayoutModal(true)}>
+            <ArrowUpRight className="h-4 w-4 mr-2" />
+            Create Payout
+          </Button>
           <Button variant="outline" onClick={handleExportPDF}>
             <Download className="h-4 w-4 mr-2" />
             {t("export")}
@@ -676,7 +1022,7 @@ export function TransactionsContent() {
             <div className="text-2xl font-bold text-green-600">{completedTransactions}</div>
             {totalPages > 1 && (
               <p className="text-xs text-muted-foreground mt-1">
-                Showing {transactions.filter(t => t.status === "success" || t.status === "completed").length} on this page
+                Showing {transactions.filter(t => t.status === "completed").length} on this page
               </p>
             )}
           </CardContent>
@@ -708,7 +1054,7 @@ export function TransactionsContent() {
             {totalPages > 1 && (
               <p className="text-xs text-muted-foreground mt-1">
                 Page success rate: {transactions.length > 0
-                  ? Math.round((transactions.filter(t => t.status === "success" || t.status === "completed").length / transactions.length) * 100)
+                  ? Math.round((transactions.filter(t => t.status === "completed").length / transactions.length) * 100)
                   : 0}%
               </p>
             )}
@@ -756,25 +1102,21 @@ export function TransactionsContent() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t("allStatus")}</SelectItem>
-                <SelectItem value="success">{t("success")}</SelectItem>
-                <SelectItem value="pening">{t("pending")}</SelectItem>
+                <SelectItem value="completed">{t("completed")}</SelectItem>
+                <SelectItem value="processing">{t("processing")}</SelectItem>
                 <SelectItem value="failed">{t("failed")}</SelectItem>
-                <SelectItem value="expired">{t("expired")}</SelectItem>
-                {/* <SelectItem value="canceled">{t("canceled")}</SelectItem> */}
-                <SelectItem value="refund">{t("refund")}</SelectItem>
               </SelectContent>
             </Select>
-            {/* <Select value={methodFilter} onValueChange={setMethodFilter}>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
               <SelectTrigger className="w-full md:w-40">
-                <SelectValue placeholder={t("method")} />
+                <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">{t("allMethods")}</SelectItem>
-                <SelectItem value="Mobile Money">{t("mobileMoney")}</SelectItem>
-                <SelectItem value="Credit Card">{t("creditCard")}</SelectItem>
-                <SelectItem value="Bank Account">{t("bankAccount")}</SelectItem>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="payin">Payin</SelectItem>
+                <SelectItem value="payout">Payout</SelectItem>
               </SelectContent>
-            </Select> */}
+            </Select>
           </div>
 
           {/* Transactions Table */}
@@ -784,11 +1126,10 @@ export function TransactionsContent() {
                 <TableRow>
                   <TableHead>{t("reference")}</TableHead>
                   <TableHead>{t("dateAndTime")}</TableHead>
-                  {/* <TableHead>{t("customer")}</TableHead> */}
+                  <TableHead>Type</TableHead>
                   <TableHead>{t("phone")}</TableHead>
-                  <TableHead>{t("beneficiary")}</TableHead>
                   <TableHead>{t("amount")}</TableHead>
-                  <TableHead>{t("method")}</TableHead>
+                  <TableHead>Operator</TableHead>
                   <TableHead>{t("status")}</TableHead>
                   <TableHead>{t("actions")}</TableHead>
                 </TableRow>
@@ -796,15 +1137,15 @@ export function TransactionsContent() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center">{t("loading")}</TableCell>
+                    <TableCell colSpan={8} className="text-center">{t("loading")}</TableCell>
                   </TableRow>
                 ) : transactions.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center">{t("noTransactionsFound")}</TableCell>
+                    <TableCell colSpan={8} className="text-center">{t("noTransactionsFound")}</TableCell>
                   </TableRow>
                 ) : (
                   transactions.map((transaction) => (
-                    <TableRow key={transaction.id}>
+                    <TableRow key={transaction.uid}>
                       <TableCell className="font-medium">
                         <div className="flex items-center">
                           <span className="truncate max-w-[160px]">{transaction.reference || "-"}</span>
@@ -826,43 +1167,47 @@ export function TransactionsContent() {
                           <div className="text-sm text-muted-foreground">{transaction.created_at ? new Date(transaction.created_at).toLocaleTimeString() : "-"}</div>
                         </div>
                       </TableCell>
-                      {/* <TableCell>
-                        <div>
-                          <div className="font-medium">{transaction.customer?.username || transaction.customer?.email || "-"}</div>
-                          <div className="text-sm text-muted-foreground">{transaction.customer?.email || "-"}</div>
+                      <TableCell>
+                        <div className="flex items-center">
+                          {getTypeIcon(transaction.type_trans)}
+                          <span className="ml-2">{transaction.type_trans_display}</span>
                         </div>
-                      </TableCell> */}
+                      </TableCell>
                       <TableCell>
                         <div className="font-medium">{transaction.phone || "-"}</div>
-                        {transaction.country_code && (
-                          <div className="text-sm text-muted-foreground">{transaction.country_code}</div>
-                        )}
                       </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{transaction.beneficiary?.name || "-"}</div>
-                          <div className="text-sm text-muted-foreground">{transaction.beneficiary?.email || "-"}</div>
-                          {transaction.beneficiary?.account_number && (
-                            <div className="text-xs text-muted-foreground">Account: {transaction.beneficiary.account_number}</div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-medium">{transaction.amount?.toLocaleString?.() || transaction.amount || "-"} {transaction.currency || ""}</TableCell>
-                      <TableCell>{transaction.network && transaction.type_trans ? `${transaction.network} (${transaction.type_trans})` : (transaction.network || transaction.type_trans || "-")}</TableCell>
+                      <TableCell className="font-medium">{transaction.formatted_amount || "-"}</TableCell>
+                      <TableCell>{transaction.operator_name || "-"}</TableCell>
                       <TableCell>{getStatusBadge(transaction.status)}</TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-2">
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleCheckStatus(transaction.reference)}
+                            onClick={() => getTransactionDetails(transaction.reference)}
                             disabled={statusLoading[transaction.reference]}
                           >
                             <RefreshCw className="h-4 w-4 mr-2" />
-                            {statusLoading[transaction.reference] ? t("checking") : t("checkStatus")}
+                            {statusLoading[transaction.reference] ? t("checking") : "Details"}
                           </Button>
-                          {statusMap[transaction.reference] && (
-                            <div className="mt-2 text-xs text-blue-600">{t("status")}: {statusMap[transaction.reference]}</div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => syncTransaction(transaction.uid)}
+                            disabled={syncLoading[transaction.uid]}
+                          >
+                            <RotateCcw className="h-4 w-4 mr-2" />
+                            {syncLoading[transaction.uid] ? "Syncing..." : "Sync"}
+                          </Button>
+                          {transaction.can_be_refunded && !transaction.refund_requested && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => requestRefund(transaction.reference)}
+                              disabled={refundLoading[transaction.reference]}
+                            >
+                              {refundLoading[transaction.reference] ? "Requesting..." : "Refund"}
+                            </Button>
                           )}
                         </div>
                       </TableCell>
@@ -973,19 +1318,15 @@ export function TransactionsContent() {
         </CardContent>
       </Card>
 
-      {/* Check Status Modal */}
+      {/* Transaction Details Modal */}
       <Dialog open={checkStatusModal.open} onOpenChange={(open) => setCheckStatusModal({open, data: null})}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{t("transactionStatus")}</DialogTitle>
-            <DialogDescription>{t("transactionStatusDetails")}</DialogDescription>
+            <DialogTitle>Transaction Details</DialogTitle>
+            <DialogDescription>View detailed information about this transaction</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            {checkStatusModal.data?.error ? (
-              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-red-800">{checkStatusModal.data.error}</p>
-              </div>
-            ) : (
+            {checkStatusModal.data ? (
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -995,7 +1336,7 @@ export function TransactionsContent() {
                       {checkStatusModal.data?.reference && (
                         <button
                           type="button"
-                          onClick={() => handleCopy(checkStatusModal.data.reference)}
+                          onClick={() => handleCopy(checkStatusModal.data?.reference || '')}
                           className="ml-2 text-muted-foreground hover:text-foreground"
                           title={t("copy")}
                         >
@@ -1005,42 +1346,240 @@ export function TransactionsContent() {
                     </p>
                   </div>
                   <div>
+                    <label className="text-sm font-medium text-gray-500">UID</label>
+                    <p className="text-sm">{checkStatusModal.data?.uid || '-'}</p>
+                  </div>
+                  <div>
                     <label className="text-sm font-medium text-gray-500">{t("status")}</label>
-                    <p className="text-sm">{checkStatusModal.data?.status || '-'}</p>
+                    <p className="text-sm">{checkStatusModal.data?.status_display || '-'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Type</label>
+                    <p className="text-sm">{checkStatusModal.data?.type_trans_display || '-'}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-500">{t("amount")}</label>
-                    <p className="text-sm">{checkStatusModal.data?.amount || '-'} {checkStatusModal.data?.currency || ''}</p>
+                    <p className="text-sm">{checkStatusModal.data?.formatted_amount || '-'}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-500">{t("phone")}</label>
                     <p className="text-sm">{checkStatusModal.data?.phone || '-'}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">{t("beneficiary")}</label>
-                    <p className="text-sm">{checkStatusModal.data?.beneficiary?.name || '-'}</p>
+                    <label className="text-sm font-medium text-gray-500">Operator</label>
+                    <p className="text-sm">{checkStatusModal.data?.operator_name || '-'}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">{t("beneficiaryEmail")}</label>
-                    <p className="text-sm">{checkStatusModal.data?.beneficiary?.email || '-'}</p>
+                    <label className="text-sm font-medium text-gray-500">Commission</label>
+                    <p className="text-sm">{checkStatusModal.data?.commission_amount || '-'}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">{t("accountNumber")}</label>
-                    <p className="text-sm">{checkStatusModal.data?.beneficiary?.account_number || '-'}</p>
+                    <label className="text-sm font-medium text-gray-500">Description</label>
+                    <p className="text-sm">{checkStatusModal.data?.description || '-'}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">{t("network")}</label>
-                    <p className="text-sm">{checkStatusModal.data?.network || '-'}</p>
+                    <label className="text-sm font-medium text-gray-500">Client Reference</label>
+                    <p className="text-sm">{checkStatusModal.data?.client_reference || '-'}</p>
                   </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Created At</label>
+                    <p className="text-sm">{checkStatusModal.data?.created_at ? new Date(checkStatusModal.data.created_at).toLocaleString() : '-'}</p>
+                  </div>
+                  {checkStatusModal.data?.completed_at && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Completed At</label>
+                      <p className="text-sm">{new Date(checkStatusModal.data.completed_at).toLocaleString()}</p>
+                    </div>
+                  )}
+                  {checkStatusModal.data?.error_message && (
+                    <div className="col-span-2">
+                      <label className="text-sm font-medium text-gray-500">Error Message</label>
+                      <p className="text-sm text-red-600">{checkStatusModal.data.error_message}</p>
+                    </div>
+                  )}
                 </div>
-                {/* <div className="p-4 bg-gray-50 rounded-lg">
-                  <label className="text-sm font-medium text-gray-500">{t("fullResponse")}</label>
-                  <pre className="text-xs mt-2 overflow-auto max-h-40">
-                    {JSON.stringify(checkStatusModal.data, null, 2)}
-                  </pre>
-                </div> */}
+              </div>
+            ) : (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-800">No transaction data available</p>
               </div>
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payin Creation Modal */}
+      <Dialog open={payinModal} onOpenChange={setPayinModal}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Create Payin</DialogTitle>
+            <DialogDescription>Create a new payin transaction</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium">Amount</label>
+                <Input
+                  type="number"
+                  value={payinForm.amount}
+                  onChange={(e) => setPayinForm(prev => ({ ...prev, amount: e.target.value }))}
+                  placeholder="Enter amount"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Phone</label>
+                <Input
+                  value={payinForm.phone}
+                  onChange={(e) => setPayinForm(prev => ({ ...prev, phone: e.target.value }))}
+                  placeholder="Enter phone number"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Description</label>
+                <Input
+                  value={payinForm.description}
+                  onChange={(e) => setPayinForm(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Enter description"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Client Reference</label>
+                <Input
+                  value={payinForm.client_reference}
+                  onChange={(e) => setPayinForm(prev => ({ ...prev, client_reference: e.target.value }))}
+                  placeholder="Enter client reference"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Beneficiary Name</label>
+                <Input
+                  value={payinForm.beneficiary_name}
+                  onChange={(e) => setPayinForm(prev => ({ ...prev, beneficiary_name: e.target.value }))}
+                  placeholder="Enter beneficiary name"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Beneficiary Account Number</label>
+                <Input
+                  value={payinForm.beneficiary_account_number}
+                  onChange={(e) => setPayinForm(prev => ({ ...prev, beneficiary_account_number: e.target.value }))}
+                  placeholder="Enter account number"
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="text-sm font-medium">Beneficiary Email</label>
+                <Input
+                  type="email"
+                  value={payinForm.beneficiary_email}
+                  onChange={(e) => setPayinForm(prev => ({ ...prev, beneficiary_email: e.target.value }))}
+                  placeholder="Enter email address"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setPayinModal(false)}>
+                Cancel
+              </Button>
+              <Button onClick={createPayin}>
+                Create Payin
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payout Creation Modal */}
+      <Dialog open={payoutModal} onOpenChange={setPayoutModal}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Create Payout</DialogTitle>
+            <DialogDescription>Create a new payout transaction</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium">Amount</label>
+                <Input
+                  type="number"
+                  value={payoutForm.amount}
+                  onChange={(e) => setPayoutForm(prev => ({ ...prev, amount: e.target.value }))}
+                  placeholder="Enter amount"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Phone</label>
+                <Input
+                  value={payoutForm.phone}
+                  onChange={(e) => setPayoutForm(prev => ({ ...prev, phone: e.target.value }))}
+                  placeholder="Enter phone number"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Beneficiary First Name</label>
+                <Input
+                  value={payoutForm.beneficiary_first_name}
+                  onChange={(e) => setPayoutForm(prev => ({ ...prev, beneficiary_first_name: e.target.value }))}
+                  placeholder="Enter first name"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Beneficiary Last Name</label>
+                <Input
+                  value={payoutForm.beneficiary_last_name}
+                  onChange={(e) => setPayoutForm(prev => ({ ...prev, beneficiary_last_name: e.target.value }))}
+                  placeholder="Enter last name"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Description</label>
+                <Input
+                  value={payoutForm.description}
+                  onChange={(e) => setPayoutForm(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Enter description"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Client Reference</label>
+                <Input
+                  value={payoutForm.client_reference}
+                  onChange={(e) => setPayoutForm(prev => ({ ...prev, client_reference: e.target.value }))}
+                  placeholder="Enter client reference"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Beneficiary Name</label>
+                <Input
+                  value={payoutForm.beneficiary_name}
+                  onChange={(e) => setPayoutForm(prev => ({ ...prev, beneficiary_name: e.target.value }))}
+                  placeholder="Enter beneficiary name"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Beneficiary Account Number</label>
+                <Input
+                  value={payoutForm.beneficiary_account_number}
+                  onChange={(e) => setPayoutForm(prev => ({ ...prev, beneficiary_account_number: e.target.value }))}
+                  placeholder="Enter account number"
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="text-sm font-medium">Beneficiary Email</label>
+                <Input
+                  type="email"
+                  value={payoutForm.beneficiary_email}
+                  onChange={(e) => setPayoutForm(prev => ({ ...prev, beneficiary_email: e.target.value }))}
+                  placeholder="Enter email address"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setPayoutModal(false)}>
+                Cancel
+              </Button>
+              <Button onClick={createPayout}>
+                Create Payout
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
