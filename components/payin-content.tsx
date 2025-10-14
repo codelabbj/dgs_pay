@@ -137,37 +137,48 @@ export function PayinContent() {
         console.log('Error response, status:', res.status)
         // Clear success state first, then set error
         setSuccess(null)
-        const errorData = await res.json()
-        console.log('Error response data:', errorData)
-        let errorMessage = 'Failed to create transaction'
         
-        if (Array.isArray(errorData.detail)) {
-          // Handle validation errors array
-          const validationErrors = errorData.detail.map((err: any) => 
-            `${err.loc?.join('.')}: ${err.msg}`
-          ).join(', ')
-          errorMessage = `Validation errors: ${validationErrors}`
-        } else if (typeof errorData.detail === 'string') {
-          errorMessage = errorData.detail
-        } else if (typeof errorData.message === 'string') {
-          errorMessage = errorData.message
-        } else if (errorData.error) {
-          errorMessage = errorData.error
-        } else if (errorData && typeof errorData === 'object') {
-          // Extract error values from field keys
-          const fieldErrors = Object.entries(errorData).map(([field, errors]) => {
-            if (Array.isArray(errors)) {
-              return `${field}: ${errors.join(', ')}`
-            }
-            return `${field}: ${errors}`
-          }).join('\n')
-          errorMessage = fieldErrors
-        } else {
-          errorMessage = `Failed to create transaction: ${res.status} ${res.statusText}`
+        try {
+          const errorData = await res.json()
+          console.log('Error response data:', errorData)
+          console.log('Error data type:', typeof errorData)
+          console.log('Error data keys:', Object.keys(errorData))
+          
+          let errorMessage = 'Failed to create transaction'
+          
+          // Handle different error response formats
+          if (Array.isArray(errorData.detail)) {
+            // Handle validation errors array (FastAPI style)
+            const validationErrors = errorData.detail.map((err: any) => 
+              `${err.loc?.join('.')}: ${err.msg}`
+            ).join(', ')
+            errorMessage = `Validation errors: ${validationErrors}`
+          } else if (typeof errorData.detail === 'string') {
+            errorMessage = errorData.detail
+          } else if (typeof errorData.message === 'string') {
+            errorMessage = errorData.message
+          } else if (errorData.error) {
+            errorMessage = errorData.error
+          } else if (errorData && typeof errorData === 'object') {
+            // Extract error values from field keys (e.g., {"amount":["Solde insuffisant: 0 XOF"]})
+            const fieldErrors = Object.entries(errorData).map(([field, errors]) => {
+              if (Array.isArray(errors)) {
+                return `${field}: ${errors.join(', ')}`
+              }
+              return `${field}: ${errors}`
+            }).join('\n')
+            errorMessage = fieldErrors
+          } else {
+            errorMessage = `Failed to create transaction: ${res.status} ${res.statusText}`
+          }
+          
+          console.log('Final error message:', errorMessage)
+          setError(errorMessage)
+          console.error('Transaction creation error:', errorData)
+        } catch (parseError) {
+          console.error('Error parsing error response:', parseError)
+          setError(`Failed to create transaction: ${res.status} ${res.statusText}`)
         }
-        
-        setError(errorMessage)
-        console.error('Transaction creation error:', errorData)
       }
     } catch (error) {
       console.error('Error creating transaction:', error)

@@ -28,6 +28,8 @@ import {
   ChevronDown,
   CheckCircle,
   AlertCircle,
+  Minus,
+  Plus,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 
@@ -188,6 +190,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { name: t("dashboard"), href: "/", icon: BarChart3 },
     { name: t("transactions"), href: "/transactions", icon: CreditCard },
     { name: t("balance"), href: "/balance", icon: Wallet },
+    { name: t("withdrawalRequests"), href: "/withdraw", icon: Minus },
+    { name: t("rechargeRequests"), href: "/recharge", icon: Plus },
     // { name: t("customers"), href: "/customers", icon: Users },
     // { name: t("payDirect"), href: "/payouts", icon: Wallet },
     // { name: t("myStore"), href: "/store", icon: Store },

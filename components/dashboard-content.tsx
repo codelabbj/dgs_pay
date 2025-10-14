@@ -65,6 +65,7 @@ export function DashboardContent() {
 
   // State for API data
   const [stats, setStats] = useState<any>(null)
+  const [balance, setBalance] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
@@ -72,8 +73,9 @@ export function DashboardContent() {
   useEffect(() => {
     // Add a delay to ensure authentication is fully established
     const timer = setTimeout(() => {
-      console.log('Dashboard content: Starting to fetch stats after delay')
+      console.log('Dashboard content: Starting to fetch stats and balance after delay')
       fetchStats()
+      fetchBalance()
     }, 1000) // Wait 1 second for auth to be fully established
     
     return () => clearTimeout(timer)
@@ -81,20 +83,36 @@ export function DashboardContent() {
 
   const fetchStats = async () => {
     try {
-      setLoading(true)
-      setError(null)
-      
       const res = await smartFetch(`${baseUrl}/prod/v1/api/statistic`)
       
       if (res.ok) {
         const data = await res.json()
         setStats(data)
       } else {
-        setError(`Failed to fetch stats: ${res.status}`)
+        console.error(`Failed to fetch stats: ${res.status}`)
       }
     } catch (error) {
       console.error('Error fetching stats:', error)
-      setError('Failed to fetch statistics')
+    }
+  }
+
+  const fetchBalance = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const res = await smartFetch(`${baseUrl}/api/v2/balance/`)
+      
+      if (res.ok) {
+        const data = await res.json()
+        setBalance(data)
+        console.log('Balance data fetched:', data)
+      } else {
+        setError(`Failed to fetch balance: ${res.status}`)
+      }
+    } catch (error) {
+      console.error('Error fetching balance:', error)
+      setError('Failed to fetch balance')
     } finally {
       setLoading(false)
     }
@@ -197,7 +215,7 @@ export function DashboardContent() {
 
         {/* Balance Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* Total Fee Card */}
+          {/* Current Balance Card */}
           <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-3xl overflow-hidden group">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -207,21 +225,25 @@ export function DashboardContent() {
                 <ArrowUpRight className="h-5 w-5 text-blue-600 group-hover:scale-110 transition-transform" />
               </div>
               <CardTitle className="text-sm font-medium text-neutral-600 dark:text-neutral-400 mt-4">
-                Frais Totaux
+                {t("currentBalance")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">
-                {formatCurrency(stats?.total_fee)}
+                {showBalances ? (balance?.formatted_balance || "0 XOF") : "••••••"}
               </div>
               <div className="flex items-center space-x-2">
-                <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 rounded-full">+12.5%</Badge>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Ce mois</span>
+                <Badge className={`${balance?.is_active ? 'bg-green-100 text-green-800 hover:bg-green-100' : 'bg-red-100 text-red-800 hover:bg-red-100'} rounded-full`}>
+                  {balance?.is_active ? t("balanceActive") : t("balanceInactive")}
+                </Badge>
+                <span className="text-sm text-neutral-500 dark:text-neutral-400">
+                  {balance?.is_frozen ? t("balanceFrozen") : t("balanceAvailable")}
+                </span>
               </div>
             </CardContent>
           </Card>
 
-          {/* Total Success Transactions Card */}
+          {/* Total Payin Card */}
           <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-3xl overflow-hidden group">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -231,68 +253,118 @@ export function DashboardContent() {
                 <ArrowUpRight className="h-5 w-5 text-green-600 group-hover:scale-110 transition-transform" />
               </div>
               <CardTitle className="text-sm font-medium text-neutral-600 dark:text-neutral-400 mt-4">
-                Transactions Réussies
+                {t("totalPayin")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">
-                {stats?.total_success_transaction ? stats.total_success_transaction.toLocaleString() : '••••••'}
+                {showBalances ? `${balance?.total_payin?.toLocaleString() || 0} XOF` : '••••••'}
               </div>
               <div className="flex items-center space-x-2">
                 <Badge className="bg-green-100 text-green-800 hover:bg-green-100 rounded-full">+15.3%</Badge>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Ce mois</span>
+                <span className="text-sm text-neutral-500 dark:text-neutral-400">{t("allTimePaymentsReceived")}</span>
               </div>
             </CardContent>
           </Card>
 
-          {/* Available Balance Card */}
+          {/* Total Payout Card */}
           <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-3xl overflow-hidden group">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <div className="p-3 bg-purple-600 rounded-2xl shadow-lg">
+                <div className="p-3 bg-red-600 rounded-2xl shadow-lg">
                   <TrendingDown className="h-6 w-6 text-white" />
                 </div>
                 <ArrowDownRight className="h-5 w-5 text-red-600 group-hover:scale-110 transition-transform" />
               </div>
               <CardTitle className="text-sm font-medium text-neutral-600 dark:text-neutral-400 mt-4">
-                {t("availableBalance")}
+                {t("totalPayout")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">
-                {formatCurrency(stats?.availavailable_fund)}
+                {showBalances ? `${balance?.total_payout?.toLocaleString() || 0} XOF` : '••••••'}
               </div>
               <div className="flex items-center space-x-2">
                 <Badge className="bg-red-100 text-red-800 hover:bg-red-100 rounded-full">-2.1%</Badge>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">{t("fromYesterday")}</span>
+                <span className="text-sm text-neutral-500 dark:text-neutral-400">{t("allTimePaymentsSent")}</span>
               </div>
             </CardContent>
           </Card>
 
-          {/* Operation Balance Card */}
-          {/* <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-3xl overflow-hidden group">
+          {/* Total Fees Paid Card */}
+          <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-3xl overflow-hidden group">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <div className="p-3 bg-emerald-600 rounded-2xl shadow-lg">
-                  <TrendingUp className="h-6 w-6 text-white" />
+                <div className="p-3 bg-purple-600 rounded-2xl shadow-lg">
+                  <CreditCard className="h-6 w-6 text-white" />
                 </div>
-                <ArrowUpRight className="h-5 w-5 text-emerald-600 group-hover:scale-110 transition-transform" />
+                <ArrowUpRight className="h-5 w-5 text-purple-600 group-hover:scale-110 transition-transform" />
               </div>
               <CardTitle className="text-sm font-medium text-neutral-600 dark:text-neutral-400 mt-4">
-                {t("operationBalance")}
+                {t("totalFeesPaid")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">
-                {formatCurrency(stats?.all_operation_amount)}
+                {showBalances ? `${balance?.total_fees_paid?.toLocaleString() || 0} XOF` : '••••••'}
               </div>
               <div className="flex items-center space-x-2">
-                <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 rounded-full">+8.2%</Badge>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">{t("fromLastWeek")}</span>
+                <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100 rounded-full">+8.2%</Badge>
+                <span className="text-sm text-neutral-500 dark:text-neutral-400">{t("transactionFeesPaid")}</span>
               </div>
             </CardContent>
-          </Card> */}
+          </Card>
         </div>
+
+        {/* Balance Details */}
+        {balance && (
+          <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl rounded-3xl overflow-hidden">
+            <CardHeader>
+              <CardTitle className="text-lg font-bold text-neutral-900 dark:text-white">{t("balance")} Details</CardTitle>
+              <CardDescription className="text-neutral-600 dark:text-neutral-400">
+                Complete balance information from API
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Account UID</h4>
+                  <p className="text-sm font-mono bg-neutral-100 dark:bg-neutral-800 p-2 rounded-lg">
+                    {balance.uid}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Account Status</h4>
+                  <div className="flex items-center space-x-2">
+                    <Badge className={`${balance.is_active ? 'bg-green-100 text-green-800 hover:bg-green-100' : 'bg-red-100 text-red-800 hover:bg-red-100'} rounded-full`}>
+                      {balance.is_active ? t("balanceActive") : t("balanceInactive")}
+                    </Badge>
+                    {balance.is_frozen && (
+                      <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100 rounded-full">
+                        {t("balanceFrozen")}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Last Transaction</h4>
+                  <p className="text-sm text-neutral-700 dark:text-neutral-300">
+                    {balance.last_transaction_at 
+                      ? new Date(balance.last_transaction_at).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })
+                      : 'No transactions yet'
+                    }
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Transaction Success Chart */}
         <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl rounded-3xl overflow-hidden">
