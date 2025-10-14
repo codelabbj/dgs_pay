@@ -137,6 +137,13 @@ export function BalanceContent() {
   const [loading, setLoading] = useState(true)
   const [showBalance, setShowBalance] = useState(true)
   const [activeTab, setActiveTab] = useState("overview")
+
+  // Static operator options (same as payin-content.tsx)
+  const OPERATOR_OPTIONS = [
+    { value: "wave-ci", label: "Wave CI" },
+    { value: "mtn-ci", label: "MTN CI" },
+    { value: "orange-ci", label: "Orange CI" }
+  ]
   
   // Withdrawal form state
   const [withdrawalDialogOpen, setWithdrawalDialogOpen] = useState(false)
@@ -556,9 +563,9 @@ export function BalanceContent() {
                             <SelectValue placeholder={t("selectOperator")} />
                           </SelectTrigger>
                           <SelectContent>
-                            {operators.map((operator) => (
-                              <SelectItem key={operator.uid} value={operator.operator_code}>
-                                {operator.operator_name}
+                            {OPERATOR_OPTIONS.map((operator) => (
+                              <SelectItem key={operator.value} value={operator.value}>
+                                {operator.label}
                               </SelectItem>
                             ))}
                           </SelectContent>

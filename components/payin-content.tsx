@@ -15,17 +15,15 @@ export function PayinContent() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [transactionType, setTransactionType] = useState<string>("payout")
-  const [selectedNetwork, setSelectedNetwork] = useState<string>("")
+  const [transactionType, setTransactionType] = useState<string>("payin")
   const [selectedCountry, setSelectedCountry] = useState<string>("ci")
   const { t } = useLanguage()
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
 
-  const CHOICE_NETWORK = [
-    { value: "mtn", label: "MTN" },
-    { value: "wave", label: "Wave" },
-    { value: "wave_marchant", label: "Wave Merchant" },
-    { value: "orange", label: "Orange" }
+  const OPERATOR_OPTIONS = [
+    { value: "wave-ci", label: "Wave CI" },
+    { value: "mtn-ci", label: "MTN CI" },
+    { value: "orange-ci", label: "Orange CI" }
   ]
 
   const COUNTRY_OPTIONS = [
@@ -67,27 +65,32 @@ export function PayinContent() {
         }
       }
 
+      // Generate client reference
+      const clientReference = `${typeTrans.toUpperCase()}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+
       let payload: any = {
-        type_trans: typeTrans,
+        operator_code: formData.get("operator_code"),
+        amount: Number(formData.get("amount")),
         phone: formattedPhone,
-        amount: Number(formData.get("amount"))
+        description: formData.get("description") || "Transaction",
+        // success_url: formData.get("success_url") || "https://codelab.bj",
+        // cancel_url: formData.get("cancel_url") || "https://djofo.codelab.bj",
+        client_reference: clientReference,
+        currency: "XOF"
       }
 
-      // Handle withdrawal type with specific payload structure
-      if (typeTrans === "withdrawal") {
-        payload.network = formData.get("network")
-        // Only add code if network is wave_marchant
-        if (formData.get("network") === "wave_marchant") {
-          payload.code = formData.get("code")
-        }
-      } else if (typeTrans === "recharge") {
-        // Handle recharge type with specific payload structure
-        payload.payment_image = "https://dgs-pay.com/profile"
-        payload.account_number = formData.get("account_number")
-      } else {
-        // Handle payout type with beneficiary information
+      // Handle payin vs payout specific fields
+      if (typeTrans === "payin") {
         payload.beneficiary = {
           name: formData.get("beneficiary_name"),
+          account_number: formData.get("beneficiary_account"),
+          email: formData.get("beneficiary_email")
+        }
+      } else if (typeTrans === "payout") {
+        payload.beneficiary_first_name = formData.get("beneficiary_first_name")
+        payload.beneficiary_last_name = formData.get("beneficiary_last_name")
+        payload.beneficiary = {
+          name: `${formData.get("beneficiary_first_name")} ${formData.get("beneficiary_last_name")}`,
           account_number: formData.get("beneficiary_account"),
           email: formData.get("beneficiary_email")
         }
@@ -97,12 +100,12 @@ export function PayinContent() {
 
       // Use different API endpoint based on transaction type
       let apiEndpoint
-      if (typeTrans === "withdrawal") {
-        apiEndpoint = `${baseUrl}/prod/v1/api/withdrawal`
-      } else if (typeTrans === "recharge") {
-        apiEndpoint = `${baseUrl}/prod/v1/api/recharge`
+      if (typeTrans === "payin") {
+        apiEndpoint = `${baseUrl}/api/v2/payin/`
+      } else if (typeTrans === "payout") {
+        apiEndpoint = `${baseUrl}/api/v2/payout/`
       } else {
-        apiEndpoint = `${baseUrl}/prod/v1/api/customer-transaction`
+        throw new Error("Invalid transaction type")
       }
 
       const res = await smartFetch(apiEndpoint, {
@@ -121,13 +124,11 @@ export function PayinContent() {
         // Clear error state first, then set success
         setError(null)
         
-        // Different success message based on transaction type
-        if (typeTrans === "withdrawal") {
-          setSuccess(`Transaction de retrait créée avec succès! Référence: ${data.reference || 'N/A'}. Un e-mail sera envoyé à votre adresse e-mail après le traitement de la transaction.`)
-        } else if (typeTrans === "recharge") {
-          setSuccess(`Recharge transaction created successfully! Reference: ${data.reference || 'N/A'}, Status: ${data.status || 'N/A'}`)
-        } else {
-          setSuccess(`Transaction created successfully! Reference: ${data.reference || 'N/A'}`)
+        // Success message based on transaction type
+        if (typeTrans === "payin") {
+          setSuccess(`Payin transaction created successfully! Reference: ${data.reference || 'N/A'}, Status: ${data.status_display || 'N/A'}`)
+        } else if (typeTrans === "payout") {
+          setSuccess(`Payout transaction created successfully! Reference: ${data.reference || 'N/A'}, Status: ${data.status_display || 'N/A'}`)
         }
         
         // Reset form using stored reference
@@ -216,7 +217,7 @@ export function PayinContent() {
               <Label htmlFor="type_trans">Transaction Type</Label>
               <Select 
                 name="type_trans" 
-                defaultValue="payout"
+                defaultValue="payin"
                 value={transactionType}
                 onValueChange={setTransactionType}
               >
@@ -224,9 +225,25 @@ export function PayinContent() {
                   <SelectValue placeholder="Select Transaction Type" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="payin">Payin</SelectItem>
                   <SelectItem value="payout">Payout</SelectItem>
-                  <SelectItem value="recharge">Recharge</SelectItem>
-                  <SelectItem value="withdrawal">Withdrawal</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Operator Code */}
+            <div>
+              <Label htmlFor="operator_code">Operator</Label>
+              <Select name="operator_code" required>
+                <SelectTrigger id="operator_code">
+                  <SelectValue placeholder="Select Operator" />
+                </SelectTrigger>
+                <SelectContent>
+                  {OPERATOR_OPTIONS.map((operator) => (
+                    <SelectItem key={operator.value} value={operator.value}>
+                      {operator.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -235,7 +252,7 @@ export function PayinContent() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="amount">{t("amount")}</Label>
-                <Input name="amount" id="amount" type="number"  required />
+                <Input name="amount" id="amount" type="number" required />
               </div>
               <div>
                 <Label htmlFor="phone">{t("phone")}</Label>
@@ -255,67 +272,11 @@ export function PayinContent() {
               </div>
             </div>
 
-            {/* Network Field - Only for withdrawal */}
-            {transactionType === "withdrawal" && (
-              <div>
-                <Label htmlFor="network">Network</Label>
-                <Select 
-                  name="network" 
-                  value={selectedNetwork}
-                  onValueChange={setSelectedNetwork}
-                  required
-                >
-                  <SelectTrigger id="network">
-                    <SelectValue placeholder="Select Network" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CHOICE_NETWORK.map((network) => (
-                      <SelectItem key={network.value} value={network.value}>
-                        {network.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {/* Code Field - Only for withdrawal with wave_marchant */}
-            {transactionType === "withdrawal" && selectedNetwork === "wave_marchant" && (
-              <div>
-                <Label htmlFor="code">Code</Label>
-                <Input name="code" id="code" placeholder="Enter code" required />
-              </div>
-            )}
-
-            {/* Account Number Field - Only for recharge */}
-            {transactionType === "recharge" && (
-              <div>
-                <Label htmlFor="account_number">Account Number</Label>
-                <Input name="account_number" id="account_number" placeholder="Enter account number" required />
-              </div>
-            )}
-
-            {/* Beneficiary Information - Only for payout */}
-            {transactionType === "payout" && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Beneficiary Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="beneficiary_name">Beneficiary Name</Label>
-                    <Input name="beneficiary_name" id="beneficiary_name"  required />
-                  </div>
-                  <div>
-                    <Label htmlFor="beneficiary_account">Account Number</Label>
-                    <Input name="beneficiary_account" id="beneficiary_account"  required />
-                  </div>
-                  <div className="md:col-span-2">
-                    <Label htmlFor="beneficiary_email">Beneficiary Email</Label>
-                    <Input name="beneficiary_email" id="beneficiary_email" type="email"  required />
-                  </div>
-                  
-                </div>
-              </div>
-            )}
+            {/* Description */}
+            <div>
+              <Label htmlFor="description">Description</Label>
+              <Input name="description" id="description" placeholder="Transaction description" />
+            </div>
 
             {/* URLs */}
             {/* <div className="space-y-4">
@@ -323,27 +284,53 @@ export function PayinContent() {
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="success_url">Success URL</Label>
-                  <Input name="success_url" id="success_url" defaultValue="https://example.com/success" required />
+                  <Input name="success_url" id="success_url" defaultValue="https://codelab.bj" required />
                 </div>
                 <div>
                   <Label htmlFor="cancel_url">Cancel URL</Label>
-                  <Input name="cancel_url" id="cancel_url" defaultValue="https://example.com/cancel" required />
-                </div>
-                <div>
-                  <Label htmlFor="callback_url">Callback URL</Label>
-                  <Input name="callback_url" id="callback_url" defaultValue="https://example.com/callback" required />
+                  <Input name="cancel_url" id="cancel_url" defaultValue="https://djofo.codelab.bj" required />
                 </div>
               </div>
             </div> */}
 
-            {/* Additional Fields */}
-            {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="wave_id">Wave ID</Label>
-                <Input name="wave_id" id="wave_id" defaultValue="wave_1234567890" />
-              </div>
+            {/* Beneficiary Information - For both payin and payout */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Beneficiary Information</h3>
               
-            </div> */}
+              {/* For payout: separate first and last name fields */}
+              {transactionType === "payout" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="beneficiary_first_name">First Name</Label>
+                    <Input name="beneficiary_first_name" id="beneficiary_first_name" required />
+                  </div>
+                  <div>
+                    <Label htmlFor="beneficiary_last_name">Last Name</Label>
+                    <Input name="beneficiary_last_name" id="beneficiary_last_name" required />
+                  </div>
+                </div>
+              )}
+              
+              {/* For payin: single name field */}
+              {transactionType === "payin" && (
+                <div>
+                  <Label htmlFor="beneficiary_name">Beneficiary Name</Label>
+                  <Input name="beneficiary_name" id="beneficiary_name" required />
+                </div>
+              )}
+              
+              {/* Common fields for both */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="beneficiary_account">Account Number</Label>
+                  <Input name="beneficiary_account" id="beneficiary_account" required />
+                </div>
+                <div>
+                  <Label htmlFor="beneficiary_email">Beneficiary Email</Label>
+                  <Input name="beneficiary_email" id="beneficiary_email" type="email" required />
+                </div>
+              </div>
+            </div>
 
             <Button 
               type="submit" 
