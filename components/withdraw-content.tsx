@@ -303,24 +303,24 @@ export function WithdrawContent() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="phone">Phone Number</Label>
+                  <Label htmlFor="phone">{t("phoneNumber")}</Label>
                   <Input
                     id="phone"
                     type="tel"
                     value={createForm.phone}
                     onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
-                    placeholder="+2250102059707"
+                    placeholder={t("phoneNumberPlaceholderWithCode")}
                     required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="operator">Operator</Label>
+                  <Label htmlFor="operator">{t("operator")}</Label>
                   <Select
                     value={createForm.operator_code}
                     onValueChange={(value) => setCreateForm({ ...createForm, operator_code: value })}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select operator" />
+                      <SelectValue placeholder={t("selectOperator")} />
                     </SelectTrigger>
                     <SelectContent>
                       {OPERATOR_OPTIONS.map((operator) => (
@@ -332,16 +332,16 @@ export function WithdrawContent() {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="code">Code (Optional)</Label>
+                  <Label htmlFor="code">{t("codeOptional")}</Label>
                   <Input
                     id="code"
                     value={createForm.code}
                     onChange={(e) => setCreateForm({ ...createForm, code: e.target.value })}
-                    placeholder="Enter code"
+                    placeholder={t("enterCode")}
                   />
                 </div>
                 <Button type="submit" className="w-full" disabled={createLoading}>
-                  {createLoading ? "Creating..." : "Create Withdrawal"}
+                  {createLoading ? t("creating") : t("createWithdrawalButton")}
                 </Button>
               </form>
             </DialogContent>
@@ -357,7 +357,7 @@ export function WithdrawContent() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
                 <Input
-                  placeholder="Search by reference, phone, or amount..."
+                  placeholder={t("searchByReferencePhoneAmount")}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -366,22 +366,22 @@ export function WithdrawContent() {
             </form>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Filter by status" />
+                <SelectValue placeholder={t("rechargeFilterByStatus")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="all">{t("allStatus")}</SelectItem>
+                <SelectItem value="pending">{t("pending")}</SelectItem>
+                <SelectItem value="approved">{t("approved")}</SelectItem>
+                <SelectItem value="completed">{t("completed")}</SelectItem>
+                <SelectItem value="rejected">{t("rejected")}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={operatorFilter} onValueChange={setOperatorFilter}>
               <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Filter by operator" />
+                <SelectValue placeholder={t("filterByOperator")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Operators</SelectItem>
+                <SelectItem value="all">{t("allOperators")}</SelectItem>
                 {OPERATOR_OPTIONS.map((operator) => (
                   <SelectItem key={operator.value} value={operator.value}>
                     {operator.label}
@@ -396,9 +396,9 @@ export function WithdrawContent() {
       {/* Withdrawals Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Withdrawal Requests</CardTitle>
+          <CardTitle>{t("withdrawalRequestsTitle")}</CardTitle>
           <CardDescription>
-            {totalCount} total withdrawal requests
+            {totalCount} {t("totalWithdrawalRequests")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -408,20 +408,20 @@ export function WithdrawContent() {
             </div>
           ) : withdrawals.length === 0 ? (
             <div className="text-center py-8 text-neutral-500">
-              No withdrawal requests found
+              {t("noWithdrawalRequestsFound")}
             </div>
           ) : (
             <>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Reference</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Operator</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead>{t("reference")}</TableHead>
+                    <TableHead>{t("amount")}</TableHead>
+                    <TableHead>{t("phone")}</TableHead>
+                    <TableHead>{t("operator")}</TableHead>
+                    <TableHead>{t("status")}</TableHead>
+                    <TableHead>{t("created")}</TableHead>
+                    <TableHead>{t("actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -439,7 +439,7 @@ export function WithdrawContent() {
                       <TableCell>{formatDate(withdrawal.created_at)}</TableCell>
                       <TableCell>
                         <Button variant="outline" size="sm">
-                          View Details
+                          {t("viewDetails")}
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -451,7 +451,7 @@ export function WithdrawContent() {
               {totalPages > 1 && (
                 <div className="flex items-center justify-between mt-6">
                   <div className="text-sm text-neutral-500">
-                    Showing {((currentPage - 1) * 10) + 1} to {Math.min(currentPage * 10, totalCount)} of {totalCount} results
+                    {t("showingLabel")} {((currentPage - 1) * 10) + 1} {t("toLabel")} {Math.min(currentPage * 10, totalCount)} {t("ofLabel")} {totalCount} {t("resultsLabel")}
                   </div>
                   <div className="flex items-center space-x-2">
                     <Button
@@ -471,7 +471,7 @@ export function WithdrawContent() {
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
                     <span className="text-sm">
-                      Page {currentPage} of {totalPages}
+                      {t("rechargePage")} {currentPage} {t("rechargeOf")} {totalPages}
                     </span>
                     <Button
                       variant="outline"

@@ -40,6 +40,15 @@ interface RechargeListResponse {
   results: RechargeRequest[]
 }
 
+interface CreateRechargeForm {
+  amount: string
+  payment_method: string
+  notes: string
+  bank_reference: string
+  mobile_reference: string
+  proof_image: File | null
+}
+
 export function RechargeContent() {
   const [recharges, setRecharges] = useState<RechargeRequest[]>([])
   const [loading, setLoading] = useState(true)
@@ -58,10 +67,13 @@ export function RechargeContent() {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
 
   // Create recharge form state
-  const [createForm, setCreateForm] = useState({
+  const [createForm, setCreateForm] = useState<CreateRechargeForm>({
     amount: "",
     payment_method: "cash",
-    notes: ""
+    notes: "",
+    bank_reference: "",
+    mobile_reference: "",
+    proof_image: null
   })
 
   useEffect(() => {
@@ -104,25 +116,48 @@ export function RechargeContent() {
     setCreateError(null) // Clear previous errors
     
     try {
+      const parsedAmount = parseInt(createForm.amount, 10)
+      if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
+        setCreateError(t("errorInvalidAmount"))
+        setCreateLoading(false)
+        return
+      }
+
+      const formData = new FormData()
+      formData.append("amount", String(parsedAmount))
+      formData.append("payment_method", createForm.payment_method)
+      if (createForm.notes.trim()) {
+        formData.append("notes", createForm.notes.trim())
+      }
+      if (createForm.payment_method === "bank_transfer" && createForm.bank_reference.trim()) {
+        formData.append("bank_reference", createForm.bank_reference.trim())
+      }
+      if (createForm.payment_method === "mobile_money" && createForm.mobile_reference.trim()) {
+        formData.append("mobile_reference", createForm.mobile_reference.trim())
+      }
+      if (createForm.proof_image) {
+        formData.append("proof_image", createForm.proof_image)
+      }
+
       const response = await smartFetch(`${baseUrl}/api/v2/recharge/`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          amount: parseInt(createForm.amount),
-          payment_method: createForm.payment_method,
-          notes: createForm.notes
-        })
+        body: formData
       })
       
       if (response.ok) {
         toast({
-          title: "Success",
-          description: "Recharge request created successfully",
+          title: t("success"),
+          description: t("rechargeRequestCreated"),
         })
         setCreateDialogOpen(false)
-        setCreateForm({ amount: "", payment_method: "cash", notes: "" })
+        setCreateForm({
+          amount: "",
+          payment_method: "cash",
+          notes: "",
+          bank_reference: "",
+          mobile_reference: "",
+          proof_image: null
+        })
         fetchRecharges()
       } else {
         try {
@@ -131,7 +166,7 @@ export function RechargeContent() {
           console.log('Error data type:', typeof errorData)
           console.log('Error data keys:', Object.keys(errorData))
           
-          let errorMessage = 'Failed to create recharge request'
+          let errorMessage = t("failedToCreateRecharge")
           
           // Handle different error response formats
           if (Array.isArray(errorData.detail)) {
@@ -162,16 +197,16 @@ export function RechargeContent() {
           console.log('Final error message:', errorMessage)
           setCreateError(errorMessage)
           toast({
-            title: "Error",
+            title: t("errorTitle"),
             description: errorMessage,
             variant: "destructive"
           })
         } catch (parseError) {
           console.error('Error parsing error response:', parseError)
-          const errorMsg = `Failed to create recharge request: ${response.status} ${response.statusText}`
+          const errorMsg = `${t("failedToCreateRecharge")}: ${response.status} ${response.statusText}`
           setCreateError(errorMsg)
           toast({
-            title: "Error",
+            title: t("errorTitle"),
             description: errorMsg,
             variant: "destructive"
           })
@@ -179,10 +214,10 @@ export function RechargeContent() {
       }
     } catch (error) {
       console.error('Error creating recharge:', error)
-      const errorMsg = "Failed to create recharge request"
+      const errorMsg = t("failedToCreateRecharge")
       setCreateError(errorMsg)
       toast({
-        title: "Error",
+        title: t("errorTitle"),
         description: errorMsg,
         variant: "destructive"
       })
@@ -240,7 +275,7 @@ export function RechargeContent() {
         <div>
           <h1 className="text-3xl font-bold text-neutral-900 dark:text-white">{t("rechargeRequests")}</h1>
           <p className="text-neutral-600 dark:text-neutral-400 mt-1">
-            Manage and track your recharge requests
+            {t("trackRechargeRequestsAndStatus")}
           </p>
         </div>
         <div className="flex items-center space-x-3">
@@ -257,14 +292,14 @@ export function RechargeContent() {
             <DialogTrigger asChild>
               <Button className="flex items-center space-x-2">
                 <Plus className="h-4 w-4" />
-                <span>Create Recharge</span>
+                <span>{t("createRecharge")}</span>
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Create Recharge Request</DialogTitle>
+                <DialogTitle>{t("createRechargeRequest")}</DialogTitle>
                 <DialogDescription>
-                  Submit a recharge request to add funds to your account
+                  {t("rechargeRequestDescription")}
                 </DialogDescription>
               </DialogHeader>
               
@@ -274,7 +309,7 @@ export function RechargeContent() {
                   <div className="flex items-start space-x-2 text-red-600 dark:text-red-400">
                     <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
-                      <p className="text-sm font-medium">Error</p>
+                      <p className="text-sm font-medium">{t("errorTitle")}</p>
                       <div className="text-xs mt-2 whitespace-pre-wrap break-words bg-red-100 dark:bg-red-900/30 p-2 rounded border">
                         {createError}
                       </div>
@@ -285,24 +320,31 @@ export function RechargeContent() {
               
               <form onSubmit={handleCreateRecharge} className="space-y-4">
                 <div>
-                  <Label htmlFor="amount">Amount (XOF)</Label>
+                  <Label htmlFor="amount">{t("rechargeAmountLabel")}</Label>
                   <Input
                     id="amount"
                     type="number"
                     value={createForm.amount}
                     onChange={(e) => setCreateForm({ ...createForm, amount: e.target.value })}
-                    placeholder="Enter amount"
+                    placeholder={t("enterAmount")}
                     required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="payment_method">Payment Method</Label>
+                  <Label htmlFor="payment_method">{t("rechargePaymentMethodLabel")}</Label>
                   <Select
                     value={createForm.payment_method}
-                    onValueChange={(value) => setCreateForm({ ...createForm, payment_method: value })}
+                    onValueChange={(value) =>
+                      setCreateForm({
+                        ...createForm,
+                        payment_method: value,
+                        bank_reference: "",
+                        mobile_reference: ""
+                      })
+                    }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select payment method" />
+                      <SelectValue placeholder={t("selectPaymentMethod")} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="cash">{t("cash")}</SelectItem>
@@ -311,17 +353,53 @@ export function RechargeContent() {
                     </SelectContent>
                   </Select>
                 </div>
+                {createForm.payment_method === "bank_transfer" && (
+                  <div>
+                    <Label htmlFor="bank_reference">{t("bankReferenceLabel")}</Label>
+                    <Input
+                      id="bank_reference"
+                      value={createForm.bank_reference}
+                      onChange={(e) => setCreateForm({ ...createForm, bank_reference: e.target.value })}
+                      placeholder={t("bankReferencePlaceholder")}
+                    />
+                  </div>
+                )}
+                {createForm.payment_method === "mobile_money" && (
+                  <div>
+                    <Label htmlFor="mobile_reference">{t("mobileReferenceLabel")}</Label>
+                    <Input
+                      id="mobile_reference"
+                      value={createForm.mobile_reference}
+                      onChange={(e) => setCreateForm({ ...createForm, mobile_reference: e.target.value })}
+                      placeholder={t("mobileReferencePlaceholder")}
+                    />
+                  </div>
+                )}
                 <div>
-                  <Label htmlFor="notes">{t("notes")} ({t("cancel")})</Label>
+                  <Label htmlFor="proof_image">{t("proofImageLabel")}</Label>
+                  <Input
+                    id="proof_image"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setCreateForm({ ...createForm, proof_image: e.target.files?.[0] || null })}
+                  />
+                  {createForm.proof_image && (
+                    <p className="text-xs text-neutral-500 mt-1">
+                      {t("selectedFileLabel")}: {createForm.proof_image.name}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="notes">{t("rechargeNotesLabel")}</Label>
                   <Textarea
                     id="notes"
                     value={createForm.notes}
                     onChange={(e) => setCreateForm({ ...createForm, notes: e.target.value })}
-                    placeholder="Additional notes"
+                    placeholder={t("rechargeNotesPlaceholder")}
                   />
                 </div>
                 <Button type="submit" className="w-full" disabled={createLoading}>
-                  {createLoading ? "Creating..." : "Create Recharge"}
+                  {createLoading ? t("creating") : t("createRecharge")}
                 </Button>
               </form>
             </DialogContent>
@@ -337,7 +415,7 @@ export function RechargeContent() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
                 <Input
-                  placeholder="Search by reference, amount, or notes..."
+                  placeholder={t("rechargeSearchPlaceholder")}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -346,22 +424,22 @@ export function RechargeContent() {
             </form>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Filter by status" />
+                <SelectValue placeholder={t("rechargeFilterByStatus")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="all">{t("allStatus")}</SelectItem>
+                <SelectItem value="pending">{t("pending")}</SelectItem>
+                <SelectItem value="approved">{t("approved")}</SelectItem>
+                <SelectItem value="completed">{t("completed")}</SelectItem>
+                <SelectItem value="rejected">{t("rejected")}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={methodFilter} onValueChange={setMethodFilter}>
               <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Filter by method" />
+                <SelectValue placeholder={t("rechargeFilterByMethod")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Methods</SelectItem>
+                <SelectItem value="all">{t("rechargeAllMethods")}</SelectItem>
                 <SelectItem value="cash">{t("cash")}</SelectItem>
                 <SelectItem value="bank_transfer">{t("bankTransfer")}</SelectItem>
                 <SelectItem value="mobile_money">{t("mobileMoney")}</SelectItem>
@@ -374,9 +452,9 @@ export function RechargeContent() {
       {/* Recharges Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Recharge Requests</CardTitle>
+          <CardTitle>{t("rechargeRequests")}</CardTitle>
           <CardDescription>
-            {totalCount} total recharge requests
+            {totalCount} {t("rechargeTotalRequests")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -386,19 +464,19 @@ export function RechargeContent() {
             </div>
           ) : recharges.length === 0 ? (
             <div className="text-center py-8 text-neutral-500">
-              No recharge requests found
+              {t("rechargeNoRequestsFound")}
             </div>
           ) : (
             <>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Reference</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Payment Method</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead>{t("reference")}</TableHead>
+                    <TableHead>{t("amount")}</TableHead>
+                    <TableHead>{t("rechargePaymentMethod")}</TableHead>
+                    <TableHead>{t("status")}</TableHead>
+                    <TableHead>{t("created")}</TableHead>
+                    <TableHead>{t("actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -415,7 +493,7 @@ export function RechargeContent() {
                       <TableCell>{formatDate(recharge.created_at)}</TableCell>
                       <TableCell>
                         <Button variant="outline" size="sm">
-                          View Details
+                          {t("viewDetails")}
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -427,7 +505,7 @@ export function RechargeContent() {
               {totalPages > 1 && (
                 <div className="flex items-center justify-between mt-6">
                   <div className="text-sm text-neutral-500">
-                    Showing {((currentPage - 1) * 10) + 1} to {Math.min(currentPage * 10, totalCount)} of {totalCount} results
+                    {t("showingLabel")} {((currentPage - 1) * 10) + 1} {t("toLabel")} {Math.min(currentPage * 10, totalCount)} {t("ofLabel")} {totalCount} {t("resultsLabel")}
                   </div>
                   <div className="flex items-center space-x-2">
                     <Button

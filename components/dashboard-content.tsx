@@ -19,6 +19,9 @@ import {
   Building,
   ArrowUpRight,
   ArrowDownRight,
+  Settings,
+  LinkIcon,
+  ShieldCheck,
 } from "lucide-react"
 import {
   XAxis,
@@ -34,6 +37,7 @@ import {
   AreaChart,
   Area,
 } from "recharts"
+import { useUserConfig } from "@/contexts/user-config-context"
 
 export function DashboardContent() {
   // Temporarily disable useAuth to test
@@ -69,6 +73,7 @@ export function DashboardContent() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
+  const { userConfig } = useUserConfig()
 
   useEffect(() => {
     // Add a delay to ensure authentication is fully established
@@ -145,7 +150,7 @@ export function DashboardContent() {
       <div className="h-full overflow-y-auto">
         <div className="space-y-8 p-6 pb-20">
           <div className="flex items-center justify-center h-64">
-            <div className="text-neutral-600 dark:text-neutral-400">Loading dashboard data...</div>
+            <div className="text-neutral-600 dark:text-neutral-400">{t("loadingDashboardData")}</div>
           </div>
         </div>
       </div>
@@ -316,25 +321,88 @@ export function DashboardContent() {
           </Card>
         </div>
 
+        {/* Configuration Overview */}
+        {userConfig && (
+          <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl rounded-3xl overflow-hidden">
+            <CardHeader className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg font-bold text-neutral-900 dark:text-white">
+                    {t("configuration")}
+                  </CardTitle>
+                  <CardDescription className="text-neutral-600 dark:text-neutral-400">
+                    {t("currentApiFeeAndSecurity")}
+                  </CardDescription>
+                </div>
+                <Settings className="h-6 w-6 text-crimson-600" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 bg-neutral-50 dark:bg-neutral-800/60 rounded-2xl border border-neutral-100 dark:border-neutral-800">
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-1">{t("status")}</p>
+                  <div className="flex items-center space-x-2">
+                    <Badge className={userConfig.is_active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+                      {userConfig.is_active ? t("balanceActive") : t("balanceInactive")}
+                    </Badge>
+                    {userConfig.require_ip_whitelist && (
+                      <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                    )}
+                  </div>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2">
+                    {userConfig.require_ip_whitelist ? t("ipWhitelistRequired") : t("ipWhitelistDisabled")}
+                  </p>
+                </div>
+                <div className="p-4 bg-neutral-50 dark:bg-neutral-800/60 rounded-2xl border border-neutral-100 dark:border-neutral-800">
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-1">{t("fees")}</p>
+                  <div className="space-y-1">
+                    <p className="text-neutral-900 dark:text-white text-sm">
+                      {t("payinColon")} <span className="font-semibold">{userConfig.use_fixed_fees && userConfig.payin_fee_fixed != null ? `${userConfig.payin_fee_fixed.toLocaleString()} XOF` : `${userConfig.payin_fee_rate}%`}</span>
+                    </p>
+                    <p className="text-neutral-900 dark:text-white text-sm">
+                      {t("payoutColon")} <span className="font-semibold">{userConfig.use_fixed_fees && userConfig.payout_fee_fixed != null ? `${userConfig.payout_fee_fixed.toLocaleString()} XOF` : `${userConfig.payout_fee_rate}%`}</span>
+                    </p>
+                  </div>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2">
+                    {userConfig.use_fixed_fees ? t("fixedFeeMode") : t("percentageFeeMode")}
+                  </p>
+                </div>
+                <div className="p-4 bg-neutral-50 dark:bg-neutral-800/60 rounded-2xl border border-neutral-100 dark:border-neutral-800">
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-1">{t("webhook")}</p>
+                  <div className="flex items-center space-x-2 text-sm text-neutral-900 dark:text-white break-all">
+                    <LinkIcon className="h-4 w-4 text-crimson-600 flex-shrink-0" />
+                    <span>{userConfig.webhook_url || t("notConfigured")}</span>
+                  </div>
+                  {userConfig.ip_whitelist.length > 0 && (
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2">
+                      {t("whitelistedIPs")} {userConfig.ip_whitelist.length}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Balance Details */}
         {balance && (
           <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl rounded-3xl overflow-hidden">
             <CardHeader>
-              <CardTitle className="text-lg font-bold text-neutral-900 dark:text-white">{t("balance")} Details</CardTitle>
+              <CardTitle className="text-lg font-bold text-neutral-900 dark:text-white">{t("balance")} {t("balanceDetails")}</CardTitle>
               <CardDescription className="text-neutral-600 dark:text-neutral-400">
-                Complete balance information from API
+                {t("completeBalanceInformation")}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Account UID</h4>
+                  <h4 className="text-sm font-medium text-neutral-600 dark:text-neutral-400">{t("accountUID")}</h4>
                   <p className="text-sm font-mono bg-neutral-100 dark:bg-neutral-800 p-2 rounded-lg">
                     {balance.uid}
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Account Status</h4>
+                  <h4 className="text-sm font-medium text-neutral-600 dark:text-neutral-400">{t("accountStatus")}</h4>
                   <div className="flex items-center space-x-2">
                     <Badge className={`${balance.is_active ? 'bg-green-100 text-green-800 hover:bg-green-100' : 'bg-red-100 text-red-800 hover:bg-red-100'} rounded-full`}>
                       {balance.is_active ? t("balanceActive") : t("balanceInactive")}
@@ -347,7 +415,7 @@ export function DashboardContent() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-neutral-600 dark:text-neutral-400">Last Transaction</h4>
+                  <h4 className="text-sm font-medium text-neutral-600 dark:text-neutral-400">{t("lastTransaction")}</h4>
                   <p className="text-sm text-neutral-700 dark:text-neutral-300">
                     {balance.last_transaction_at 
                       ? new Date(balance.last_transaction_at).toLocaleDateString('en-US', {
@@ -357,7 +425,7 @@ export function DashboardContent() {
                           hour: '2-digit',
                           minute: '2-digit'
                         })
-                      : 'No transactions yet'
+                      : t("noTransactionsYet")
                     }
                   </p>
                 </div>
@@ -369,9 +437,9 @@ export function DashboardContent() {
         {/* Transaction Success Chart */}
         <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl rounded-3xl overflow-hidden">
           <CardHeader>
-            <CardTitle className="text-lg font-bold text-neutral-900 dark:text-white">Aperçu des Transactions Réussies</CardTitle>
+            <CardTitle className="text-lg font-bold text-neutral-900 dark:text-white">{t("successfulTransactionsOverview")}</CardTitle>
             <CardDescription className="text-neutral-600 dark:text-neutral-400">
-              Tendance des transactions réussies dans le temps
+              {t("successfulTransactionsTrend")}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -381,8 +449,8 @@ export function DashboardContent() {
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={[
-                      { name: 'Réussies', value: stats.total_success_transaction, color: '#10b981' },
-                      { name: 'Total', value: stats.total_success_transaction + (stats.total_success_transaction * 0.1), color: '#6b7280' }
+                      { name: t("successful"), value: stats.total_success_transaction, color: '#10b981' },
+                      { name: t("totalTransactionsLabel"), value: stats.total_success_transaction + (stats.total_success_transaction * 0.1), color: '#6b7280' }
                     ]}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                       <XAxis dataKey="name" stroke="#6b7280" />
@@ -394,7 +462,7 @@ export function DashboardContent() {
                           borderRadius: "16px",
                           boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
                         }}
-                        formatter={(value) => [value.toLocaleString(), 'Transactions']}
+                        formatter={(value) => [value.toLocaleString(), t("transactions")]}
                       />
                       <Bar dataKey="value" fill="#10b981" radius={[8, 8, 0, 0]} />
                     </BarChart>
@@ -407,25 +475,25 @@ export function DashboardContent() {
                     <div className="text-2xl font-bold text-green-600 dark:text-green-400">
                       {stats.total_success_transaction.toLocaleString()}
                     </div>
-                    <div className="text-sm text-green-700 dark:text-green-300">Transactions Réussies</div>
+                    <div className="text-sm text-green-700 dark:text-green-300">{t("successfulTransactions")}</div>
                   </div>
                   <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-2xl">
                     <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                       {formatCurrency(stats.total_fee)}
                     </div>
-                    <div className="text-sm text-blue-700 dark:text-blue-300">Frais Totaux Collectés</div>
+                    <div className="text-sm text-blue-700 dark:text-blue-300">{t("totalFeesCollected")}</div>
                   </div>
                   <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-2xl">
                     <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
                       {stats.total_success_transaction > 0 ? '95.2%' : '0%'}
                     </div>
-                    <div className="text-sm text-purple-700 dark:text-purple-300">Taux de Réussite</div>
+                    <div className="text-sm text-purple-700 dark:text-purple-300">{t("successRate")}</div>
                   </div>
                 </div>
               </div>
             ) : (
               <div className="text-center py-8 text-neutral-500 dark:text-neutral-400">
-                Aucune donnée de transaction disponible
+                {t("noTransactionDataAvailable")}
               </div>
             )}
           </CardContent>

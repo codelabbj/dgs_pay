@@ -3,8 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { smartFetch, getUserData } from "@/utils/auth"
-import { useAuth } from "@/hooks/use-auth"
+import { useUserProfile } from "@/contexts/user-profile-context"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
@@ -56,8 +55,7 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   // Temporarily disable useAuth to test
   // const { isLoading, isAuthenticated, requireAuth, checkAuth } = useAuth()
-  const [userProfile, setUserProfile] = useState<any>(null)
-  const [isLoadingProfile, setIsLoadingProfile] = useState(true)
+  const { userProfile } = useUserProfile()
   const router = useRouter()
   const pathname = usePathname()
   
@@ -65,80 +63,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   // if (!requireAuth()) {
   //   return null
   // }
-  
-  // Load user profile
-  useEffect(() => {
-    // Add a delay to ensure authentication is fully established
-    const timer = setTimeout(() => {
-      console.log('Dashboard layout: Starting to load user profile after delay')
-      loadUserProfile()
-    }, 1000) // Wait 1 second for auth to be fully established
-    
-    return () => clearTimeout(timer)
-  }, [])
-
-  // Refresh user profile when pathname changes (user navigates between pages)
-  useEffect(() => {
-    if (pathname) {
-      console.log('Dashboard layout: Pathname changed, refreshing user profile')
-      loadUserProfile()
-    }
-  }, [pathname])
-
-  // Refresh user profile when window regains focus (user comes back to tab)
-  useEffect(() => {
-    const handleFocus = () => {
-      console.log('Dashboard layout: Window focused, refreshing user profile')
-      loadUserProfile()
-    }
-
-    window.addEventListener('focus', handleFocus)
-    return () => window.removeEventListener('focus', handleFocus)
-  }, [])
-
-  // Periodic refresh every 30 seconds to keep data fresh
-  useEffect(() => {
-    const interval = setInterval(() => {
-      console.log('Dashboard layout: Periodic refresh of user profile')
-      loadUserProfile()
-    }, 30000) // Refresh every 30 seconds
-
-    return () => clearInterval(interval)
-  }, [])
-  
-  // Temporarily disable authentication re-check
-  // useEffect(() => {
-  //   checkAuth()
-  // }, [checkAuth])
-  
-  const loadUserProfile = async () => {
-    try {
-      // First, try to get user data from localStorage
-      const userData = getUserData()
-      if (userData) {
-        setUserProfile(userData)
-      }
-
-      // Then try to fetch fresh data from API
-      try {
-        const response = await smartFetch(`${process.env.NEXT_PUBLIC_BASE_URL}/v1/api/user-details`)
-        
-        if (response.ok) {
-          const data = await response.json()
-          setUserProfile(data)
-          // Update localStorage with fresh data
-          localStorage.setItem('user', JSON.stringify(data))
-        }
-      } catch (apiError) {
-        console.error('API call failed:', apiError)
-        // Don't throw, just use cached data
-      }
-    } catch (error) {
-      console.error('Failed to load user profile:', error)
-    } finally {
-      setIsLoadingProfile(false)
-    }
-  }
   
   const handleLogout = async () => {
     try {

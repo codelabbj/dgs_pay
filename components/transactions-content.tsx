@@ -81,6 +81,17 @@ interface PayoutPayload {
   }
 }
 
+interface Operator {
+  uid: string
+  operator_name: string
+  operator_code: string
+  min_payin_amount: number
+  max_payin_amount: number
+  min_payout_amount: number
+  max_payout_amount: number
+  supports_smartlink: boolean
+}
+
 interface SyncResponse {
   message: string
   reference: string
@@ -105,6 +116,9 @@ export function TransactionsContent() {
   const [checkStatusModal, setCheckStatusModal] = useState<{open: boolean, data: Transaction | null}>({open: false, data: null})
   const [syncLoading, setSyncLoading] = useState<Record<string, boolean>>({})
   const [refundLoading, setRefundLoading] = useState<Record<string, boolean>>({})
+  const [operators, setOperators] = useState<Operator[]>([])
+  const [payinError, setPayinError] = useState<string | null>(null)
+  const [payoutError, setPayoutError] = useState<string | null>(null)
   
   // Server-side pagination state
   const [currentPage, setCurrentPage] = useState(1)
@@ -118,11 +132,18 @@ export function TransactionsContent() {
   const { t } = useLanguage()
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
 
+  // Static operator options
+  const OPERATOR_OPTIONS = [
+    { value: "wave-ci", label: "Wave CI" },
+    { value: "mtn-ci", label: "MTN CI" },
+    { value: "orange-ci", label: "Orange CI" }
+  ]
+
   // Modal states for creating transactions
   const [payinModal, setPayinModal] = useState(false)
   const [payoutModal, setPayoutModal] = useState(false)
   const [payinForm, setPayinForm] = useState({
-    operator_code: "wave-ci",
+    operator_code: "",
     amount: "",
     phone: "",
     description: "",
@@ -135,7 +156,7 @@ export function TransactionsContent() {
     beneficiary_email: ""
   })
   const [payoutForm, setPayoutForm] = useState({
-    operator_code: "wave-ci",
+    operator_code: "",
     amount: "",
     phone: "",
     beneficiary_first_name: "",
@@ -165,7 +186,20 @@ export function TransactionsContent() {
   // Separate effect for initial load
   useEffect(() => {
     fetchTransactions(1, "", "all", "all")
+    fetchOperators()
   }, [])
+
+  const fetchOperators = async () => {
+    try {
+      const res = await smartFetch(`${baseUrl}/api/v2/operators/`)
+      if (res.ok) {
+        const data: Operator[] = await res.json()
+        setOperators(data)
+      }
+    } catch (error) {
+      console.error('Error fetching operators:', error)
+    }
+  }
 
   // COMMENTED OUT: Old WebSocket setup
   // useEffect(() => {
@@ -408,6 +442,7 @@ export function TransactionsContent() {
   }
 
   const createPayin = async () => {
+    setPayinError(null)
     try {
       const payload: PayinPayload = {
         operator_code: payinForm.operator_code,
@@ -440,8 +475,9 @@ export function TransactionsContent() {
           description: "Payin created successfully"
         })
         setPayinModal(false)
+        setPayinError(null)
         setPayinForm({
-          operator_code: "wave-ci",
+          operator_code: "",
           amount: "",
           phone: "",
           description: "",
@@ -456,23 +492,54 @@ export function TransactionsContent() {
         // Refresh transactions
         fetchTransactions(currentPage, searchTerm, statusFilter, typeFilter)
       } else {
+        try {
+          const errorData = await res.json()
+          let errorMessage = 'Failed to create payin'
+          
+          // Handle different error response formats
+          if (typeof errorData === 'object' && errorData !== null) {
+            // Handle field-specific errors like {"operator_code":["Vous n'êtes pas autorisé à utiliser cet opérateur"]}
+            const fieldErrors = Object.entries(errorData).map(([field, errors]) => {
+              if (Array.isArray(errors)) {
+                return `${field}: ${errors.join(', ')}`
+              }
+              return `${field}: ${errors}`
+            }).join('\n')
+            errorMessage = fieldErrors || errorData.detail || errorData.message || errorMessage
+          } else if (typeof errorData === 'string') {
+            errorMessage = errorData
+          }
+          
+          setPayinError(errorMessage)
         toast({
           title: t("error"),
-          description: `Failed to create payin: ${res.status}`,
+            description: errorMessage,
+            variant: "destructive"
+          })
+        } catch (parseError) {
+          const errorMsg = `Failed to create payin: ${res.status} ${res.statusText}`
+          setPayinError(errorMsg)
+          toast({
+            title: t("error"),
+            description: errorMsg,
           variant: "destructive"
         })
+        }
       }
     } catch (error) {
       console.error('Error creating payin:', error)
+      const errorMsg = "Failed to create payin"
+      setPayinError(errorMsg)
       toast({
         title: t("error"),
-        description: "Failed to create payin",
+        description: errorMsg,
         variant: "destructive"
       })
     }
   }
 
   const createPayout = async () => {
+    setPayoutError(null)
     try {
       const payload: PayoutPayload = {
         operator_code: payoutForm.operator_code,
@@ -505,8 +572,9 @@ export function TransactionsContent() {
           description: "Payout created successfully"
         })
         setPayoutModal(false)
+        setPayoutError(null)
         setPayoutForm({
-          operator_code: "wave-ci",
+          operator_code: "",
           amount: "",
           phone: "",
           beneficiary_first_name: "",
@@ -521,17 +589,47 @@ export function TransactionsContent() {
         // Refresh transactions
         fetchTransactions(currentPage, searchTerm, statusFilter, typeFilter)
       } else {
+        try {
+          const errorData = await res.json()
+          let errorMessage = 'Failed to create payout'
+          
+          // Handle different error response formats
+          if (typeof errorData === 'object' && errorData !== null) {
+            // Handle field-specific errors
+            const fieldErrors = Object.entries(errorData).map(([field, errors]) => {
+              if (Array.isArray(errors)) {
+                return `${field}: ${errors.join(', ')}`
+              }
+              return `${field}: ${errors}`
+            }).join('\n')
+            errorMessage = fieldErrors || errorData.detail || errorData.message || errorMessage
+          } else if (typeof errorData === 'string') {
+            errorMessage = errorData
+          }
+          
+          setPayoutError(errorMessage)
         toast({
           title: t("error"),
-          description: `Failed to create payout: ${res.status}`,
+            description: errorMessage,
+            variant: "destructive"
+          })
+        } catch (parseError) {
+          const errorMsg = `Failed to create payout: ${res.status} ${res.statusText}`
+          setPayoutError(errorMsg)
+          toast({
+            title: t("error"),
+            description: errorMsg,
           variant: "destructive"
         })
+        }
       }
     } catch (error) {
       console.error('Error creating payout:', error)
+      const errorMsg = "Failed to create payout"
+      setPayoutError(errorMsg)
       toast({
         title: t("error"),
-        description: "Failed to create payout",
+        description: errorMsg,
         variant: "destructive"
       })
     }
@@ -931,7 +1029,7 @@ export function TransactionsContent() {
         t("reference"),
         t("date"),
         t("time"),
-        t("type"),
+        "Type",
         t("phone"),
         t("amount"),
         t("operator"),
@@ -986,11 +1084,11 @@ export function TransactionsContent() {
         <div className="flex space-x-2">
           <Button variant="outline" onClick={() => setPayinModal(true)}>
             <ArrowDownLeft className="h-4 w-4 mr-2" />
-            Create Payin
+            {t("createPayin")}
           </Button>
           <Button variant="outline" onClick={() => setPayoutModal(true)}>
             <ArrowUpRight className="h-4 w-4 mr-2" />
-            Create Payout
+            {t("createPayout")}
           </Button>
           <Button variant="outline" onClick={handleExportPDF}>
             <Download className="h-4 w-4 mr-2" />
@@ -1109,12 +1207,12 @@ export function TransactionsContent() {
             </Select>
             <Select value={typeFilter} onValueChange={setTypeFilter}>
               <SelectTrigger className="w-full md:w-40">
-                <SelectValue placeholder="Type" />
+                <SelectValue placeholder={t("type")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="payin">Payin</SelectItem>
-                <SelectItem value="payout">Payout</SelectItem>
+                <SelectItem value="all">{t("allTypes")}</SelectItem>
+                <SelectItem value="payin">{t("payin")}</SelectItem>
+                <SelectItem value="payout">{t("payout")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1126,10 +1224,10 @@ export function TransactionsContent() {
                 <TableRow>
                   <TableHead>{t("reference")}</TableHead>
                   <TableHead>{t("dateAndTime")}</TableHead>
-                  <TableHead>Type</TableHead>
+                  <TableHead>{t("type")}</TableHead>
                   <TableHead>{t("phone")}</TableHead>
                   <TableHead>{t("amount")}</TableHead>
-                  <TableHead>Operator</TableHead>
+                  <TableHead>{t("operator")}</TableHead>
                   <TableHead>{t("status")}</TableHead>
                   <TableHead>{t("actions")}</TableHead>
                 </TableRow>
@@ -1322,8 +1420,8 @@ export function TransactionsContent() {
       <Dialog open={checkStatusModal.open} onOpenChange={(open) => setCheckStatusModal({open, data: null})}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Transaction Details</DialogTitle>
-            <DialogDescription>View detailed information about this transaction</DialogDescription>
+            <DialogTitle>{t("transactionDetails")}</DialogTitle>
+            <DialogDescription>{t("viewDetailedInformation")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             {checkStatusModal.data ? (
@@ -1409,79 +1507,122 @@ export function TransactionsContent() {
       </Dialog>
 
       {/* Payin Creation Modal */}
-      <Dialog open={payinModal} onOpenChange={setPayinModal}>
+      <Dialog open={payinModal} onOpenChange={(open) => {
+        setPayinModal(open)
+        if (!open) {
+          setPayinError(null)
+        }
+      }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Create Payin</DialogTitle>
-            <DialogDescription>Create a new payin transaction</DialogDescription>
+            <DialogTitle>{t("createPayin")}</DialogTitle>
+            <DialogDescription>{t("createNewPayinTransaction")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {payinError && (
+              <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <div className="flex items-start space-x-2 text-red-600 dark:text-red-400">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{t("errorTitle")}</p>
+                    <div className="text-xs mt-2 whitespace-pre-wrap break-words bg-red-100 dark:bg-red-900/30 p-2 rounded border">
+                      {payinError}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium">Amount</label>
+                <label className="text-sm font-medium">{t("operator")}</label>
+                <Select
+                  value={payinForm.operator_code}
+                  onValueChange={(value) => setPayinForm(prev => ({ ...prev, operator_code: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={t("selectOperator")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {operators.length > 0 ? (
+                      operators.map((operator) => (
+                        <SelectItem key={operator.uid} value={operator.operator_code}>
+                          {operator.operator_name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      OPERATOR_OPTIONS.map((operator) => (
+                        <SelectItem key={operator.value} value={operator.value}>
+                          {operator.label}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium">{t("amount")}</label>
                 <Input
                   type="number"
                   value={payinForm.amount}
                   onChange={(e) => setPayinForm(prev => ({ ...prev, amount: e.target.value }))}
-                  placeholder="Enter amount"
+                  placeholder={t("enterAmount")}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">Phone</label>
+                <label className="text-sm font-medium">{t("phone")}</label>
                 <Input
                   value={payinForm.phone}
                   onChange={(e) => setPayinForm(prev => ({ ...prev, phone: e.target.value }))}
-                  placeholder="Enter phone number"
+                  placeholder={t("enterPhoneNumber")}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">Description</label>
+                <label className="text-sm font-medium">{t("description")}</label>
                 <Input
                   value={payinForm.description}
                   onChange={(e) => setPayinForm(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Enter description"
+                  placeholder={t("enterDescription")}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">Client Reference</label>
+                <label className="text-sm font-medium">{t("clientReference")}</label>
                 <Input
                   value={payinForm.client_reference}
                   onChange={(e) => setPayinForm(prev => ({ ...prev, client_reference: e.target.value }))}
-                  placeholder="Enter client reference"
+                  placeholder={t("enterClientReference")}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">Beneficiary Name</label>
+                <label className="text-sm font-medium">{t("beneficiaryName")}</label>
                 <Input
                   value={payinForm.beneficiary_name}
                   onChange={(e) => setPayinForm(prev => ({ ...prev, beneficiary_name: e.target.value }))}
-                  placeholder="Enter beneficiary name"
+                  placeholder={t("enterBeneficiaryName")}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">Beneficiary Account Number</label>
+                <label className="text-sm font-medium">{t("beneficiaryAccountNumber")}</label>
                 <Input
                   value={payinForm.beneficiary_account_number}
                   onChange={(e) => setPayinForm(prev => ({ ...prev, beneficiary_account_number: e.target.value }))}
-                  placeholder="Enter account number"
+                  placeholder={t("enterAccountNumber")}
                 />
               </div>
               <div className="col-span-2">
-                <label className="text-sm font-medium">Beneficiary Email</label>
+                <label className="text-sm font-medium">{t("beneficiaryEmail")}</label>
                 <Input
                   type="email"
                   value={payinForm.beneficiary_email}
                   onChange={(e) => setPayinForm(prev => ({ ...prev, beneficiary_email: e.target.value }))}
-                  placeholder="Enter email address"
+                  placeholder={t("enterEmailAddress")}
                 />
               </div>
             </div>
             <div className="flex justify-end space-x-2">
               <Button variant="outline" onClick={() => setPayinModal(false)}>
-                Cancel
+                {t("cancel")}
               </Button>
               <Button onClick={createPayin}>
-                Create Payin
+                {t("createPayin")}
               </Button>
             </div>
           </div>
@@ -1489,95 +1630,138 @@ export function TransactionsContent() {
       </Dialog>
 
       {/* Payout Creation Modal */}
-      <Dialog open={payoutModal} onOpenChange={setPayoutModal}>
+      <Dialog open={payoutModal} onOpenChange={(open) => {
+        setPayoutModal(open)
+        if (!open) {
+          setPayoutError(null)
+        }
+      }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Create Payout</DialogTitle>
-            <DialogDescription>Create a new payout transaction</DialogDescription>
+            <DialogTitle>{t("createPayout")}</DialogTitle>
+            <DialogDescription>{t("createNewPayoutTransaction")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {payoutError && (
+              <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <div className="flex items-start space-x-2 text-red-600 dark:text-red-400">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{t("errorTitle")}</p>
+                    <div className="text-xs mt-2 whitespace-pre-wrap break-words bg-red-100 dark:bg-red-900/30 p-2 rounded border">
+                      {payoutError}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium">Amount</label>
+                <label className="text-sm font-medium">{t("operator")}</label>
+                <Select
+                  value={payoutForm.operator_code}
+                  onValueChange={(value) => setPayoutForm(prev => ({ ...prev, operator_code: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={t("selectOperator")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {operators.length > 0 ? (
+                      operators.map((operator) => (
+                        <SelectItem key={operator.uid} value={operator.operator_code}>
+                          {operator.operator_name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      OPERATOR_OPTIONS.map((operator) => (
+                        <SelectItem key={operator.value} value={operator.value}>
+                          {operator.label}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium">{t("amount")}</label>
                 <Input
                   type="number"
                   value={payoutForm.amount}
                   onChange={(e) => setPayoutForm(prev => ({ ...prev, amount: e.target.value }))}
-                  placeholder="Enter amount"
+                  placeholder={t("enterAmount")}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">Phone</label>
+                <label className="text-sm font-medium">{t("phone")}</label>
                 <Input
                   value={payoutForm.phone}
                   onChange={(e) => setPayoutForm(prev => ({ ...prev, phone: e.target.value }))}
-                  placeholder="Enter phone number"
+                  placeholder={t("enterPhoneNumber")}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">Beneficiary First Name</label>
+                <label className="text-sm font-medium">{t("beneficiaryFirstName")}</label>
                 <Input
                   value={payoutForm.beneficiary_first_name}
                   onChange={(e) => setPayoutForm(prev => ({ ...prev, beneficiary_first_name: e.target.value }))}
-                  placeholder="Enter first name"
+                  placeholder={t("enterFirstName")}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">Beneficiary Last Name</label>
+                <label className="text-sm font-medium">{t("beneficiaryLastName")}</label>
                 <Input
                   value={payoutForm.beneficiary_last_name}
                   onChange={(e) => setPayoutForm(prev => ({ ...prev, beneficiary_last_name: e.target.value }))}
-                  placeholder="Enter last name"
+                  placeholder={t("enterLastName")}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">Description</label>
+                <label className="text-sm font-medium">{t("description")}</label>
                 <Input
                   value={payoutForm.description}
                   onChange={(e) => setPayoutForm(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Enter description"
+                  placeholder={t("enterDescription")}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">Client Reference</label>
+                <label className="text-sm font-medium">{t("clientReference")}</label>
                 <Input
                   value={payoutForm.client_reference}
                   onChange={(e) => setPayoutForm(prev => ({ ...prev, client_reference: e.target.value }))}
-                  placeholder="Enter client reference"
+                  placeholder={t("enterClientReference")}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">Beneficiary Name</label>
+                <label className="text-sm font-medium">{t("beneficiaryName")}</label>
                 <Input
                   value={payoutForm.beneficiary_name}
                   onChange={(e) => setPayoutForm(prev => ({ ...prev, beneficiary_name: e.target.value }))}
-                  placeholder="Enter beneficiary name"
+                  placeholder={t("enterBeneficiaryName")}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">Beneficiary Account Number</label>
+                <label className="text-sm font-medium">{t("beneficiaryAccountNumber")}</label>
                 <Input
                   value={payoutForm.beneficiary_account_number}
                   onChange={(e) => setPayoutForm(prev => ({ ...prev, beneficiary_account_number: e.target.value }))}
-                  placeholder="Enter account number"
+                  placeholder={t("enterAccountNumber")}
                 />
               </div>
               <div className="col-span-2">
-                <label className="text-sm font-medium">Beneficiary Email</label>
+                <label className="text-sm font-medium">{t("beneficiaryEmail")}</label>
                 <Input
                   type="email"
                   value={payoutForm.beneficiary_email}
                   onChange={(e) => setPayoutForm(prev => ({ ...prev, beneficiary_email: e.target.value }))}
-                  placeholder="Enter email address"
+                  placeholder={t("enterEmailAddress")}
                 />
               </div>
             </div>
             <div className="flex justify-end space-x-2">
               <Button variant="outline" onClick={() => setPayoutModal(false)}>
-                Cancel
+                {t("cancel")}
               </Button>
               <Button onClick={createPayout}>
-                Create Payout
+                {t("createPayout")}
               </Button>
             </div>
           </div>

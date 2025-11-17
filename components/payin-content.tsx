@@ -72,7 +72,7 @@ export function PayinContent() {
         operator_code: formData.get("operator_code"),
         amount: Number(formData.get("amount")),
         phone: formattedPhone,
-        description: formData.get("description") || "Transaction",
+        description: formData.get("description") || t("transactions"),
         // success_url: formData.get("success_url") || "https://codelab.bj",
         // cancel_url: formData.get("cancel_url") || "https://djofo.codelab.bj",
         client_reference: clientReference,
@@ -105,7 +105,7 @@ export function PayinContent() {
       } else if (typeTrans === "payout") {
         apiEndpoint = `${baseUrl}/api/v2/payout/`
       } else {
-        throw new Error("Invalid transaction type")
+        throw new Error(t("invalidTransactionType"))
       }
 
       const res = await smartFetch(apiEndpoint, {
@@ -126,9 +126,9 @@ export function PayinContent() {
         
         // Success message based on transaction type
         if (typeTrans === "payin") {
-          setSuccess(`Payin transaction created successfully! Reference: ${data.reference || 'N/A'}, Status: ${data.status_display || 'N/A'}`)
+          setSuccess(`${t("payinTransactionCreated")} ${data.reference || t("notAvailable")}, ${t("statusColon")} ${data.status_display || t("notAvailable")}`)
         } else if (typeTrans === "payout") {
-          setSuccess(`Payout transaction created successfully! Reference: ${data.reference || 'N/A'}, Status: ${data.status_display || 'N/A'}`)
+          setSuccess(`${t("payoutTransactionCreated")} ${data.reference || t("notAvailable")}, ${t("statusColon")} ${data.status_display || t("notAvailable")}`)
         }
         
         // Reset form using stored reference
@@ -144,7 +144,7 @@ export function PayinContent() {
           console.log('Error data type:', typeof errorData)
           console.log('Error data keys:', Object.keys(errorData))
           
-          let errorMessage = 'Failed to create transaction'
+          let errorMessage = t("failedToCreateTransaction")
           
           // Handle different error response formats
           if (Array.isArray(errorData.detail)) {
@@ -152,7 +152,7 @@ export function PayinContent() {
             const validationErrors = errorData.detail.map((err: any) => 
               `${err.loc?.join('.')}: ${err.msg}`
             ).join(', ')
-            errorMessage = `Validation errors: ${validationErrors}`
+            errorMessage = `${t("validationErrors")} ${validationErrors}`
           } else if (typeof errorData.detail === 'string') {
             errorMessage = errorData.detail
           } else if (typeof errorData.message === 'string') {
@@ -169,7 +169,7 @@ export function PayinContent() {
             }).join('\n')
             errorMessage = fieldErrors
           } else {
-            errorMessage = `Failed to create transaction: ${res.status} ${res.statusText}`
+            errorMessage = `${t("failedToCreateTransaction")}: ${res.status} ${res.statusText}`
           }
           
           console.log('Final error message:', errorMessage)
@@ -177,14 +177,14 @@ export function PayinContent() {
           console.error('Transaction creation error:', errorData)
         } catch (parseError) {
           console.error('Error parsing error response:', parseError)
-          setError(`Failed to create transaction: ${res.status} ${res.statusText}`)
+          setError(`${t("failedToCreateTransaction")}: ${res.status} ${res.statusText}`)
         }
       }
     } catch (error) {
       console.error('Error creating transaction:', error)
       // Clear success state first, then set error
       setSuccess(null)
-      setError('Failed to create transaction')
+      setError(t("failedToCreateTransaction"))
     } finally {
       setIsLoading(false)
     }
@@ -203,7 +203,7 @@ export function PayinContent() {
               <div className="flex items-start space-x-2 text-red-600 dark:text-red-400">
                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <p className="text-sm font-medium">Transaction Error</p>
+                  <p className="text-sm font-medium">{t("transactionError")}</p>
                   <div className="text-xs mt-2 whitespace-pre-wrap break-words bg-red-100 dark:bg-red-900/30 p-2 rounded border">
                     {error}
                   </div>
@@ -216,7 +216,7 @@ export function PayinContent() {
               <div className="flex items-center space-x-2 text-green-600 dark:text-green-400">
                 <CheckCircle className="w-4 h-4 flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-medium">Success</p>
+                  <p className="text-sm font-medium">{t("success")}</p>
                   <p className="text-xs mt-1">{success}</p>
                 </div>
               </div>
@@ -225,7 +225,7 @@ export function PayinContent() {
           <form className="space-y-6" onSubmit={handleSubmit}>
             {/* Transaction Type */}
             <div>
-              <Label htmlFor="type_trans">Transaction Type</Label>
+              <Label htmlFor="type_trans">{t("transactionType")}</Label>
               <Select 
                 name="type_trans" 
                 defaultValue="payin"
@@ -233,21 +233,21 @@ export function PayinContent() {
                 onValueChange={setTransactionType}
               >
                 <SelectTrigger id="type_trans">
-                  <SelectValue placeholder="Select Transaction Type" />
+                  <SelectValue placeholder={t("selectTransactionType")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="payin">Payin</SelectItem>
-                  <SelectItem value="payout">Payout</SelectItem>
+                  <SelectItem value="payin">{t("payin")}</SelectItem>
+                  <SelectItem value="payout">{t("payout")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             {/* Operator Code */}
             <div>
-              <Label htmlFor="operator_code">Operator</Label>
+              <Label htmlFor="operator_code">{t("operator")}</Label>
               <Select name="operator_code" required>
                 <SelectTrigger id="operator_code">
-                  <SelectValue placeholder="Select Operator" />
+                  <SelectValue placeholder={t("selectOperator")} />
                 </SelectTrigger>
                 <SelectContent>
                   {OPERATOR_OPTIONS.map((operator) => (
@@ -270,7 +270,7 @@ export function PayinContent() {
                 <div className="flex gap-2">
                   <Select value={selectedCountry} onValueChange={setSelectedCountry}>
                     <SelectTrigger className="w-44" id="country">
-                      <SelectValue placeholder="Country" />
+                      <SelectValue placeholder={t("country")} />
                     </SelectTrigger>
                     <SelectContent>
                       {COUNTRY_OPTIONS.map((c) => (
@@ -278,15 +278,15 @@ export function PayinContent() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <Input name="phone" id="phone" type="tel" placeholder="Phone number" required />
+                  <Input name="phone" id="phone" type="tel" placeholder={t("phoneNumberPlaceholder")} required />
                 </div>
               </div>
             </div>
 
             {/* Description */}
             <div>
-              <Label htmlFor="description">Description</Label>
-              <Input name="description" id="description" placeholder="Transaction description" />
+              <Label htmlFor="description">{t("description")}</Label>
+              <Input name="description" id="description" placeholder={t("transactionDescription")} />
             </div>
 
             {/* URLs */}
@@ -306,17 +306,17 @@ export function PayinContent() {
 
             {/* Beneficiary Information - For both payin and payout */}
             <div className="space-y-4">
-              <h3 className="text-lg font-medium">Beneficiary Information</h3>
+              <h3 className="text-lg font-medium">{t("beneficiaryInformation")}</h3>
               
               {/* For payout: separate first and last name fields */}
               {transactionType === "payout" && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="beneficiary_first_name">First Name</Label>
+                    <Label htmlFor="beneficiary_first_name">{t("firstName")}</Label>
                     <Input name="beneficiary_first_name" id="beneficiary_first_name" required />
                   </div>
                   <div>
-                    <Label htmlFor="beneficiary_last_name">Last Name</Label>
+                    <Label htmlFor="beneficiary_last_name">{t("lastName")}</Label>
                     <Input name="beneficiary_last_name" id="beneficiary_last_name" required />
                   </div>
                 </div>
@@ -325,7 +325,7 @@ export function PayinContent() {
               {/* For payin: single name field */}
               {transactionType === "payin" && (
                 <div>
-                  <Label htmlFor="beneficiary_name">Beneficiary Name</Label>
+                  <Label htmlFor="beneficiary_name">{t("beneficiaryName")}</Label>
                   <Input name="beneficiary_name" id="beneficiary_name" required />
                 </div>
               )}
@@ -333,11 +333,11 @@ export function PayinContent() {
               {/* Common fields for both */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="beneficiary_account">Account Number</Label>
+                  <Label htmlFor="beneficiary_account">{t("accountNumber")}</Label>
                   <Input name="beneficiary_account" id="beneficiary_account" required />
                 </div>
                 <div>
-                  <Label htmlFor="beneficiary_email">Beneficiary Email</Label>
+                  <Label htmlFor="beneficiary_email">{t("beneficiaryEmail")}</Label>
                   <Input name="beneficiary_email" id="beneficiary_email" type="email" required />
                 </div>
               </div>

@@ -37,6 +37,7 @@ import {
   Clock
 } from "lucide-react"
 import { format } from "date-fns"
+import { useUserConfig } from "@/contexts/user-config-context"
 
 interface Balance {
   uid: string
@@ -106,26 +107,6 @@ interface Operator {
   supports_smartlink: boolean
 }
 
-interface UserConfig {
-  customer_id: string
-  uid: string
-  is_active: boolean
-  webhook_url: string
-  payin_fee_rate: string
-  payout_fee_rate: string
-  use_fixed_fees: boolean
-  payin_fee_fixed: number | null
-  payout_fee_fixed: number | null
-  daily_payin_limit: number | null
-  daily_payout_limit: number | null
-  monthly_payin_limit: number | null
-  monthly_payout_limit: number | null
-  ip_whitelist: string[]
-  require_ip_whitelist: boolean
-  notes: string
-  created_at: string
-}
-
 export function BalanceContent() {
   const { t } = useLanguage()
   const [balance, setBalance] = useState<Balance | null>(null)
@@ -133,8 +114,8 @@ export function BalanceContent() {
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([])
   const [recharges, setRecharges] = useState<RechargeRequest[]>([])
   const [operators, setOperators] = useState<Operator[]>([])
-  const [userConfig, setUserConfig] = useState<UserConfig | null>(null)
   const [loading, setLoading] = useState(true)
+  const { userConfig, isLoading: userConfigLoading, refreshUserConfig } = useUserConfig()
   const [showBalance, setShowBalance] = useState(true)
   const [activeTab, setActiveTab] = useState("overview")
 
@@ -181,7 +162,7 @@ export function BalanceContent() {
   useEffect(() => {
     loadBalanceData()
     loadOperators()
-    loadUserConfig()
+    refreshUserConfig().catch(() => null)
   }, [])
 
   useEffect(() => {
@@ -253,18 +234,6 @@ export function BalanceContent() {
       }
     } catch (error) {
       console.error("Failed to load operators:", error)
-    }
-  }
-
-  const loadUserConfig = async () => {
-    try {
-      const response = await smartFetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/v2/my-config/`)
-      if (response.ok) {
-        const data = await response.json()
-        setUserConfig(data)
-      }
-    } catch (error) {
-      console.error("Failed to load user config:", error)
     }
   }
 
@@ -386,7 +355,7 @@ export function BalanceContent() {
     return <TrendingUp className="h-4 w-4 text-blue-600" />
   }
 
-  if (loading) {
+  if (loading || userConfigLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="flex items-center space-x-2">

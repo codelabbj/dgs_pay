@@ -5,6 +5,8 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthGuard } from "@/components/auth-guard"
 import { LanguageProvider } from "@/contexts/language-context"
+import { UserProfileProvider } from "@/contexts/user-profile-context"
+import { UserConfigProvider } from "@/contexts/user-config-context"
 import { DynamicLayout } from "@/components/dynamic-layout"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -27,11 +29,15 @@ export default function RootLayout({
         <div className="min-h-screen flex flex-col">
           <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
             <LanguageProvider>
-              <DynamicLayout>
-                <AuthGuard>
-                  {children}
-                </AuthGuard>
-              </DynamicLayout>
+              <UserProfileProvider>
+                <UserConfigProvider>
+                  <DynamicLayout>
+                    <AuthGuard>
+                      {children}
+                    </AuthGuard>
+                  </DynamicLayout>
+                </UserConfigProvider>
+              </UserProfileProvider>
             </LanguageProvider>
           </ThemeProvider>
         </div>

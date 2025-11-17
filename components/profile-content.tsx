@@ -26,41 +26,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useLanguage } from "@/contexts/language-context"
-import { smartFetch, getUserData } from "@/utils/auth"
+import { Badge } from "@/components/ui/badge"
+import { smartFetch } from "@/utils/auth"
 import { toast } from "@/hooks/use-toast"
+import { useUserProfile, UserProfile as UserProfileType } from "@/contexts/user-profile-context"
+import { useUserConfig } from "@/contexts/user-config-context"
 
-interface UserProfile {
-  id: string
-  email: string
-  first_name: string
-  last_name: string
-  phone: string | null
-  country: string | null
-  entreprise_name: string | null
-  website: string | null
-  logo: string | null
-  otp: string | null
-  otp_created_at: string | null
-  ip_adress: string | null
-  success_url: string | null
-  cancel_url: string | null
-  callback_url: string | null
-  reason_for_rejection: string | null
-  account_status: string
-  customer_pay_fee: boolean
-  created_at: string
-  updated_at: string
-  fullname: string
-  is_active: boolean
-  is_partner: boolean
-  trade_commerce: string | null
-  gerant_doc: string | null
-  entreprise_number: string | null
-}
+type UserProfile = UserProfileType
 
 export function ProfileContent() {
-  const [userProfile, setUserProfile] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const { 
+    userProfile: contextProfile,
+    isLoading: isProfileLoading,
+    refreshUserProfile,
+    updateCachedProfile
+  } = useUserProfile()
+  const { userConfig } = useUserConfig()
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(contextProfile)
+  const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [verificationSubmitted, setVerificationSubmitted] = useState(false)
@@ -100,55 +83,19 @@ export function ProfileContent() {
   const { t } = useLanguage()
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
 
-  const loadUserProfile = async () => {
-    setIsLoading(true)
-    setError(null)
-    
-    try {
-      const res = await smartFetch(`${baseUrl}/v1/api/user-details`, {
-        method: 'GET',
-      })
-
-      if (res.ok) {
-        const data = await res.json()
-        setUserProfile(data)
-        // Update localStorage
-        localStorage.setItem('user', JSON.stringify(data))
-      } else {
-        const errorData = await res.json()
-        const errorMessage = typeof errorData.detail === 'string' ? errorData.detail : 
-                            typeof errorData.message === 'string' ? errorData.message :
-                            'Failed to load profile'
-        setError(errorMessage)
-        toast({
-          title: "Error",
-          description: errorMessage,
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      console.error('Profile load error:', error)
-      const errorMessage = 'Failed to load profile'
-      setError(errorMessage)
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
+  const updateProfileState = (patch: Partial<UserProfile>) => {
+    setUserProfile((prev) => (prev ? { ...prev, ...patch } : prev))
   }
 
   useEffect(() => {
-    // Load user profile from localStorage first, then from API
-    const userData = getUserData()
-    if (userData) {
-      setUserProfile(userData)
+    setUserProfile(contextProfile ?? null)
+  }, [contextProfile])
+
+  useEffect(() => {
+    if (!contextProfile) {
+      refreshUserProfile().catch(() => null)
     }
-    // Always fetch fresh data from API
-    loadUserProfile()
-  }, [])
+  }, [contextProfile, refreshUserProfile])
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'logo' | 'trade_commerce' | 'gerant_doc') => {
     const file = e.target.files?.[0]
@@ -221,8 +168,9 @@ export function ProfileContent() {
   }
 
   const handleProfileUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
+    if (!userProfile) return
     e.preventDefault()
-    setIsLoading(true)
+    setIsSaving(true)
     setError(null)
     setSuccess(null)
 
@@ -267,6 +215,7 @@ export function ProfileContent() {
       if (res.ok) {
         const data = await res.json()
         setUserProfile(data)
+        updateCachedProfile(data)
         setSuccess('Profile updated successfully!')
         
         // Clear uploaded files state after successful update
@@ -322,7 +271,7 @@ export function ProfileContent() {
         variant: "destructive",
       })
     } finally {
-      setIsLoading(false)
+      setIsSaving(false)
     }
   }
 
@@ -366,7 +315,7 @@ export function ProfileContent() {
     return value
   }
 
-  if (isLoading) {
+  if (isProfileLoading && !userProfile) {
     return (
       <div className="min-h-screen bg-slate-50/30 dark:bg-neutral-950 flex items-center justify-center">
         <div className="flex items-center space-x-2">
@@ -397,6 +346,75 @@ export function ProfileContent() {
           <h1 className="text-4xl font-bold text-neutral-900 dark:text-white mb-2">{t("profile")}</h1>
           <p className="text-neutral-600 dark:text-neutral-400 text-lg">{t("manageAccountInfo")}</p>
         </div>
+
+        {userConfig && (
+          <Card className="mb-8 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-2xl rounded-3xl">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+              <div>
+                <CardTitle className="text-2xl font-bold text-neutral-900 dark:text-white">
+                  Configuration
+                </CardTitle>
+                <CardDescription className="text-neutral-600 dark:text-neutral-400">
+                  Settings applied to your API and payouts
+                </CardDescription>
+              </div>
+              <Badge className={userConfig.is_active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+                {userConfig.is_active ? t("balanceActive") : t("balanceInactive")}
+              </Badge>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400">Fees</p>
+                  <p className="text-lg font-semibold text-neutral-900 dark:text-white">
+                    Payin: {userConfig.use_fixed_fees && userConfig.payin_fee_fixed != null ? `${userConfig.payin_fee_fixed.toLocaleString()} XOF` : `${userConfig.payin_fee_rate}%`}
+                  </p>
+                  <p className="text-lg font-semibold text-neutral-900 dark:text-white">
+                    Payout: {userConfig.use_fixed_fees && userConfig.payout_fee_fixed != null ? `${userConfig.payout_fee_fixed.toLocaleString()} XOF` : `${userConfig.payout_fee_rate}%`}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400">Webhook</p>
+                  <p className="text-sm text-neutral-900 dark:text-white break-all">
+                    {userConfig.webhook_url || "Not configured"}
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {(userConfig.daily_payin_limit || userConfig.daily_payout_limit) && (
+                  <div>
+                    <p className="text-sm text-neutral-500 dark:text-neutral-400">Daily limits</p>
+                    <ul className="text-sm text-neutral-900 dark:text-white space-y-1">
+                      {userConfig.daily_payin_limit && <li>Payin: {userConfig.daily_payin_limit.toLocaleString()} XOF</li>}
+                      {userConfig.daily_payout_limit && <li>Payout: {userConfig.daily_payout_limit.toLocaleString()} XOF</li>}
+                    </ul>
+                  </div>
+                )}
+                {(userConfig.monthly_payin_limit || userConfig.monthly_payout_limit) && (
+                  <div>
+                    <p className="text-sm text-neutral-500 dark:text-neutral-400">Monthly limits</p>
+                    <ul className="text-sm text-neutral-900 dark:text-white space-y-1">
+                      {userConfig.monthly_payin_limit && <li>Payin: {userConfig.monthly_payin_limit.toLocaleString()} XOF</li>}
+                      {userConfig.monthly_payout_limit && <li>Payout: {userConfig.monthly_payout_limit.toLocaleString()} XOF</li>}
+                    </ul>
+                  </div>
+                )}
+                {userConfig.ip_whitelist.length > 0 && (
+                  <div>
+                    <p className="text-sm text-neutral-500 dark:text-neutral-400">Whitelisted IPs</p>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {userConfig.ip_whitelist.map((ip) => (
+                        <Badge key={ip} className="bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
+                          {ip}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Profile Card */}
@@ -504,8 +522,8 @@ export function ProfileContent() {
                           id="first_name"
                           name="first_name"
                           value={userProfile.first_name || ''}
-                          onChange={(e) => setUserProfile((prev: typeof userProfile) => ({ ...prev, first_name: e.target.value }))}
-                          disabled={isLoading}
+                          onChange={(e) => updateProfileState({ first_name: e.target.value })}
+                          disabled={isSaving}
                           className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
                         />
                       </div>
@@ -518,8 +536,8 @@ export function ProfileContent() {
                           id="last_name"
                           name="last_name"
                           value={userProfile.last_name || ''}
-                          onChange={(e) => setUserProfile((prev: any) => ({ ...prev, last_name: e.target.value }))}
-                          disabled={isLoading}
+                          onChange={(e) => updateProfileState({ last_name: e.target.value })}
+                          disabled={isSaving}
                           className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
                         />
                       </div>
@@ -533,8 +551,8 @@ export function ProfileContent() {
                           name="email"
                           type="email"
                           value={userProfile.email || ''}
-                          onChange={(e) => setUserProfile((prev: any) => ({ ...prev, email: e.target.value }))}
-                          disabled={isLoading}
+                          onChange={(e) => updateProfileState({ email: e.target.value })}
+                          disabled={isSaving}
                           className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
                         />
                       </div>
@@ -547,8 +565,8 @@ export function ProfileContent() {
                           id="phone"
                           name="phone"
                           value={userProfile.phone || ''}
-                          onChange={(e) => setUserProfile((prev: any) => ({ ...prev, phone: e.target.value }))}
-                          disabled={isLoading}
+                          onChange={(e) => updateProfileState({ phone: e.target.value })}
+                          disabled={isSaving}
                           className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
                         />
                       </div>
@@ -561,8 +579,8 @@ export function ProfileContent() {
                           id="country"
                           name="country"
                           value={userProfile.country || ''}
-                          onChange={(e) => setUserProfile((prev: any) => ({ ...prev, country: e.target.value }))}
-                          disabled={isLoading}
+                          onChange={(e) => updateProfileState({ country: e.target.value })}
+                          disabled={isSaving}
                           className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
                         />
                       </div>
@@ -580,8 +598,8 @@ export function ProfileContent() {
                           id="entreprise_name"
                           name="entreprise_name"
                           value={userProfile.entreprise_name || ''}
-                          onChange={(e) => setUserProfile((prev: any) => ({ ...prev, entreprise_name: e.target.value }))}
-                          disabled={isLoading}
+                          onChange={(e) => updateProfileState({ entreprise_name: e.target.value })}
+                          disabled={isSaving}
                           className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
                         />
                       </div>
@@ -594,8 +612,8 @@ export function ProfileContent() {
                           id="website"
                           name="website"
                           value={userProfile.website || ''}
-                          onChange={(e) => setUserProfile((prev: any) => ({ ...prev, website: e.target.value }))}
-                          disabled={isLoading}
+                          onChange={(e) => updateProfileState({ website: e.target.value })}
+                          disabled={isSaving}
                           className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
                         />
                       </div>
@@ -612,7 +630,7 @@ export function ProfileContent() {
                             type="file"
                             accept="image/*"
                             onChange={(e) => handleFileUpload(e, 'logo')}
-                            disabled={isLoading}
+                            disabled={isSaving}
                             ref={logoInputRef}
                             className="hidden"
                           />
@@ -686,8 +704,8 @@ export function ProfileContent() {
                           id="ip_adress"
                           name="ip_adress"
                           value={userProfile.ip_adress || ''}
-                          onChange={(e) => setUserProfile((prev: any) => ({ ...prev, ip_adress: e.target.value }))}
-                          disabled={isLoading}
+                          onChange={(e) => updateProfileState({ ip_adress: e.target.value })}
+                          disabled={isSaving}
                           placeholder="192.168.1.1"
                           className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
                         />
@@ -759,8 +777,8 @@ export function ProfileContent() {
                           id="entreprise_number"
                           name="entreprise_number"
                           value={userProfile.entreprise_number || ''}
-                          onChange={(e) => setUserProfile((prev: any) => ({ ...prev, entreprise_number: e.target.value }))}
-                          disabled={isLoading}
+                          onChange={(e) => updateProfileState({ entreprise_number: e.target.value })}
+                          disabled={isSaving}
                           placeholder="Entrez le numéro d'enregistrement de l'entreprise"
                           className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
                         />
@@ -777,7 +795,7 @@ export function ProfileContent() {
                             type="file"
                             accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                             onChange={(e) => handleFileUpload(e, 'trade_commerce')}
-                            disabled={isLoading}
+                            disabled={isSaving}
                             ref={tradeCommerceInputRef}
                             className="hidden"
                           />
@@ -848,7 +866,7 @@ export function ProfileContent() {
                             type="file"
                             accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                             onChange={(e) => handleFileUpload(e, 'gerant_doc')}
-                            disabled={isLoading}
+                            disabled={isSaving}
                             ref={gerantDocInputRef}
                             className="hidden"
                           />
@@ -923,8 +941,8 @@ export function ProfileContent() {
                           id="success_url"
                           name="success_url"
                           value={userProfile.success_url || `${window.location.origin}/success`}
-                          onChange={(e) => setUserProfile((prev: any) => ({ ...prev, success_url: e.target.value }))}
-                          disabled={isLoading}
+                          onChange={(e) => updateProfileState({ success_url: e.target.value })}
+                          disabled={isSaving}
                           placeholder="https://yoursite.com/success"
                           className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
                         />
@@ -938,8 +956,8 @@ export function ProfileContent() {
                           id="cancel_url"
                           name="cancel_url"
                           value={userProfile.cancel_url || `${window.location.origin}/cancel`}
-                          onChange={(e) => setUserProfile((prev: any) => ({ ...prev, cancel_url: e.target.value }))}
-                          disabled={isLoading}
+                          onChange={(e) => updateProfileState({ cancel_url: e.target.value })}
+                          disabled={isSaving}
                           placeholder="https://yoursite.com/cancel"
                           className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
                         />
@@ -953,8 +971,8 @@ export function ProfileContent() {
                           id="callback_url"
                           name="callback_url"
                           value={userProfile.callback_url || `${window.location.origin}/callback`}
-                          onChange={(e) => setUserProfile((prev: any) => ({ ...prev, callback_url: e.target.value }))}
-                          disabled={isLoading}
+                          onChange={(e) => updateProfileState({ callback_url: e.target.value })}
+                          disabled={isSaving}
                           placeholder="https://yoursite.com/callback"
                           className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
                         />
@@ -988,38 +1006,25 @@ export function ProfileContent() {
                   <div className="flex justify-end space-x-2 mt-6">
                     <Button
                       type="button"
-                      onClick={() => setUserProfile((prev: typeof userProfile) => ({
-                        ...prev,
-                        first_name: prev.first_name,
-                        last_name: prev.last_name,
-                        email: prev.email,
-                        phone: prev.phone,
-                        country: prev.country,
-                        entreprise_name: prev.entreprise_name,
-                        website: prev.website,
-                        success_url: prev.success_url,
-                        cancel_url: prev.cancel_url,
-                        callback_url: prev.callback_url,
-                        logo: prev.logo,
-                      }))}
+                      onClick={() => setUserProfile((prev) => (prev ? { ...prev } : prev))}
                       variant="outline"
                       className="rounded-2xl border-slate-200 dark:border-neutral-700"
-                      disabled={isLoading}
+                      disabled={isSaving}
                     >
                       <X className="w-4 h-4 mr-2" />
                       {t("cancel")}
                     </Button>
                     <Button
                       type="submit"
-                      disabled={isLoading}
+                      disabled={isSaving}
                       className="bg-crimson-600 hover:bg-slate-700 text-black dark:text-white  rounded-2xl"
                     >
-                      {(isLoading) ? (
+                      {(isSaving) ? (
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
                       ) : (
                         <Save className="w-4 h-4 mr-2" />
                       )}
-                      {isLoading ? t("saving") : t("save")}
+                      {isSaving ? t("saving") : t("save")}
                     </Button>
                   </div>
                 </form>
