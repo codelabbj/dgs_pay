@@ -83,9 +83,22 @@ export function isRefreshTokenExpired(): boolean {
   
   try {
     // Decode JWT to check expiration
-    const payload = JSON.parse(atob(refreshToken.split('.')[1]))
+    const parts = refreshToken.split('.')
+    if (parts.length !== 3) {
+      console.error('Invalid refresh token format: not a valid JWT')
+      return true
+    }
+    
+    const payload = JSON.parse(atob(parts[1]))
     const exp = payload.exp * 1000 // Convert to milliseconds
     const now = Date.now()
+    
+    console.log('Refresh token expiration check:', {
+      exp: new Date(exp).toISOString(),
+      now: new Date(now).toISOString(),
+      isExpired: exp <= now,
+      secondsUntilExpiry: Math.round((exp - now) / 1000)
+    })
     
     return exp <= now
   } catch (error) {
@@ -349,7 +362,15 @@ export async function smartFetch(url: string, options: RequestInit = {}): Promis
     const refreshTokenExpired = isRefreshTokenExpired()
     console.log('Refresh token expired?', refreshTokenExpired)
     
-    if (!refreshTokenExpired) {
+    if (refreshTokenExpired) {
+      console.log('smartFetch: Refresh token is expired, user needs to login again')
+      // Clear auth data and redirect to login
+      clearAuthData()
+      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+        console.log('smartFetch: Redirecting to login')
+        window.location.href = '/login'
+      }
+    } else {
       console.log(`smartFetch: Got ${response.status}, attempting token refresh...`)
       try {
         const refreshed = await refreshAccessTokenInBackground()
@@ -385,8 +406,6 @@ export async function smartFetch(url: string, options: RequestInit = {}): Promis
       } catch (refreshError) {
         console.error('smartFetch: Error during token refresh:', refreshError)
       }
-    } else {
-      console.log('smartFetch: Refresh token is expired, cannot refresh')
     }
     console.log('smartFetch: Returning original response with status:', response.status)
   }
@@ -402,17 +421,54 @@ export async function authenticatedFetch(url: string, options: RequestInit = {})
 // Debug function - call this from browser console to test token refresh
 export async function debugTokenRefresh() {
   console.log('=== DEBUG TOKEN REFRESH ===')
-  console.log('Current access token:', getAccessToken()?.substring(0, 20) + '...')
-  console.log('Current refresh token:', getRefreshToken()?.substring(0, 20) + '...')
+  
+  const accessToken = getAccessToken()
+  const refreshToken = getRefreshToken()
+  
+  console.log('Access token exists?', !!accessToken)
+  if (accessToken) {
+    try {
+      const payload = JSON.parse(atob(accessToken.split('.')[1]))
+      console.log('Access token expiry:', new Date(payload.exp * 1000).toISOString())
+    } catch (e) {
+      console.error('Could not decode access token')
+    }
+  }
+  
+  console.log('Refresh token exists?', !!refreshToken)
+  if (refreshToken) {
+    try {
+      const payload = JSON.parse(atob(refreshToken.split('.')[1]))
+      console.log('Refresh token expiry:', new Date(payload.exp * 1000).toISOString())
+    } catch (e) {
+      console.error('Could not decode refresh token')
+    }
+  }
+  
   console.log('Access token expired?', isAccessTokenExpired())
   console.log('Refresh token expired?', isRefreshTokenExpired())
   
-  console.log('Attempting refresh...')
-  const result = await refreshAccessTokenInBackground()
-  console.log('Refresh result:', result)
-  console.log('New access token:', getAccessToken()?.substring(0, 20) + '...')
-  console.log('=== END DEBUG ===')
+  if (!isRefreshTokenExpired()) {
+    console.log('Attempting refresh...')
+    const result = await refreshAccessTokenInBackground()
+    console.log('Refresh result:', result)
+    console.log('New access token:', getAccessToken()?.substring(0, 20) + '...')
+  } else {
+    console.log('Cannot refresh: refresh token is expired. User needs to login again.')
+  }
   
-  return result
+  console.log('=== END DEBUG ===')
+}
+
+// Make it available on window for browser console access
+if (typeof window !== 'undefined') {
+  (window as any).__AUTH__ = {
+    debugTokenRefresh,
+    getAccessToken,
+    getRefreshToken,
+    isAccessTokenExpired,
+    isRefreshTokenExpired,
+    refreshAccessTokenInBackground,
+  }
 }
 
