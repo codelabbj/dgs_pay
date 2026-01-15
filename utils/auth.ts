@@ -325,9 +325,9 @@ export async function smartFetch(url: string, options: RequestInit = {}): Promis
     headers,
   })
 
-  // If we get 401, try to refresh token and retry once
-  if (response.status === 401 && !isRefreshTokenExpired()) {
-    console.log('smartFetch: Got 401, attempting token refresh...')
+  // If we get 401 or 403, try to refresh token and retry once
+  if ((response.status === 401 || response.status === 403) && !isRefreshTokenExpired()) {
+    console.log(`smartFetch: Got ${response.status}, attempting token refresh...`)
     const refreshed = await refreshAccessTokenInBackground()
     if (refreshed) {
       const newAccessToken = getAccessToken()
