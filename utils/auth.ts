@@ -189,25 +189,45 @@ export async function refreshAccessTokenInBackground(): Promise<boolean> {
     try {
       const refreshToken = getRefreshToken()
       if (!refreshToken) {
+        console.error("No refresh token available for refresh attempt")
         throw new Error("No refresh token available")
       }
 
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
       if (!baseUrl) {
+        console.error("Base URL not configured")
         throw new Error("Base URL not configured")
       }
 
-      const response = await fetch(`${baseUrl}/v1/api/refresh-token`, {
+      console.log('Attempting to refresh token with baseUrl:', baseUrl)
+      
+      // Try the refresh endpoint - it might be at v1/api or api/v1
+      let response = await fetch(`${baseUrl}/v1/api/refresh-token`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refresh: refreshToken }),
       })
+      
+      // If 404, try alternative endpoint
+      if (response.status === 404) {
+        console.log('refresh-token endpoint not found at /v1/api/refresh-token, trying /api/v1/refresh-token')
+        response = await fetch(`${baseUrl}/api/v1/refresh-token`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh: refreshToken }),
+        })
+      }
+
+      console.log('Token refresh response status:', response.status)
 
       if (!response.ok) {
-        throw new Error(`Token refresh failed: ${response.status}`)
+        const errorText = await response.text()
+        console.error('Token refresh failed with response:', errorText)
+        throw new Error(`Token refresh failed: ${response.status} - ${errorText}`)
       }
 
       const data = await response.json()
+      console.log('Token refresh successful, storing new tokens')
       
       // Store new tokens
       localStorage.setItem("access", data.access)
@@ -325,11 +345,21 @@ export async function smartFetch(url: string, options: RequestInit = {}): Promis
     headers,
   })
 
+  console.log(`smartFetch: Response status ${response.status} for ${url}`)
+
   // If we get 401 or 403, try to refresh token and retry once
   if ((response.status === 401 || response.status === 403) && !isRefreshTokenExpired()) {
+    console.log(`smartFetch: Got ${response.status}, checking if refresh token is valid...`)
+    console.log('Refresh token expired?', isRefreshTokenExpired())
+    
     console.log(`smartFetch: Got ${response.status}, attempting token refresh...`)
     const refreshed = await refreshAccessTokenInBackground()
+    console.log(`Token refresh result: ${refreshed}`)
+    
     if (refreshed) {
+      // Wait a moment for the token to be stored
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
       const newAccessToken = getAccessToken()
       if (newAccessToken) {
         const retryHeaders = {
@@ -339,11 +369,15 @@ export async function smartFetch(url: string, options: RequestInit = {}): Promis
         }
         
         console.log('smartFetch: Retrying request with new token')
-        return fetch(url, {
+        const retryResponse = await fetch(url, {
           ...options,
           headers: retryHeaders,
         })
+        console.log(`smartFetch: Retry response status: ${retryResponse.status}`)
+        return retryResponse
       }
+    } else {
+      console.log('Token refresh failed, returning original response')
     }
   }
 
