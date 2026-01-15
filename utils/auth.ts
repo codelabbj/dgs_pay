@@ -180,80 +180,76 @@ export function isAuthenticatedLenient(): boolean {
 
 // Refresh access token using refresh token
 export async function refreshAccessTokenInBackground(): Promise<boolean> {
-  // Prevent multiple simultaneous refresh attempts
-  if (refreshPromise) {
-    return refreshPromise
-  }
+  try {
+    const refreshToken = getRefreshToken()
+    if (!refreshToken) {
+      console.error("No refresh token available for refresh attempt")
+      return false
+    }
 
-  refreshPromise = (async () => {
-    try {
-      const refreshToken = getRefreshToken()
-      if (!refreshToken) {
-        console.error("No refresh token available for refresh attempt")
-        throw new Error("No refresh token available")
-      }
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
+    if (!baseUrl) {
+      console.error("Base URL not configured")
+      return false
+    }
 
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
-      if (!baseUrl) {
-        console.error("Base URL not configured")
-        throw new Error("Base URL not configured")
-      }
+    console.log('Attempting to refresh token with baseUrl:', baseUrl)
+    
+    // Try the refresh endpoint - it might be at v1/api or api/v1
+    let response = await fetch(`${baseUrl}/v1/api/refresh-token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh: refreshToken }),
+    })
+    
+    console.log('Token refresh response status:', response.status)
 
-      console.log('Attempting to refresh token with baseUrl:', baseUrl)
-      
-      // Try the refresh endpoint - it might be at v1/api or api/v1
-      let response = await fetch(`${baseUrl}/v1/api/refresh-token`, {
+    // If 404, try alternative endpoint
+    if (response.status === 404) {
+      console.log('refresh-token endpoint not found at /v1/api/refresh-token, trying /api/v1/refresh-token')
+      response = await fetch(`${baseUrl}/api/v1/refresh-token`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refresh: refreshToken }),
       })
-      
-      // If 404, try alternative endpoint
-      if (response.status === 404) {
-        console.log('refresh-token endpoint not found at /v1/api/refresh-token, trying /api/v1/refresh-token')
-        response = await fetch(`${baseUrl}/api/v1/refresh-token`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refresh: refreshToken }),
-        })
-      }
+      console.log('Token refresh response status from alternative endpoint:', response.status)
+    }
 
-      console.log('Token refresh response status:', response.status)
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('Token refresh failed with response:', errorText)
-        throw new Error(`Token refresh failed: ${response.status} - ${errorText}`)
-      }
-
-      const data = await response.json()
-      console.log('Token refresh successful, storing new tokens')
-      
-      // Store new tokens
-      localStorage.setItem("access", data.access)
-      localStorage.setItem("refresh", data.refresh)
-      localStorage.setItem("exp", data.exp)
-      
-      // Schedule next refresh
-      scheduleNextRefresh()
-      
-      return true
-    } catch (error) {
-      console.error("Token refresh failed:", error)
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('Token refresh failed with response:', errorText)
       
       // If refresh fails, clear auth data and redirect to login
       clearAuthData()
       if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
         window.location.href = '/login'
       }
-      
       return false
-    } finally {
-      refreshPromise = null
     }
-  })()
 
-  return refreshPromise
+    const data = await response.json()
+    console.log('Token refresh successful, storing new tokens')
+    
+    // Store new tokens
+    localStorage.setItem("access", data.access)
+    localStorage.setItem("refresh", data.refresh)
+    localStorage.setItem("exp", data.exp)
+    
+    // Schedule next refresh
+    scheduleNextRefresh()
+    
+    return true
+  } catch (error) {
+    console.error("Token refresh failed with exception:", error)
+    
+    // If refresh fails, clear auth data and redirect to login
+    clearAuthData()
+    if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+      window.location.href = '/login'
+    }
+    
+    return false
+  }
 }
 
 // Schedule next token refresh
@@ -348,37 +344,51 @@ export async function smartFetch(url: string, options: RequestInit = {}): Promis
   console.log(`smartFetch: Response status ${response.status} for ${url}`)
 
   // If we get 401 or 403, try to refresh token and retry once
-  if ((response.status === 401 || response.status === 403) && !isRefreshTokenExpired()) {
-    console.log(`smartFetch: Got ${response.status}, checking if refresh token is valid...`)
-    console.log('Refresh token expired?', isRefreshTokenExpired())
+  if ((response.status === 401 || response.status === 403)) {
+    console.log(`smartFetch: Got ${response.status}, checking if we should attempt refresh...`)
+    const refreshTokenExpired = isRefreshTokenExpired()
+    console.log('Refresh token expired?', refreshTokenExpired)
     
-    console.log(`smartFetch: Got ${response.status}, attempting token refresh...`)
-    const refreshed = await refreshAccessTokenInBackground()
-    console.log(`Token refresh result: ${refreshed}`)
-    
-    if (refreshed) {
-      // Wait a moment for the token to be stored
-      await new Promise(resolve => setTimeout(resolve, 100))
-      
-      const newAccessToken = getAccessToken()
-      if (newAccessToken) {
-        const retryHeaders = {
-          ...(isFormData ? {} : { "Content-Type": "application/json" }),
-          "Authorization": `Bearer ${newAccessToken}`,
-          ...options.headers,
-        }
+    if (!refreshTokenExpired) {
+      console.log(`smartFetch: Got ${response.status}, attempting token refresh...`)
+      try {
+        const refreshed = await refreshAccessTokenInBackground()
+        console.log(`Token refresh result: ${refreshed}`)
         
-        console.log('smartFetch: Retrying request with new token')
-        const retryResponse = await fetch(url, {
-          ...options,
-          headers: retryHeaders,
-        })
-        console.log(`smartFetch: Retry response status: ${retryResponse.status}`)
-        return retryResponse
+        if (refreshed) {
+          // Wait a moment for the token to be stored
+          await new Promise(resolve => setTimeout(resolve, 100))
+          
+          const newAccessToken = getAccessToken()
+          console.log(`smartFetch: New access token available: ${!!newAccessToken}`)
+          
+          if (newAccessToken) {
+            const retryHeaders = {
+              ...(isFormData ? {} : { "Content-Type": "application/json" }),
+              "Authorization": `Bearer ${newAccessToken}`,
+              ...options.headers,
+            }
+            
+            console.log('smartFetch: Retrying request with new token')
+            const retryResponse = await fetch(url, {
+              ...options,
+              headers: retryHeaders,
+            })
+            console.log(`smartFetch: Retry response status: ${retryResponse.status}`)
+            return retryResponse
+          } else {
+            console.log('smartFetch: Failed to get new access token after refresh')
+          }
+        } else {
+          console.log('smartFetch: Token refresh returned false')
+        }
+      } catch (refreshError) {
+        console.error('smartFetch: Error during token refresh:', refreshError)
       }
     } else {
-      console.log('Token refresh failed, returning original response')
+      console.log('smartFetch: Refresh token is expired, cannot refresh')
     }
+    console.log('smartFetch: Returning original response with status:', response.status)
   }
 
   return response
@@ -388,3 +398,21 @@ export async function smartFetch(url: string, options: RequestInit = {}): Promis
 export async function authenticatedFetch(url: string, options: RequestInit = {}): Promise<Response> {
   return smartFetch(url, options)
 }
+
+// Debug function - call this from browser console to test token refresh
+export async function debugTokenRefresh() {
+  console.log('=== DEBUG TOKEN REFRESH ===')
+  console.log('Current access token:', getAccessToken()?.substring(0, 20) + '...')
+  console.log('Current refresh token:', getRefreshToken()?.substring(0, 20) + '...')
+  console.log('Access token expired?', isAccessTokenExpired())
+  console.log('Refresh token expired?', isRefreshTokenExpired())
+  
+  console.log('Attempting refresh...')
+  const result = await refreshAccessTokenInBackground()
+  console.log('Refresh result:', result)
+  console.log('New access token:', getAccessToken()?.substring(0, 20) + '...')
+  console.log('=== END DEBUG ===')
+  
+  return result
+}
+
