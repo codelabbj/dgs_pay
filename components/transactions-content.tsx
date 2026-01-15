@@ -147,8 +147,8 @@ export function TransactionsContent() {
     amount: "",
     phone: "",
     description: "",
-    success_url: "https://codelab.bj",
-    cancel_url: "https://djofo.codelab.bj",
+    success_url: "",
+    cancel_url: "",
     client_reference: "",
     currency: "XOF",
     beneficiary_name: "",
@@ -239,6 +239,10 @@ export function TransactionsContent() {
       const params = new URLSearchParams({
         page: page.toString()
       })
+      
+      if (search) {
+        params.append('search', search)
+      }
       
       if (status !== "all") {
         params.append('status', status)
