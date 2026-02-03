@@ -113,13 +113,13 @@ export function TransactionsContent() {
   const [endDate, setEndDate] = useState("")
   const [statusMap, setStatusMap] = useState<Record<string, string>>({})
   const [statusLoading, setStatusLoading] = useState<Record<string, boolean>>({})
-  const [checkStatusModal, setCheckStatusModal] = useState<{open: boolean, data: Transaction | null}>({open: false, data: null})
+  const [checkStatusModal, setCheckStatusModal] = useState<{ open: boolean, data: Transaction | null }>({ open: false, data: null })
   const [syncLoading, setSyncLoading] = useState<Record<string, boolean>>({})
   const [refundLoading, setRefundLoading] = useState<Record<string, boolean>>({})
   const [operators, setOperators] = useState<Operator[]>([])
   const [payinError, setPayinError] = useState<string | null>(null)
   const [payoutError, setPayoutError] = useState<string | null>(null)
-  
+
   // Server-side pagination state
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
@@ -239,26 +239,26 @@ export function TransactionsContent() {
       const params = new URLSearchParams({
         page: page.toString()
       })
-      
+
       if (search) {
         params.append('search', search)
       }
-      
+
       if (status !== "all") {
         params.append('status', status)
       }
-      
+
       if (type !== "all") {
         params.append('type', type)
       }
-      
+
       const res = await smartFetch(`${baseUrl}/api/v2/transactions/?${params.toString()}`)
-      
+
       if (res.ok) {
         const data: TransactionListResponse = await res.json()
-        
+
         setTransactions(data.results)
-        
+
         // Update pagination info
         setPaginationInfo({
           count: data.count || 0,
@@ -357,7 +357,7 @@ export function TransactionsContent() {
       const res = await smartFetch(`${baseUrl}/api/v2/transactions/${transactionUid}/sync/`, {
         method: 'POST'
       })
-      
+
       if (res.ok) {
         const data: SyncResponse = await res.json()
         toast({
@@ -389,7 +389,7 @@ export function TransactionsContent() {
     setStatusLoading(prev => ({ ...prev, [reference]: true }))
     try {
       const res = await smartFetch(`${baseUrl}/api/v2/transactions/${reference}/`)
-      
+
       if (res.ok) {
         const data: Transaction = await res.json()
         setCheckStatusModal({ open: true, data })
@@ -418,7 +418,7 @@ export function TransactionsContent() {
       const res = await smartFetch(`${baseUrl}/api/v2/transactions/${reference}/request-refund/`, {
         method: 'POST'
       })
-      
+
       if (res.ok) {
         toast({
           title: t("success"),
@@ -471,7 +471,7 @@ export function TransactionsContent() {
         },
         body: JSON.stringify(payload)
       })
-      
+
       if (res.ok) {
         const data: Transaction = await res.json()
         toast({
@@ -499,7 +499,7 @@ export function TransactionsContent() {
         try {
           const errorData = await res.json()
           let errorMessage = 'Failed to create payin'
-          
+
           // Handle different error response formats
           if (typeof errorData === 'object' && errorData !== null) {
             // Handle field-specific errors like {"operator_code":["Vous n'êtes pas autorisé à utiliser cet opérateur"]}
@@ -513,10 +513,10 @@ export function TransactionsContent() {
           } else if (typeof errorData === 'string') {
             errorMessage = errorData
           }
-          
+
           setPayinError(errorMessage)
-        toast({
-          title: t("error"),
+          toast({
+            title: t("error"),
             description: errorMessage,
             variant: "destructive"
           })
@@ -526,8 +526,8 @@ export function TransactionsContent() {
           toast({
             title: t("error"),
             description: errorMsg,
-          variant: "destructive"
-        })
+            variant: "destructive"
+          })
         }
       }
     } catch (error) {
@@ -568,7 +568,7 @@ export function TransactionsContent() {
         },
         body: JSON.stringify(payload)
       })
-      
+
       if (res.ok) {
         const data: Transaction = await res.json()
         toast({
@@ -596,7 +596,7 @@ export function TransactionsContent() {
         try {
           const errorData = await res.json()
           let errorMessage = 'Failed to create payout'
-          
+
           // Handle different error response formats
           if (typeof errorData === 'object' && errorData !== null) {
             // Handle field-specific errors
@@ -610,10 +610,10 @@ export function TransactionsContent() {
           } else if (typeof errorData === 'string') {
             errorMessage = errorData
           }
-          
+
           setPayoutError(errorMessage)
-        toast({
-          title: t("error"),
+          toast({
+            title: t("error"),
             description: errorMessage,
             variant: "destructive"
           })
@@ -623,8 +623,8 @@ export function TransactionsContent() {
           toast({
             title: t("error"),
             description: errorMsg,
-          variant: "destructive"
-        })
+            variant: "destructive"
+          })
         }
       }
     } catch (error) {
@@ -828,7 +828,7 @@ export function TransactionsContent() {
   //     console.log('New transaction added via WebSocket:', transaction)
   //   }
   // }
-  
+
   // // Handle transaction updates from WebSocket
   // const handleTransactionUpdate = (updatedTransaction: any) => {
   //   const key = getTransactionKey(updatedTransaction)
@@ -935,24 +935,25 @@ export function TransactionsContent() {
       const params = new URLSearchParams({
         page: "1"
       })
-      
+
       if (statusFilter !== "all") {
         params.append('status', statusFilter)
       }
-      
+
       if (typeFilter !== "all") {
         params.append('type', typeFilter)
       }
-      
+
       const res = await smartFetch(`${baseUrl}/api/v2/transactions/?${params.toString()}`)
-      
+
       if (res.ok) {
         const data: TransactionListResponse = await res.json()
-        
+
         // Create PDF using the API response data
         const doc = new jsPDF()
         const tableColumn = [
           t("reference"),
+          t("clientReference"),
           t("date"),
           t("time"),
           "Type",
@@ -962,11 +963,12 @@ export function TransactionsContent() {
           t("status"),
           t("description")
         ]
-        
+
         const tableRows = data.results.map((transaction: Transaction) => {
           const dateObj = transaction.created_at ? new Date(transaction.created_at) : null
           return [
             transaction.reference || "-",
+            transaction.client_reference || "-",
             dateObj ? dateObj.toLocaleDateString() : "-",
             dateObj ? dateObj.toLocaleTimeString() : "-",
             transaction.type_trans_display || "-",
@@ -977,7 +979,7 @@ export function TransactionsContent() {
             transaction.description || "-"
           ]
         })
-        
+
         autoTable(doc, {
           head: [tableColumn],
           body: tableRows,
@@ -985,7 +987,7 @@ export function TransactionsContent() {
           headStyles: { fillColor: [220, 220, 220] },
           margin: { top: 20 },
         })
-        
+
         doc.save("transactions.pdf")
       } else {
         console.error('Failed to export transactions:', res.status)
@@ -993,6 +995,7 @@ export function TransactionsContent() {
         const doc = new jsPDF()
         const tableColumn = [
           t("reference"),
+          t("clientReference"),
           t("date"),
           t("time"),
           "Type",
@@ -1006,6 +1009,7 @@ export function TransactionsContent() {
           const dateObj = transaction.created_at ? new Date(transaction.created_at) : null
           return [
             transaction.reference || "-",
+            transaction.client_reference || "-",
             dateObj ? dateObj.toLocaleDateString() : "-",
             dateObj ? dateObj.toLocaleTimeString() : "-",
             transaction.type_trans_display || "-",
@@ -1038,6 +1042,7 @@ export function TransactionsContent() {
         t("amount"),
         t("operator"),
         t("status"),
+        t("clientReference"),
         t("description")
       ]
       const tableRows = transactions.map((transaction) => {
@@ -1051,6 +1056,7 @@ export function TransactionsContent() {
           transaction.formatted_amount || "-",
           transaction.operator_name || "-",
           transaction.status_display || "-",
+          transaction.client_reference || "-",
           transaction.description || "-"
         ]
       })
@@ -1227,6 +1233,7 @@ export function TransactionsContent() {
               <TableHeader>
                 <TableRow>
                   <TableHead>{t("reference")}</TableHead>
+                  <TableHead>{t("clientReference")}</TableHead>
                   <TableHead>{t("dateAndTime")}</TableHead>
                   <TableHead>{t("type")}</TableHead>
                   <TableHead>{t("phone")}</TableHead>
@@ -1261,6 +1268,11 @@ export function TransactionsContent() {
                               <Copy className="h-4 w-4" />
                             </button>
                           )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium truncate max-w-[120px]" title={transaction.client_reference}>
+                          {transaction.client_reference || "-"}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -1328,7 +1340,7 @@ export function TransactionsContent() {
                   Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems} results
                 </p>
               </div>
-              
+
               <div className="flex items-center space-x-2">
                 {/* Items per page selector */}
                 <div className="flex items-center space-x-2">
@@ -1368,7 +1380,7 @@ export function TransactionsContent() {
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
-                  
+
                   {/* Page numbers */}
                   <div className="flex items-center space-x-1">
                     {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
@@ -1382,7 +1394,7 @@ export function TransactionsContent() {
                       } else {
                         pageNumber = currentPage - 2 + i;
                       }
-                      
+
                       return (
                         <Button
                           key={pageNumber}
@@ -1396,7 +1408,7 @@ export function TransactionsContent() {
                       );
                     })}
                   </div>
-                  
+
                   <Button
                     variant="outline"
                     size="sm"
@@ -1421,7 +1433,7 @@ export function TransactionsContent() {
       </Card>
 
       {/* Transaction Details Modal */}
-      <Dialog open={checkStatusModal.open} onOpenChange={(open) => setCheckStatusModal({open, data: null})}>
+      <Dialog open={checkStatusModal.open} onOpenChange={(open) => setCheckStatusModal({ open, data: null })}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{t("transactionDetails")}</DialogTitle>
@@ -1480,7 +1492,7 @@ export function TransactionsContent() {
                     <p className="text-sm">{checkStatusModal.data?.description || '-'}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Client Reference</label>
+                    <label className="text-sm font-medium text-gray-500">{t("clientReference")}</label>
                     <p className="text-sm">{checkStatusModal.data?.client_reference || '-'}</p>
                   </div>
                   <div>
