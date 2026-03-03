@@ -2,16 +2,16 @@
 
 import React, { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  Globe, 
-  Building, 
-  MapPin, 
-  Camera, 
-  Save, 
-  Edit, 
+import {
+  User,
+  Mail,
+  Phone,
+  Globe,
+  Building,
+  MapPin,
+  Camera,
+  Save,
+  Edit,
   X,
   Upload,
   Check,
@@ -35,7 +35,7 @@ import { useUserConfig } from "@/contexts/user-config-context"
 type UserProfile = UserProfileType
 
 export function ProfileContent() {
-  const { 
+  const {
     userProfile: contextProfile,
     isLoading: isProfileLoading,
     refreshUserProfile,
@@ -47,39 +47,39 @@ export function ProfileContent() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [verificationSubmitted, setVerificationSubmitted] = useState(false)
-  
+
   // State to store uploaded file URLs temporarily
   const [uploadedFiles, setUploadedFiles] = useState<{
     logo?: string
     trade_commerce?: string
     gerant_doc?: string
   }>({})
-  
+
   // State to store individual file upload success messages
   const [fileUploadSuccess, setFileUploadSuccess] = useState<{
     logo?: string
     trade_commerce?: string
     gerant_doc?: string
   }>({})
-  
+
   // State to store selected file names
   const [selectedFileNames, setSelectedFileNames] = useState<{
     logo?: string
     trade_commerce?: string
     gerant_doc?: string
   }>({})
-  
+
   // Loading state per upload field
   const [uploading, setUploading] = useState<{
     logo?: boolean
     trade_commerce?: boolean
     gerant_doc?: boolean
   }>({})
-  
+
   const logoInputRef = useRef<HTMLInputElement | null>(null)
   const tradeCommerceInputRef = useRef<HTMLInputElement | null>(null)
   const gerantDocInputRef = useRef<HTMLInputElement | null>(null)
-  
+
   const { t } = useLanguage()
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
 
@@ -124,12 +124,12 @@ export function ProfileContent() {
         const data = await res.json()
         console.log('File upload response:', data)
         console.log('Field being uploaded:', field)
-        
+
         const successMessage = `${field === 'logo' ? 'Logo' : field === 'trade_commerce' ? 'Trade Commerce Document' : 'Manager Document'} uploaded successfully!`
-        
+
         // Store individual success message
         setFileUploadSuccess((prev) => ({ ...prev, [field]: successMessage }))
-        
+
         // Clear success message after 3 seconds
         setTimeout(() => {
           setFileUploadSuccess((prev) => {
@@ -138,7 +138,7 @@ export function ProfileContent() {
             return newSuccess
           })
         }, 3000)
-        
+
         // Store uploaded file URL in temporary state
         if (data.file || data.url || data.logo) {
           const fileUrl = data.file || data.url || data.logo
@@ -154,9 +154,9 @@ export function ProfileContent() {
         }
       } else {
         const errorData = await res.json()
-        const errorMessage = typeof errorData.detail === 'string' ? errorData.detail : 
-                            typeof errorData.message === 'string' ? errorData.message :
-                            'Failed to upload file'
+        const errorMessage = typeof errorData.detail === 'string' ? errorData.detail :
+          typeof errorData.message === 'string' ? errorData.message :
+            'Failed to upload file'
         setError(errorMessage)
       }
     } catch (error) {
@@ -217,21 +217,21 @@ export function ProfileContent() {
         setUserProfile(data)
         updateCachedProfile(data)
         setSuccess('Profile updated successfully!')
-        
+
         // Clear uploaded files state after successful update
         setUploadedFiles({})
         setFileUploadSuccess({})
         setSelectedFileNames({})
-        
+
         // Check if verification documents were submitted
-        const hasVerificationDocs = formData.get('entreprise_number') || 
-                                   uploadedFiles.trade_commerce || userProfile.trade_commerce || 
-                                   uploadedFiles.gerant_doc || userProfile.gerant_doc
-        
+        const hasVerificationDocs = formData.get('entreprise_number') ||
+          uploadedFiles.trade_commerce || userProfile.trade_commerce ||
+          uploadedFiles.gerant_doc || userProfile.gerant_doc
+
         if (hasVerificationDocs) {
           setVerificationSubmitted(true)
         }
-        
+
         // Update localStorage
         localStorage.setItem('user', JSON.stringify(data))
         toast({
@@ -241,10 +241,10 @@ export function ProfileContent() {
       } else {
         const errorData = await res.json()
         let errorMessage = 'Failed to update profile'
-        
+
         if (Array.isArray(errorData.detail)) {
           // Handle validation errors array
-          const validationErrors = errorData.detail.map((err: any) => 
+          const validationErrors = errorData.detail.map((err: any) =>
             `${err.loc?.join('.')}: ${err.msg}`
           ).join(', ')
           errorMessage = `Validation errors: ${validationErrors}`
@@ -253,7 +253,7 @@ export function ProfileContent() {
         } else if (typeof errorData.message === 'string') {
           errorMessage = errorData.message
         }
-        
+
         setError(errorMessage)
         toast({
           title: "Error",
@@ -399,11 +399,11 @@ export function ProfileContent() {
                     </ul>
                   </div>
                 )}
-                {userConfig.ip_whitelist.length > 0 && (
+                {userConfig.ip_whitelist?.length > 0 && (
                   <div>
                     <p className="text-sm text-neutral-500 dark:text-neutral-400">Whitelisted IPs</p>
                     <div className="flex flex-wrap gap-2 mt-1">
-                      {userConfig.ip_whitelist.map((ip) => (
+                      {userConfig.ip_whitelist?.map((ip) => (
                         <Badge key={ip} className="bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
                           {ip}
                         </Badge>
@@ -462,30 +462,28 @@ export function ProfileContent() {
                 <div className="mt-6 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-neutral-600 dark:text-neutral-400">{t("accountStatus")}</span>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      userProfile.account_status === 'active' || userProfile.account_status === 'verify'
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${userProfile.account_status === 'active' || userProfile.account_status === 'verify'
                         ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
                         : userProfile.account_status === 'pending'
-                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
-                        : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-                    }`}>
+                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+                          : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                      }`}>
                       {userProfile.account_status === 'active' ? t("active") :
-                       userProfile.account_status === 'pending' ? t("pending") :
-                       userProfile.account_status === 'verify' ? t("verified") :
-                       userProfile.account_status}
+                        userProfile.account_status === 'pending' ? t("pending") :
+                          userProfile.account_status === 'verify' ? t("verified") :
+                            userProfile.account_status}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-neutral-600 dark:text-neutral-400">Account Type</span>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      userProfile.is_partner 
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${userProfile.is_partner
                         ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
                         : 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
-                    }`}>
+                      }`}>
                       {userProfile.is_partner ? "Partner" : "Customer"}
                     </span>
                   </div>
-                  
+
                 </div>
               </CardContent>
             </Card>
@@ -513,7 +511,7 @@ export function ProfileContent() {
                     {/* Personal Information */}
                     <div className="space-y-4">
                       <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">{t("personalDetails")}</h3>
-                      
+
                       <div className="space-y-2">
                         <Label htmlFor="first_name" className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                           {t("firstName")}
@@ -589,7 +587,7 @@ export function ProfileContent() {
                     {/* Business Information */}
                     <div className="space-y-4">
                       <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">{t("businessDetails")}</h3>
-                      
+
                       <div className="space-y-2">
                         <Label htmlFor="entreprise_name" className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                           {t("companyName")}
@@ -769,163 +767,163 @@ export function ProfileContent() {
                     {/* Only show document upload form if account status is not pending, approved, or verify */}
                     {userProfile?.account_status !== 'pending' && userProfile?.account_status !== 'approved' && userProfile?.account_status !== 'verify' && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="entreprise_number" className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
-                          Numéro d'Enregistrement de l'Entreprise
-                        </Label>
-                        <Input
-                          id="entreprise_number"
-                          name="entreprise_number"
-                          value={userProfile.entreprise_number || ''}
-                          onChange={(e) => updateProfileState({ entreprise_number: e.target.value })}
-                          disabled={isSaving}
-                          placeholder="Entrez le numéro d'enregistrement de l'entreprise"
-                          className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="trade_commerce" className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
-                          Document de Commerce
-                        </Label>
-                        <div className="relative">
+                        <div className="space-y-2">
+                          <Label htmlFor="entreprise_number" className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                            Numéro d'Enregistrement de l'Entreprise
+                          </Label>
                           <Input
-                            id="trade_commerce"
-                            name="trade_commerce"
-                            type="file"
-                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                            onChange={(e) => handleFileUpload(e, 'trade_commerce')}
+                            id="entreprise_number"
+                            name="entreprise_number"
+                            value={userProfile.entreprise_number || ''}
+                            onChange={(e) => updateProfileState({ entreprise_number: e.target.value })}
                             disabled={isSaving}
-                            ref={tradeCommerceInputRef}
-                            className="hidden"
+                            placeholder="Entrez le numéro d'enregistrement de l'entreprise"
+                            className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
                           />
-                          <div className="h-12 bg-slate-50/50 dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-2xl flex items-center justify-between px-4">
-                            <span className="text-sm text-neutral-600 dark:text-neutral-400 truncate">
-                              {selectedFileNames.trade_commerce || getCurrentFileUrl('trade_commerce')?.split('/').pop() || t("noFileChosen")}
-                            </span>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => tradeCommerceInputRef.current?.click()}
-                              className="h-8 px-3"
-                              disabled={uploading.trade_commerce}
-                            >
-                              {uploading.trade_commerce ? (
-                                <span className="flex items-center space-x-2">
-                                  <RefreshCw className="w-3 h-3 animate-spin" />
-                                  <span>{t("uploading") || "Uploading..."}</span>
-                                </span>
-                              ) : (
-                                t("chooseFile")
-                              )}
-                            </Button>
-                          </div>
                         </div>
-                        {fileUploadSuccess.trade_commerce && (
-                          <div className="flex items-center space-x-2 text-sm text-green-600 dark:text-green-400 mt-2">
-                            <Check className="w-4 h-4" />
-                            <span>{fileUploadSuccess.trade_commerce}</span>
-                          </div>
-                        )}
-                        {selectedFileNames.trade_commerce && !fileUploadSuccess.trade_commerce && (
-                          <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mt-2">
-                            <div className="flex items-center space-x-2 text-sm text-blue-600 dark:text-blue-400">
-                              <FileText className="w-4 h-4" />
-                              <span>{selectedFileNames.trade_commerce}</span>
-                            </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => clearUploadedFile('trade_commerce')}
-                              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 h-6 w-6 p-0"
-                            >
-                              <X className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        )}
-                        {getCurrentFileUrl('trade_commerce') && !selectedFileNames.trade_commerce && !fileUploadSuccess.trade_commerce && (
-                          <div className="flex items-center justify-between bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 mt-2">
-                            <div className="flex items-center space-x-2 text-sm text-green-600 dark:text-green-400">
-                              <Check className="w-4 h-4" />
-                              <span>{getCurrentFileUrl('trade_commerce')?.split('/').pop()}</span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
 
-                      <div className="space-y-2 md:col-span-2">
-                        <Label htmlFor="gerant_doc" className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
-                          Document du Gérant
-                        </Label>
-                        <div className="relative">
-                          <Input
-                            id="gerant_doc"
-                            name="gerant_doc"
-                            type="file"
-                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                            onChange={(e) => handleFileUpload(e, 'gerant_doc')}
-                            disabled={isSaving}
-                            ref={gerantDocInputRef}
-                            className="hidden"
-                          />
-                          <div className="h-12 bg-slate-50/50 dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-2xl flex items-center justify-between px-4">
-                            <span className="text-sm text-neutral-600 dark:text-neutral-400 truncate">
-                              {selectedFileNames.gerant_doc || getCurrentFileUrl('gerant_doc')?.split('/').pop() || t("noFileChosen")}
-                            </span>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => gerantDocInputRef.current?.click()}
-                              className="h-8 px-3"
-                              disabled={uploading.gerant_doc}
-                            >
-                              {uploading.gerant_doc ? (
-                                <span className="flex items-center space-x-2">
-                                  <RefreshCw className="w-3 h-3 animate-spin" />
-                                  <span>{t("uploading") || "Uploading..."}</span>
-                                </span>
-                              ) : (
-                                t("chooseFile")
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-                        {fileUploadSuccess.gerant_doc && (
-                          <div className="flex items-center space-x-2 text-sm text-green-600 dark:text-green-400 mt-2">
-                            <Check className="w-4 h-4" />
-                            <span>{fileUploadSuccess.gerant_doc}</span>
-                          </div>
-                        )}
-                        {selectedFileNames.gerant_doc && !fileUploadSuccess.gerant_doc && (
-                          <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mt-2">
-                            <div className="flex items-center space-x-2 text-sm text-blue-600 dark:text-blue-400">
-                              <FileText className="w-4 h-4" />
-                              <span>{selectedFileNames.gerant_doc}</span>
+                        <div className="space-y-2">
+                          <Label htmlFor="trade_commerce" className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                            Document de Commerce
+                          </Label>
+                          <div className="relative">
+                            <Input
+                              id="trade_commerce"
+                              name="trade_commerce"
+                              type="file"
+                              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                              onChange={(e) => handleFileUpload(e, 'trade_commerce')}
+                              disabled={isSaving}
+                              ref={tradeCommerceInputRef}
+                              className="hidden"
+                            />
+                            <div className="h-12 bg-slate-50/50 dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-2xl flex items-center justify-between px-4">
+                              <span className="text-sm text-neutral-600 dark:text-neutral-400 truncate">
+                                {selectedFileNames.trade_commerce || getCurrentFileUrl('trade_commerce')?.split('/').pop() || t("noFileChosen")}
+                              </span>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => tradeCommerceInputRef.current?.click()}
+                                className="h-8 px-3"
+                                disabled={uploading.trade_commerce}
+                              >
+                                {uploading.trade_commerce ? (
+                                  <span className="flex items-center space-x-2">
+                                    <RefreshCw className="w-3 h-3 animate-spin" />
+                                    <span>{t("uploading") || "Uploading..."}</span>
+                                  </span>
+                                ) : (
+                                  t("chooseFile")
+                                )}
+                              </Button>
                             </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => clearUploadedFile('gerant_doc')}
-                              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 h-6 w-6 p-0"
-                            >
-                              <X className="w-3 h-3" />
-                            </Button>
                           </div>
-                        )}
-                        {getCurrentFileUrl('gerant_doc') && !selectedFileNames.gerant_doc && !fileUploadSuccess.gerant_doc && (
-                          <div className="flex items-center justify-between bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 mt-2">
-                            <div className="flex items-center space-x-2 text-sm text-green-600 dark:text-green-400">
+                          {fileUploadSuccess.trade_commerce && (
+                            <div className="flex items-center space-x-2 text-sm text-green-600 dark:text-green-400 mt-2">
                               <Check className="w-4 h-4" />
-                              <span>{getCurrentFileUrl('gerant_doc')?.split('/').pop()}</span>
+                              <span>{fileUploadSuccess.trade_commerce}</span>
+                            </div>
+                          )}
+                          {selectedFileNames.trade_commerce && !fileUploadSuccess.trade_commerce && (
+                            <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mt-2">
+                              <div className="flex items-center space-x-2 text-sm text-blue-600 dark:text-blue-400">
+                                <FileText className="w-4 h-4" />
+                                <span>{selectedFileNames.trade_commerce}</span>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => clearUploadedFile('trade_commerce')}
+                                className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 h-6 w-6 p-0"
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          )}
+                          {getCurrentFileUrl('trade_commerce') && !selectedFileNames.trade_commerce && !fileUploadSuccess.trade_commerce && (
+                            <div className="flex items-center justify-between bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 mt-2">
+                              <div className="flex items-center space-x-2 text-sm text-green-600 dark:text-green-400">
+                                <Check className="w-4 h-4" />
+                                <span>{getCurrentFileUrl('trade_commerce')?.split('/').pop()}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="space-y-2 md:col-span-2">
+                          <Label htmlFor="gerant_doc" className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                            Document du Gérant
+                          </Label>
+                          <div className="relative">
+                            <Input
+                              id="gerant_doc"
+                              name="gerant_doc"
+                              type="file"
+                              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                              onChange={(e) => handleFileUpload(e, 'gerant_doc')}
+                              disabled={isSaving}
+                              ref={gerantDocInputRef}
+                              className="hidden"
+                            />
+                            <div className="h-12 bg-slate-50/50 dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-2xl flex items-center justify-between px-4">
+                              <span className="text-sm text-neutral-600 dark:text-neutral-400 truncate">
+                                {selectedFileNames.gerant_doc || getCurrentFileUrl('gerant_doc')?.split('/').pop() || t("noFileChosen")}
+                              </span>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => gerantDocInputRef.current?.click()}
+                                className="h-8 px-3"
+                                disabled={uploading.gerant_doc}
+                              >
+                                {uploading.gerant_doc ? (
+                                  <span className="flex items-center space-x-2">
+                                    <RefreshCw className="w-3 h-3 animate-spin" />
+                                    <span>{t("uploading") || "Uploading..."}</span>
+                                  </span>
+                                ) : (
+                                  t("chooseFile")
+                                )}
+                              </Button>
                             </div>
                           </div>
-                        )}
+                          {fileUploadSuccess.gerant_doc && (
+                            <div className="flex items-center space-x-2 text-sm text-green-600 dark:text-green-400 mt-2">
+                              <Check className="w-4 h-4" />
+                              <span>{fileUploadSuccess.gerant_doc}</span>
+                            </div>
+                          )}
+                          {selectedFileNames.gerant_doc && !fileUploadSuccess.gerant_doc && (
+                            <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mt-2">
+                              <div className="flex items-center space-x-2 text-sm text-blue-600 dark:text-blue-400">
+                                <FileText className="w-4 h-4" />
+                                <span>{selectedFileNames.gerant_doc}</span>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => clearUploadedFile('gerant_doc')}
+                                className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 h-6 w-6 p-0"
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          )}
+                          {getCurrentFileUrl('gerant_doc') && !selectedFileNames.gerant_doc && !fileUploadSuccess.gerant_doc && (
+                            <div className="flex items-center justify-between bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 mt-2">
+                              <div className="flex items-center space-x-2 text-sm text-green-600 dark:text-green-400">
+                                <Check className="w-4 h-4" />
+                                <span>{getCurrentFileUrl('gerant_doc')?.split('/').pop()}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
                     )}
                   </div>
 

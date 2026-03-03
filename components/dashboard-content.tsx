@@ -82,14 +82,14 @@ export function DashboardContent() {
       fetchStats()
       fetchBalance()
     }, 1000) // Wait 1 second for auth to be fully established
-    
+
     return () => clearTimeout(timer)
   }, [])
 
   const fetchStats = async () => {
     try {
       const res = await smartFetch(`${baseUrl}/prod/v1/api/statistic`)
-      
+
       if (res.ok) {
         const data = await res.json()
         setStats(data)
@@ -105,9 +105,9 @@ export function DashboardContent() {
     try {
       setLoading(true)
       setError(null)
-      
+
       const res = await smartFetch(`${baseUrl}/api/v2/balance/`)
-      
+
       if (res.ok) {
         const data = await res.json()
         setBalance(data)
@@ -131,18 +131,18 @@ export function DashboardContent() {
   // Use API data for customer locations if available, otherwise show empty state
   const customerLocationData = stats?.country_payment
     ? Object.entries(stats.country_payment).map(([country, percentage]) => ({
-        country: t(country as any) || country, // Fallback to original country name if translation not found
-        percentage,
-      }))
+      country: t(country as any) || country, // Fallback to original country name if translation not found
+      percentage,
+    }))
     : []
 
   // Use API data for payment methods if available, otherwise show empty state
   const paymentMethodData = stats?.payment_methode
     ? Object.entries(stats.payment_methode).map(([method, data]: [string, any]) => ({
-        name: method,
-        value: data.percentage || 0,
-        color: method === "Mobile Money" ? "#dc2626" : method === "Credit Card" ? "#10b981" : "#8b5cf6",
-      }))
+      name: method,
+      value: data.percentage || 0,
+      color: method === "Mobile Money" ? "#dc2626" : method === "Credit Card" ? "#10b981" : "#8b5cf6",
+    }))
     : []
 
   if (loading) {
@@ -373,9 +373,9 @@ export function DashboardContent() {
                     <LinkIcon className="h-4 w-4 text-crimson-600 flex-shrink-0" />
                     <span>{userConfig.webhook_url || t("notConfigured")}</span>
                   </div>
-                  {userConfig.ip_whitelist.length > 0 && (
+                  {userConfig.ip_whitelist?.length > 0 && (
                     <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2">
-                      {t("whitelistedIPs")} {userConfig.ip_whitelist.length}
+                      {t("whitelistedIPs")} {userConfig.ip_whitelist?.length}
                     </p>
                   )}
                 </div>
@@ -417,14 +417,14 @@ export function DashboardContent() {
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium text-neutral-600 dark:text-neutral-400">{t("lastTransaction")}</h4>
                   <p className="text-sm text-neutral-700 dark:text-neutral-300">
-                    {balance.last_transaction_at 
+                    {balance.last_transaction_at
                       ? new Date(balance.last_transaction_at).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })
                       : t("noTransactionsYet")
                     }
                   </p>
@@ -468,7 +468,7 @@ export function DashboardContent() {
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
-                
+
                 {/* Success Metrics */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-2xl">

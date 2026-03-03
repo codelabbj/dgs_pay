@@ -12,13 +12,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
-import { 
-  Wallet, 
-  TrendingUp, 
-  TrendingDown, 
-  Plus, 
-  Minus, 
-  Eye, 
+import {
+  Wallet,
+  TrendingUp,
+  TrendingDown,
+  Plus,
+  Minus,
+  Eye,
   EyeOff,
   RefreshCw,
   Download,
@@ -125,7 +125,7 @@ export function BalanceContent() {
     { value: "mtn-ci", label: "MTN CI" },
     { value: "orange-ci", label: "Orange CI" }
   ]
-  
+
   // Withdrawal form state
   const [withdrawalDialogOpen, setWithdrawalDialogOpen] = useState(false)
   const [withdrawalForm, setWithdrawalForm] = useState({
@@ -135,7 +135,7 @@ export function BalanceContent() {
     code: ""
   })
   const [withdrawalLoading, setWithdrawalLoading] = useState(false)
-  
+
   // Recharge form state
   const [rechargeDialogOpen, setRechargeDialogOpen] = useState(false)
   const [rechargeForm, setRechargeForm] = useState({
@@ -149,7 +149,7 @@ export function BalanceContent() {
   const [historyPage, setHistoryPage] = useState(1)
   const [withdrawalsPage, setWithdrawalsPage] = useState(1)
   const [rechargesPage, setRechargesPage] = useState(1)
-  
+
   // Report state
   const [reportDialogOpen, setReportDialogOpen] = useState(false)
   const [reportForm, setReportForm] = useState({
@@ -240,16 +240,16 @@ export function BalanceContent() {
   const handleReportSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setReportLoading(true)
-    
+
     try {
       const params = new URLSearchParams({
         from: reportForm.from,
         to: reportForm.to,
         format: reportForm.format
       })
-      
+
       const response = await smartFetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/v2/reports/transactions/?${params}`)
-      
+
       if (response.ok) {
         const blob = await response.blob()
         const url = window.URL.createObjectURL(blob)
@@ -260,7 +260,7 @@ export function BalanceContent() {
         a.click()
         window.URL.revokeObjectURL(url)
         document.body.removeChild(a)
-        
+
         setReportDialogOpen(false)
         setReportForm({ from: "", to: "", format: "csv" })
       }
@@ -274,7 +274,7 @@ export function BalanceContent() {
   const handleWithdrawalSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setWithdrawalLoading(true)
-    
+
     try {
       const response = await smartFetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/v2/balance/withdraw/`, {
         method: "POST",
@@ -288,7 +288,7 @@ export function BalanceContent() {
           code: withdrawalForm.code || null
         })
       })
-      
+
       if (response.ok) {
         setWithdrawalDialogOpen(false)
         setWithdrawalForm({ amount: "", phone: "", operator_code: "", code: "" })
@@ -305,7 +305,7 @@ export function BalanceContent() {
   const handleRechargeSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setRechargeLoading(true)
-    
+
     try {
       const response = await smartFetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/v2/recharge/`, {
         method: "POST",
@@ -318,7 +318,7 @@ export function BalanceContent() {
           notes: rechargeForm.notes
         })
       })
-      
+
       if (response.ok) {
         setRechargeDialogOpen(false)
         setRechargeForm({ amount: "", payment_method: "cash", notes: "" })
@@ -696,11 +696,10 @@ export function BalanceContent() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className={`text-sm font-medium ${
-                          item.type.includes("credit") || item.type.includes("payin") 
-                            ? "text-green-600" 
+                        <p className={`text-sm font-medium ${item.type.includes("credit") || item.type.includes("payin")
+                            ? "text-green-600"
                             : "text-red-600"
-                        }`}>
+                          }`}>
                           {item.type.includes("credit") || item.type.includes("payin") ? "+" : "-"}
                           {item.formatted_amount}
                         </p>
@@ -736,7 +735,7 @@ export function BalanceContent() {
                         {userConfig.is_active ? t("balanceActive") : t("balanceInactive")}
                       </Badge>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span>{t("payinFeeRate")}:</span>
@@ -795,11 +794,11 @@ export function BalanceContent() {
                       </div>
                     )}
 
-                    {userConfig.ip_whitelist.length > 0 && (
+                    {userConfig.ip_whitelist?.length > 0 && (
                       <div className="space-y-2">
                         <h4 className="text-sm font-medium">{t("ipWhitelist")}</h4>
                         <div className="space-y-1">
-                          {userConfig.ip_whitelist.map((ip, index) => (
+                          {userConfig.ip_whitelist?.map((ip, index) => (
                             <Badge key={index} variant="outline" className="text-xs">
                               {ip}
                             </Badge>
@@ -850,11 +849,10 @@ export function BalanceContent() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className={`font-medium ${
-                        item.type.includes("credit") || item.type.includes("payin") 
-                          ? "text-green-600" 
+                      <p className={`font-medium ${item.type.includes("credit") || item.type.includes("payin")
+                          ? "text-green-600"
                           : "text-red-600"
-                      }`}>
+                        }`}>
                         {item.type.includes("credit") || item.type.includes("payin") ? "+" : "-"}
                         {item.formatted_amount}
                       </p>
@@ -984,7 +982,7 @@ export function BalanceContent() {
                     <p className="text-sm text-muted-foreground">
                       Generate a report for the last 30 days
                     </p>
-                    <Button 
+                    <Button
                       onClick={() => {
                         const today = new Date()
                         const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
