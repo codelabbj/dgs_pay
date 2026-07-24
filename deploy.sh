@@ -10,6 +10,17 @@ PROJECT_DIR="/root/dgs-dashboard/dgs_pay"
 APP_NAME="dgs-dashboard"    # Nom du processus PM2
 PORT=3000                   # Port de l'application (à adapter si besoin)
 
+# Détection du package manager
+if command -v pnpm &> /dev/null; then
+    PKG="pnpm"
+elif command -v npm &> /dev/null; then
+    PKG="npm"
+else
+    echo "❌ Aucun package manager trouvé (pnpm ou npm requis)"
+    exit 1
+fi
+echo "📦 Package manager détecté: $PKG"
+
 # Navigation vers le répertoire du projet
 echo ""
 echo "📂 Navigation vers le répertoire du projet..."
@@ -23,12 +34,16 @@ git pull origin main
 # Installation des dépendances
 echo ""
 echo "📦 Installation des dépendances..."
-pnpm install --frozen-lockfile
+if [ "$PKG" = "pnpm" ]; then
+    pnpm install --frozen-lockfile
+else
+    npm install
+fi
 
 # Build de l'application Next.js
 echo ""
 echo "🔨 Build de l'application Next.js..."
-pnpm build
+$PKG run build
 
 # Vérification que le build a réussi
 if [ ! -d ".next" ]; then
@@ -46,7 +61,7 @@ if pm2 describe "$APP_NAME" > /dev/null 2>&1; then
     pm2 restart "$APP_NAME"
 else
     echo "   Application '$APP_NAME' non trouvée - démarrage..."
-    pm2 start pnpm --name "$APP_NAME" -- start -- --port $PORT
+    pm2 start "$PKG" --name "$APP_NAME" -- start -- --port $PORT
 fi
 
 # Sauvegarde de la liste PM2 (pour redémarrage après reboot)
@@ -63,8 +78,10 @@ echo "   Statut PM2: $APP_STATUS"
 
 # Nettoyage du cache pnpm
 echo ""
-echo "🧹 Nettoyage du cache pnpm..."
-pnpm store prune --force 2>/dev/null || true
+echo "🧹 Nettoyage du cache..."
+if [ "$PKG" = "pnpm" ]; then
+    pnpm store prune --force 2>/dev/null || true
+fi
 echo "✅ Nettoyage terminé"
 
 # Résumé final
