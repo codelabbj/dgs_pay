@@ -123,10 +123,17 @@ export function DashboardContent() {
     }
   }
 
-  const formatCurrency = (amount: number | null | undefined) => {
-    if (amount == null) return showBalances ? "0 FCFA" : "••••••"
-    return showBalances ? `${amount.toLocaleString()} FCFA` : "••••••"
+  const formatCurrency = (amount: number | null | undefined, currency = "XOF") => {
+    if (amount == null) return showBalances ? `0 ${currency}` : "••••••"
+    return showBalances ? `${amount.toLocaleString()} ${currency}` : "••••••"
   }
+
+  const wallets: any[] = balance?.wallets || []
+  const defaultWallet =
+    wallets.find((w: any) => w.is_default) ||
+    wallets.find((w: any) => w.currency_code === balance?.default_currency) ||
+    wallets[0]
+  const defaultCurrency = defaultWallet?.currency_code || balance?.default_currency || "XOF"
 
   // Use API data for customer locations if available, otherwise show empty state
   const customerLocationData = stats?.country_payment
@@ -230,19 +237,21 @@ export function DashboardContent() {
                 <ArrowUpRight className="h-5 w-5 text-blue-600 group-hover:scale-110 transition-transform" />
               </div>
               <CardTitle className="text-sm font-medium text-neutral-600 dark:text-neutral-400 mt-4">
-                {t("currentBalance")}
+                {t("currentBalance")} ({defaultCurrency})
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">
-                {showBalances ? (balance?.formatted_balance || "0 XOF") : "••••••"}
+                {showBalances
+                  ? (defaultWallet?.formatted_balance || balance?.formatted_balance || `0 ${defaultCurrency}`)
+                  : "••••••"}
               </div>
               <div className="flex items-center space-x-2">
-                <Badge className={`${balance?.is_active ? 'bg-green-100 text-green-800 hover:bg-green-100' : 'bg-red-100 text-red-800 hover:bg-red-100'} rounded-full`}>
-                  {balance?.is_active ? t("balanceActive") : t("balanceInactive")}
+                <Badge className={`${(defaultWallet?.is_active ?? balance?.is_active) ? 'bg-green-100 text-green-800 hover:bg-green-100' : 'bg-red-100 text-red-800 hover:bg-red-100'} rounded-full`}>
+                  {(defaultWallet?.is_active ?? balance?.is_active) ? t("balanceActive") : t("balanceInactive")}
                 </Badge>
                 <span className="text-sm text-neutral-500 dark:text-neutral-400">
-                  {balance?.is_frozen ? t("balanceFrozen") : t("balanceAvailable")}
+                  {(defaultWallet?.is_frozen ?? balance?.is_frozen) ? t("balanceFrozen") : t("balanceAvailable")}
                 </span>
               </div>
             </CardContent>
@@ -320,6 +329,36 @@ export function DashboardContent() {
             </CardContent>
           </Card>
         </div>
+
+        {wallets.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {wallets.map((wallet: any) => (
+              <Card
+                key={wallet.uid}
+                className={`bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-lg rounded-2xl ${wallet.is_default ? "ring-2 ring-blue-400" : ""}`}
+              >
+                <CardContent className="p-5 flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-neutral-900 dark:text-white">
+                        {wallet.currency_code}
+                      </span>
+                      {wallet.is_default && (
+                        <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 text-xs">Default</Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-neutral-500">{wallet.currency_name || wallet.currency_code}</p>
+                  </div>
+                  <div className="text-xl font-bold text-neutral-900 dark:text-white">
+                    {showBalances
+                      ? (wallet.formatted_balance || `${wallet.balance?.toLocaleString()} ${wallet.currency_code}`)
+                      : "••••••"}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
 
         {/* Configuration Overview */}
         {userConfig && (

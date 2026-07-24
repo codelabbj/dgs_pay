@@ -39,6 +39,19 @@ import {
 import { format } from "date-fns"
 import { useUserConfig } from "@/contexts/user-config-context"
 
+interface Wallet {
+  uid: string
+  currency_code: string
+  currency_name?: string
+  currency_symbol?: string
+  balance: number
+  formatted_balance: string
+  is_default: boolean
+  is_active: boolean
+  is_frozen: boolean
+  last_transaction_at: string | null
+}
+
 interface Balance {
   uid: string
   balance: number
@@ -49,6 +62,8 @@ interface Balance {
   is_active: boolean
   is_frozen: boolean
   last_transaction_at: string | null
+  wallets?: Wallet[]
+  default_currency?: string
 }
 
 interface BalanceHistoryItem {
@@ -115,9 +130,17 @@ export function BalanceContent() {
   const [recharges, setRecharges] = useState<RechargeRequest[]>([])
   const [operators, setOperators] = useState<Operator[]>([])
   const [loading, setLoading] = useState(true)
+  const [settingDefault, setSettingDefault] = useState<string | null>(null)
   const { userConfig, isLoading: userConfigLoading, refreshUserConfig } = useUserConfig()
   const [showBalance, setShowBalance] = useState(true)
   const [activeTab, setActiveTab] = useState("overview")
+
+  const wallets = balance?.wallets || []
+  const defaultWallet =
+    wallets.find((w) => w.is_default) ||
+    wallets.find((w) => w.currency_code === (balance?.default_currency || "XOF")) ||
+    wallets[0]
+  const displayCurrency = defaultWallet?.currency_code || balance?.default_currency || "XOF"
 
   // Static operator options (same as payin-content.tsx)
   const OPERATOR_OPTIONS = [
@@ -234,6 +257,41 @@ export function BalanceContent() {
       }
     } catch (error) {
       console.error("Failed to load operators:", error)
+    }
+  }
+
+  const setDefaultWallet = async (walletUid: string) => {
+    try {
+      setSettingDefault(walletUid)
+      const response = await smartFetch(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/api/v2/wallets/${walletUid}/set-default/`,
+        { method: "POST" }
+      )
+      if (response.ok) {
+        await loadBalanceData()
+      }
+    } catch (error) {
+      console.error("Failed to set default wallet:", error)
+    } finally {
+      setSettingDefault(null)
+    }
+  }
+
+  const initializeWallets = async () => {
+    try {
+      const response = await smartFetch(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/api/v2/wallets/initialize/`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        }
+      )
+      if (response.ok) {
+        await loadBalanceData()
+      }
+    } catch (error) {
+      console.error("Failed to initialize wallets:", error)
     }
   }
 
@@ -398,68 +456,113 @@ export function BalanceContent() {
         </div>
       </div>
 
-      {/* Balance Overview */}
+      {/* Wallets multi-devises */}
       {balance && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{t("currentBalance")}</CardTitle>
-              <Wallet className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {showBalance ? balance.formatted_balance : "••••••"}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {balance.is_active ? t("balanceActive") : t("balanceInactive")} • {balance.is_frozen ? t("balanceFrozen") : t("balanceAvailable")}
-              </p>
-            </CardContent>
-          </Card>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Wallets</h2>
+            {wallets.length === 0 && (
+              <Button size="sm" variant="outline" onClick={initializeWallets}>
+                Initialiser les wallets
+              </Button>
+            )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {(wallets.length > 0 ? wallets : [{
+              uid: "legacy",
+              currency_code: "XOF",
+              formatted_balance: balance.formatted_balance,
+              balance: balance.balance,
+              is_default: true,
+              is_active: balance.is_active,
+              is_frozen: balance.is_frozen,
+              last_transaction_at: balance.last_transaction_at,
+            } as Wallet]).map((wallet) => (
+              <Card
+                key={wallet.uid}
+                className={wallet.is_default ? "border-blue-500 ring-1 ring-blue-200" : ""}
+              >
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Wallet className="h-4 w-4 text-muted-foreground" />
+                    {wallet.currency_code}
+                    {wallet.currency_name ? (
+                      <span className="text-xs text-muted-foreground font-normal">
+                        · {wallet.currency_name}
+                      </span>
+                    ) : null}
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    {wallet.is_default && (
+                      <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Default</Badge>
+                    )}
+                    {wallet.is_frozen && (
+                      <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-100">Frozen</Badge>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="text-2xl font-bold">
+                    {showBalance
+                      ? (wallet.formatted_balance || `${wallet.balance.toLocaleString()} ${wallet.currency_code}`)
+                      : "••••••"}
+                  </div>
+                  {!wallet.is_default && wallet.uid !== "legacy" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={settingDefault === wallet.uid}
+                      onClick={() => setDefaultWallet(wallet.uid)}
+                    >
+                      {settingDefault === wallet.uid ? (
+                        <RefreshCw className="h-3 w-3 mr-2 animate-spin" />
+                      ) : null}
+                      Définir par défaut
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{t("totalPayin")}</CardTitle>
-              <TrendingUp className="h-4 w-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {showBalance ? `${balance.total_payin.toLocaleString()} XOF` : "••••••"}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {t("allTimePaymentsReceived")}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{t("totalPayout")}</CardTitle>
-              <TrendingDown className="h-4 w-4 text-red-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {showBalance ? `${balance.total_payout.toLocaleString()} XOF` : "••••••"}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {t("allTimePaymentsSent")}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{t("totalFeesPaid")}</CardTitle>
-              <CreditCard className="h-4 w-4 text-blue-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {showBalance ? `${balance.total_fees_paid.toLocaleString()} XOF` : "••••••"}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {t("transactionFeesPaid")}
-              </p>
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{t("totalPayin")}</CardTitle>
+                <TrendingUp className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {showBalance ? `${balance.total_payin.toLocaleString()} XOF` : "••••••"}
+                </div>
+                <p className="text-xs text-muted-foreground">{t("allTimePaymentsReceived")}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{t("totalPayout")}</CardTitle>
+                <TrendingDown className="h-4 w-4 text-red-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {showBalance ? `${balance.total_payout.toLocaleString()} XOF` : "••••••"}
+                </div>
+                <p className="text-xs text-muted-foreground">{t("allTimePaymentsSent")}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{t("totalFeesPaid")}</CardTitle>
+                <CreditCard className="h-4 w-4 text-blue-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {showBalance ? `${balance.total_fees_paid.toLocaleString()} XOF` : "••••••"}
+                </div>
+                <p className="text-xs text-muted-foreground">{t("transactionFeesPaid")}</p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       )}
 
