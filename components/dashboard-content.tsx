@@ -331,32 +331,62 @@ export function DashboardContent() {
         </div>
 
         {wallets.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {wallets.map((wallet: any) => (
-              <Card
-                key={wallet.uid}
-                className={`bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-lg rounded-2xl ${wallet.is_default ? "ring-2 ring-blue-400" : ""}`}
-              >
-                <CardContent className="p-5 flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-semibold text-neutral-900 dark:text-white">
-                        {wallet.currency_code}
-                      </span>
-                      {wallet.is_default && (
-                        <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 text-xs">Default</Badge>
+          <div className="space-y-3">
+            <h2 className="text-lg font-bold text-neutral-900 dark:text-white">{t("myWallets") || "Mes Wallets"}</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {wallets.map((wallet: any) => (
+                <Card
+                  key={wallet.uid}
+                  className={`bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-lg rounded-2xl transition-all duration-200 ${wallet.is_default ? "ring-2 ring-blue-400" : "hover:ring-1 hover:ring-slate-300"}`}
+                >
+                  <CardContent className="p-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-neutral-900 dark:text-white text-lg">
+                          {wallet.currency_code}
+                        </span>
+                        {wallet.is_default && (
+                          <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 text-xs">Défaut</Badge>
+                        )}
+                        {wallet.is_frozen && (
+                          <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100 text-xs">Gelé</Badge>
+                        )}
+                      </div>
+                      {!wallet.is_default && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs h-7 px-2"
+                          onClick={async () => {
+                            try {
+                              const res = await smartFetch(`${baseUrl}/api/v2/wallets/${wallet.uid}/set-default/`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                              })
+                              if (res.ok) {
+                                await fetchBalance()
+                              } else {
+                                console.error("Failed to set default wallet:", res.status)
+                              }
+                            } catch (err) {
+                              console.error("Error setting default wallet:", err)
+                            }
+                          }}
+                        >
+                          Définir défaut
+                        </Button>
                       )}
                     </div>
-                    <p className="text-xs text-neutral-500">{wallet.currency_name || wallet.currency_code}</p>
-                  </div>
-                  <div className="text-xl font-bold text-neutral-900 dark:text-white">
-                    {showBalances
-                      ? (wallet.formatted_balance || `${wallet.balance?.toLocaleString()} ${wallet.currency_code}`)
-                      : "••••••"}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    <p className="text-xs text-neutral-500 mb-2">{wallet.currency_name || wallet.currency_code}</p>
+                    <div className="text-2xl font-bold text-neutral-900 dark:text-white">
+                      {showBalances
+                        ? (wallet.formatted_balance || `${wallet.balance?.toLocaleString()} ${wallet.currency_code}`)
+                        : "••••••"}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
         )}
 
