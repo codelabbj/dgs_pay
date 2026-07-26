@@ -79,6 +79,7 @@ export function BankTransferContent() {
   const [banksError, setBanksError] = useState<string | null>(null)
 
   const [bankCode, setBankCode] = useState("")
+  const [selectedBankName, setSelectedBankName] = useState("")
   const [accountNumber, setAccountNumber] = useState("")
   const [resolved, setResolved] = useState<ResolvedAccount | null>(null)
   const [resolveLoading, setResolveLoading] = useState(false)
@@ -93,18 +94,22 @@ export function BankTransferContent() {
   const [transferError, setTransferError] = useState<string | null>(null)
   const [transferSuccess, setTransferSuccess] = useState<string | null>(null)
 
-  const selectedBank = useMemo(
-    () => banks.find((b) => b.code === bankCode) || null,
-    [banks, bankCode]
-  )
+  const selectedBank = useMemo(() => {
+    const fromList = banks.find((b) => b.code === bankCode)
+    if (fromList) return fromList
+    if (bankCode && selectedBankName) return { code: bankCode, name: selectedBankName }
+    return null
+  }, [banks, bankCode, selectedBankName])
 
   const loadBanks = useCallback(async (searchTerm = "") => {
     try {
       setBanksLoading(true)
       setBanksError(null)
       const params = new URLSearchParams()
-      params.set("limit", "100")
-      if (searchTerm.trim()) params.set("search", searchTerm.trim())
+      // Ouverture / liste courte = 20 ; recherche = jusqu'à 50
+      const q = searchTerm.trim()
+      params.set("limit", q ? "50" : "20")
+      if (q) params.set("search", q)
 
       const res = await smartFetch(`${baseUrl}/api/v2/banks/?${params.toString()}`)
       const data = await res.json().catch(() => ({}))
@@ -115,8 +120,14 @@ export function BankTransferContent() {
       const list = extractBanks(data)
       setBanks(list)
       if (data?.operator_code) setOperatorCode(String(data.operator_code))
+      // Si la banque sélectionnée n'est plus dans la liste, on la garde affichée
+      // via selectedBank fallback plus bas
       if (!list.length) {
-        setBanksError("Aucune banque trouvée. Vérifie permission Pal NGN / clés Pal.")
+        setBanksError(
+          q
+            ? `Aucune banque pour « ${q} ».`
+            : "Aucune banque trouvée. Vérifie permission Pal NGN / clés Pal."
+        )
       }
     } catch (err) {
       setBanks([])
@@ -126,9 +137,14 @@ export function BankTransferContent() {
     }
   }, [baseUrl])
 
+  // Ouverture (search="") → 20 banques ; saisie → recherche API après 350ms
   useEffect(() => {
-    loadBanks()
-  }, [loadBanks])
+    const term = search.trim()
+    const timer = setTimeout(() => {
+      loadBanks(term)
+    }, term ? 350 : 0)
+    return () => clearTimeout(timer)
+  }, [search, loadBanks])
 
   const handleResolve = async () => {
     try {
@@ -241,47 +257,40 @@ export function BankTransferContent() {
             1. Banques NGN
           </CardTitle>
           <CardDescription>
-            GET /api/v2/banks/ — liste live Pal (pas la DB)
+            À l’ouverture : 20 premières banques. Tape pour rechercher en live (API Pal).
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1">
               <Label htmlFor="bank-search">Recherche</Label>
-              <Input
-                id="bank-search"
-                placeholder="Ex: Access, PALMPAY…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") loadBanks(search)
-                }}
-              />
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="bank-search"
+                  className="pl-9"
+                  placeholder="Tape pour filtrer (Access, PALMPAY…)"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {banksLoading ? "Recherche en cours…" : "Recherche API automatique pendant la saisie"}
+              </p>
             </div>
             <div className="flex items-end gap-2">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => loadBanks(search)}
+                onClick={() => setSearch("")}
                 disabled={banksLoading}
+                title="Réinitialiser la liste (20 premières)"
               >
                 {banksLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <Search className="h-4 w-4 mr-2" />
+                  <RefreshCw className="h-4 w-4" />
                 )}
-                Chercher
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setSearch("")
-                  loadBanks("")
-                }}
-                disabled={banksLoading}
-              >
-                <RefreshCw className="h-4 w-4" />
               </Button>
             </div>
           </div>
@@ -298,7 +307,9 @@ export function BankTransferContent() {
             <Select
               value={bankCode}
               onValueChange={(v) => {
+                const bank = banks.find((b) => b.code === v)
                 setBankCode(v)
+                setSelectedBankName(bank?.name || "")
                 setResolved(null)
                 setResolveError(null)
               }}
@@ -314,7 +325,9 @@ export function BankTransferContent() {
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground mt-1">{banks.length} banque(s)</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {banksLoading ? "…" : `${banks.length} banque(s)${search.trim() ? " (filtre)" : " (top 20)"}`}
+            </p>
           </div>
         </CardContent>
       </Card>
