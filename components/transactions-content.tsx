@@ -12,8 +12,15 @@ import { Search, Download, RefreshCw, ChevronLeft, ChevronRight, ChevronsLeft, C
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
 import { useLanguage } from "@/contexts/language-context"
+import { useUserProfile } from "@/contexts/user-profile-context"
 import { smartFetch, getAccessToken } from "@/utils/auth"
 import { toast } from "@/hooks/use-toast"
+
+function inferNetworkFromOperator(op?: { operator_name?: string; operator_code?: string } | null): string {
+  const hay = `${op?.operator_name || ""} ${op?.operator_code || ""}`.toUpperCase()
+  const networks = ["MOOV", "MTN", "WAVE", "ORANGE", "AIRTEL", "TIGO", "FREE"]
+  return networks.find((n) => hay.includes(n)) || ""
+}
 
 // Types for the new API
 interface Transaction {
@@ -53,16 +60,11 @@ interface PayinPayload {
   operator_code: string
   amount: number
   phone: string
-  description: string
-  success_url: string
-  cancel_url: string
-  client_reference: string
-  currency: string
-  beneficiary: {
-    name: string
-    account_number: string
-    email: string
-  }
+  description?: string
+  client_reference?: string
+  network?: string
+  country_code?: string
+  om_otp?: string
 }
 
 interface PayoutPayload {
@@ -71,20 +73,19 @@ interface PayoutPayload {
   phone: string
   beneficiary_first_name: string
   beneficiary_last_name: string
-  description: string
-  client_reference: string
-  currency: string
-  beneficiary: {
-    name: string
-    account_number: string
-    email: string
-  }
+  description?: string
+  client_reference?: string
+  network?: string
+  country_code?: string
 }
 
 interface Operator {
   uid: string
   operator_name: string
   operator_code: string
+  country_code?: string
+  currency?: string
+  api_backend?: string
   min_payin_amount: number
   max_payin_amount: number
   min_payout_amount: number
@@ -139,34 +140,21 @@ export function TransactionsContent() {
     { value: "orange-ci", label: "Orange CI" }
   ]
 
-  // Modal states for creating transactions
+  const { userProfile } = useUserProfile()
+
+  // Modal states for creating transactions — UI simple: opérateur + montant + téléphone
   const [payinModal, setPayinModal] = useState(false)
   const [payoutModal, setPayoutModal] = useState(false)
   const [payinForm, setPayinForm] = useState({
     operator_code: "",
     amount: "",
     phone: "",
-    description: "",
-    success_url: "",
-    cancel_url: "",
-    client_reference: "",
-    currency: "XOF",
-    beneficiary_name: "",
-    beneficiary_account_number: "",
-    beneficiary_email: ""
+    om_otp: "",
   })
   const [payoutForm, setPayoutForm] = useState({
     operator_code: "",
     amount: "",
     phone: "",
-    beneficiary_first_name: "",
-    beneficiary_last_name: "",
-    description: "",
-    client_reference: "",
-    currency: "XOF",
-    beneficiary_name: "",
-    beneficiary_account_number: "",
-    beneficiary_email: ""
   })
 
   // COMMENTED OUT: Old WebSocket implementation
@@ -448,20 +436,21 @@ export function TransactionsContent() {
   const createPayin = async () => {
     setPayinError(null)
     try {
+      const op = operators.find((o) => o.operator_code === payinForm.operator_code)
+      const network = inferNetworkFromOperator(op)
       const payload: PayinPayload = {
         operator_code: payinForm.operator_code,
-        amount: parseInt(payinForm.amount),
+        amount: parseInt(payinForm.amount, 10),
         phone: payinForm.phone,
-        description: payinForm.description,
-        success_url: payinForm.success_url,
-        cancel_url: payinForm.cancel_url,
-        client_reference: payinForm.client_reference,
-        currency: payinForm.currency,
-        beneficiary: {
-          name: payinForm.beneficiary_name,
-          account_number: payinForm.beneficiary_account_number,
-          email: payinForm.beneficiary_email
-        }
+        description: `Payin dashboard ${userProfile?.fullname || userProfile?.email || ""}`.trim(),
+        client_reference: `PAYIN-${Date.now()}`,
+      }
+      if (op?.api_backend === "pal_v2" || network) {
+        if (network) payload.network = network
+        if (op?.country_code) payload.country_code = op.country_code
+      }
+      if (network === "ORANGE" && payinForm.om_otp.trim()) {
+        payload.om_otp = payinForm.om_otp.trim()
       }
 
       const res = await smartFetch(`${baseUrl}/api/v2/payin/`, {
@@ -484,14 +473,7 @@ export function TransactionsContent() {
           operator_code: "",
           amount: "",
           phone: "",
-          description: "",
-          success_url: "https://codelab.bj",
-          cancel_url: "https://djofo.codelab.bj",
-          client_reference: "",
-          currency: "XOF",
-          beneficiary_name: "",
-          beneficiary_account_number: "",
-          beneficiary_email: ""
+          om_otp: "",
         })
         // Refresh transactions
         fetchTransactions(currentPage, searchTerm, statusFilter, typeFilter)
@@ -545,20 +527,22 @@ export function TransactionsContent() {
   const createPayout = async () => {
     setPayoutError(null)
     try {
+      const op = operators.find((o) => o.operator_code === payoutForm.operator_code)
+      const network = inferNetworkFromOperator(op)
+      const firstName = (userProfile?.first_name || "Merchant").trim()
+      const lastName = (userProfile?.last_name || userProfile?.entreprise_name || "Account").trim()
       const payload: PayoutPayload = {
         operator_code: payoutForm.operator_code,
-        amount: parseInt(payoutForm.amount),
+        amount: parseInt(payoutForm.amount, 10),
         phone: payoutForm.phone,
-        beneficiary_first_name: payoutForm.beneficiary_first_name,
-        beneficiary_last_name: payoutForm.beneficiary_last_name,
-        description: payoutForm.description,
-        client_reference: payoutForm.client_reference,
-        currency: payoutForm.currency,
-        beneficiary: {
-          name: payoutForm.beneficiary_name,
-          account_number: payoutForm.beneficiary_account_number,
-          email: payoutForm.beneficiary_email
-        }
+        beneficiary_first_name: firstName,
+        beneficiary_last_name: lastName,
+        description: `Payout dashboard ${userProfile?.fullname || userProfile?.email || ""}`.trim(),
+        client_reference: `PAYOUT-${Date.now()}`,
+      }
+      if (op?.api_backend === "pal_v2" || network) {
+        if (network) payload.network = network
+        if (op?.country_code) payload.country_code = op.country_code
       }
 
       const res = await smartFetch(`${baseUrl}/api/v2/payout/`, {
@@ -581,14 +565,6 @@ export function TransactionsContent() {
           operator_code: "",
           amount: "",
           phone: "",
-          beneficiary_first_name: "",
-          beneficiary_last_name: "",
-          description: "",
-          client_reference: "",
-          currency: "XOF",
-          beneficiary_name: "",
-          beneficiary_account_number: "",
-          beneficiary_email: ""
         })
         // Refresh transactions
         fetchTransactions(currentPage, searchTerm, statusFilter, typeFilter)
@@ -1522,17 +1498,19 @@ export function TransactionsContent() {
         </DialogContent>
       </Dialog>
 
-      {/* Payin Creation Modal */}
+      {/* Payin Creation Modal — simple: réseau + montant + téléphone */}
       <Dialog open={payinModal} onOpenChange={(open) => {
         setPayinModal(open)
         if (!open) {
           setPayinError(null)
         }
       }}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{t("createPayin")}</DialogTitle>
-            <DialogDescription>{t("createNewPayinTransaction")}</DialogDescription>
+            <DialogDescription>
+              Opérateur, montant et numéro. Le reste est rempli automatiquement.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             {payinError && (
@@ -1547,12 +1525,12 @@ export function TransactionsContent() {
                 </div>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-3">
               <div>
-                <label className="text-sm font-medium">{t("operator")}</label>
+                <label className="text-sm font-medium">{t("operator")} *</label>
                 <Select
                   value={payinForm.operator_code}
-                  onValueChange={(value) => setPayinForm(prev => ({ ...prev, operator_code: value }))}
+                  onValueChange={(value) => setPayinForm(prev => ({ ...prev, operator_code: value, om_otp: "" }))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder={t("selectOperator")} />
@@ -1575,7 +1553,7 @@ export function TransactionsContent() {
                 </Select>
               </div>
               <div>
-                <label className="text-sm font-medium">{t("amount")}</label>
+                <label className="text-sm font-medium">{t("amount")} *</label>
                 <Input
                   type="number"
                   value={payinForm.amount}
@@ -1584,60 +1562,34 @@ export function TransactionsContent() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">{t("phone")}</label>
+                <label className="text-sm font-medium">{t("phone")} *</label>
                 <Input
                   value={payinForm.phone}
                   onChange={(e) => setPayinForm(prev => ({ ...prev, phone: e.target.value }))}
                   placeholder={t("enterPhoneNumber")}
                 />
               </div>
-              <div>
-                <label className="text-sm font-medium">{t("description")}</label>
-                <Input
-                  value={payinForm.description}
-                  onChange={(e) => setPayinForm(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder={t("enterDescription")}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">{t("clientReference")}</label>
-                <Input
-                  value={payinForm.client_reference}
-                  onChange={(e) => setPayinForm(prev => ({ ...prev, client_reference: e.target.value }))}
-                  placeholder={t("enterClientReference")}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">{t("beneficiaryName")}</label>
-                <Input
-                  value={payinForm.beneficiary_name}
-                  onChange={(e) => setPayinForm(prev => ({ ...prev, beneficiary_name: e.target.value }))}
-                  placeholder={t("enterBeneficiaryName")}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">{t("beneficiaryAccountNumber")}</label>
-                <Input
-                  value={payinForm.beneficiary_account_number}
-                  onChange={(e) => setPayinForm(prev => ({ ...prev, beneficiary_account_number: e.target.value }))}
-                  placeholder={t("enterAccountNumber")}
-                />
-              </div>
-              <div className="col-span-2">
-                <label className="text-sm font-medium">{t("beneficiaryEmail")}</label>
-                <Input
-                  type="email"
-                  value={payinForm.beneficiary_email}
-                  onChange={(e) => setPayinForm(prev => ({ ...prev, beneficiary_email: e.target.value }))}
-                  placeholder={t("enterEmailAddress")}
-                />
-              </div>
+              {inferNetworkFromOperator(
+                operators.find((o) => o.operator_code === payinForm.operator_code)
+              ) === "ORANGE" && (
+                <div>
+                  <label className="text-sm font-medium">OTP Orange Money</label>
+                  <Input
+                    value={payinForm.om_otp}
+                    onChange={(e) => setPayinForm(prev => ({ ...prev, om_otp: e.target.value }))}
+                    placeholder="Code OTP (si requis)"
+                  />
+                </div>
+              )}
             </div>
             <div className="flex justify-end space-x-2">
               <Button variant="outline" onClick={() => setPayinModal(false)}>
                 {t("cancel")}
               </Button>
-              <Button onClick={createPayin}>
+              <Button
+                onClick={createPayin}
+                disabled={!payinForm.operator_code || !payinForm.amount || !payinForm.phone}
+              >
                 {t("createPayin")}
               </Button>
             </div>
@@ -1645,17 +1597,20 @@ export function TransactionsContent() {
         </DialogContent>
       </Dialog>
 
-      {/* Payout Creation Modal */}
+      {/* Payout Creation Modal — simple; bénéficiaire = profil user */}
       <Dialog open={payoutModal} onOpenChange={(open) => {
         setPayoutModal(open)
         if (!open) {
           setPayoutError(null)
         }
       }}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{t("createPayout")}</DialogTitle>
-            <DialogDescription>{t("createNewPayoutTransaction")}</DialogDescription>
+            <DialogDescription>
+              Opérateur, montant et numéro. Bénéficiaire = ton profil (
+              {userProfile?.first_name || "—"} {userProfile?.last_name || ""})
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             {payoutError && (
@@ -1670,9 +1625,9 @@ export function TransactionsContent() {
                 </div>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-3">
               <div>
-                <label className="text-sm font-medium">{t("operator")}</label>
+                <label className="text-sm font-medium">{t("operator")} *</label>
                 <Select
                   value={payoutForm.operator_code}
                   onValueChange={(value) => setPayoutForm(prev => ({ ...prev, operator_code: value }))}
@@ -1698,7 +1653,7 @@ export function TransactionsContent() {
                 </Select>
               </div>
               <div>
-                <label className="text-sm font-medium">{t("amount")}</label>
+                <label className="text-sm font-medium">{t("amount")} *</label>
                 <Input
                   type="number"
                   value={payoutForm.amount}
@@ -1707,68 +1662,11 @@ export function TransactionsContent() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">{t("phone")}</label>
+                <label className="text-sm font-medium">{t("phone")} *</label>
                 <Input
                   value={payoutForm.phone}
                   onChange={(e) => setPayoutForm(prev => ({ ...prev, phone: e.target.value }))}
                   placeholder={t("enterPhoneNumber")}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">{t("beneficiaryFirstName")}</label>
-                <Input
-                  value={payoutForm.beneficiary_first_name}
-                  onChange={(e) => setPayoutForm(prev => ({ ...prev, beneficiary_first_name: e.target.value }))}
-                  placeholder={t("enterFirstName")}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">{t("beneficiaryLastName")}</label>
-                <Input
-                  value={payoutForm.beneficiary_last_name}
-                  onChange={(e) => setPayoutForm(prev => ({ ...prev, beneficiary_last_name: e.target.value }))}
-                  placeholder={t("enterLastName")}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">{t("description")}</label>
-                <Input
-                  value={payoutForm.description}
-                  onChange={(e) => setPayoutForm(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder={t("enterDescription")}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">{t("clientReference")}</label>
-                <Input
-                  value={payoutForm.client_reference}
-                  onChange={(e) => setPayoutForm(prev => ({ ...prev, client_reference: e.target.value }))}
-                  placeholder={t("enterClientReference")}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">{t("beneficiaryName")}</label>
-                <Input
-                  value={payoutForm.beneficiary_name}
-                  onChange={(e) => setPayoutForm(prev => ({ ...prev, beneficiary_name: e.target.value }))}
-                  placeholder={t("enterBeneficiaryName")}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">{t("beneficiaryAccountNumber")}</label>
-                <Input
-                  value={payoutForm.beneficiary_account_number}
-                  onChange={(e) => setPayoutForm(prev => ({ ...prev, beneficiary_account_number: e.target.value }))}
-                  placeholder={t("enterAccountNumber")}
-                />
-              </div>
-              <div className="col-span-2">
-                <label className="text-sm font-medium">{t("beneficiaryEmail")}</label>
-                <Input
-                  type="email"
-                  value={payoutForm.beneficiary_email}
-                  onChange={(e) => setPayoutForm(prev => ({ ...prev, beneficiary_email: e.target.value }))}
-                  placeholder={t("enterEmailAddress")}
                 />
               </div>
             </div>
@@ -1776,7 +1674,10 @@ export function TransactionsContent() {
               <Button variant="outline" onClick={() => setPayoutModal(false)}>
                 {t("cancel")}
               </Button>
-              <Button onClick={createPayout}>
+              <Button
+                onClick={createPayout}
+                disabled={!payoutForm.operator_code || !payoutForm.amount || !payoutForm.phone}
+              >
                 {t("createPayout")}
               </Button>
             </div>
