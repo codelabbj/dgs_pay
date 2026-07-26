@@ -16,10 +16,23 @@ import { useUserProfile } from "@/contexts/user-profile-context"
 import { smartFetch, getAccessToken } from "@/utils/auth"
 import { toast } from "@/hooks/use-toast"
 
-function inferNetworkFromOperator(op?: { operator_name?: string; operator_code?: string } | null): string {
-  const hay = `${op?.operator_name || ""} ${op?.operator_code || ""}`.toUpperCase()
+function inferNetworkFromOperator(op?: {
+  operator_name?: string
+  public_operator_name?: string
+  display_name?: string
+  operator_code?: string
+} | null): string {
+  const hay = `${op?.public_operator_name || ""} ${op?.display_name || ""} ${op?.operator_name || ""} ${op?.operator_code || ""}`.toUpperCase()
   const networks = ["MOOV", "MTN", "WAVE", "ORANGE", "AIRTEL", "TIGO", "FREE"]
   return networks.find((n) => hay.includes(n)) || ""
+}
+
+function operatorLabel(op: {
+  public_operator_name?: string
+  display_name?: string
+  operator_name?: string
+}): string {
+  return (op.public_operator_name || op.display_name || op.operator_name || "").trim()
 }
 
 // Types for the new API
@@ -82,6 +95,8 @@ interface PayoutPayload {
 interface Operator {
   uid: string
   operator_name: string
+  public_operator_name?: string
+  display_name?: string
   operator_code: string
   country_code?: string
   currency?: string
@@ -1539,7 +1554,7 @@ export function TransactionsContent() {
                     {operators.length > 0 ? (
                       operators.map((operator) => (
                         <SelectItem key={operator.uid} value={operator.operator_code}>
-                          {operator.operator_name}
+                          {operatorLabel(operator)}
                         </SelectItem>
                       ))
                     ) : (
@@ -1639,7 +1654,7 @@ export function TransactionsContent() {
                     {operators.length > 0 ? (
                       operators.map((operator) => (
                         <SelectItem key={operator.uid} value={operator.operator_code}>
-                          {operator.operator_name}
+                          {operatorLabel(operator)}
                         </SelectItem>
                       ))
                     ) : (
