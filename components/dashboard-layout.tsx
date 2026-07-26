@@ -29,6 +29,7 @@ import {
   AlertCircle,
   Minus,
   Plus,
+  Building2,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 
@@ -120,6 +121,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     // { name: t("payDirect"), href: "/payouts", icon: Wallet },
     // { name: t("myStore"), href: "/store", icon: Store },
     { name: t("payDirect"), href: "/pay", icon: Zap },
+    { name: "Virement NGN", href: "/bank-transfer", icon: Building2 },
     { name: t("developers"), href: "/developers", icon: Code },
     { name: t("settings"), href: "/settings", icon: Settings },
   ]
