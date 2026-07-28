@@ -482,6 +482,9 @@ export function TransactionsContent() {
           title: t("success"),
           description: "Payin created successfully"
         })
+        if (data?.redirection_url) {
+          setCheckStatusModal({ open: true, data })
+        }
         setPayinModal(false)
         setPayinError(null)
         setPayinForm({
@@ -1074,6 +1077,12 @@ export function TransactionsContent() {
     }
   }
 
+  const openPaymentLink = (url?: string) => {
+    const target = String(url || "").trim()
+    if (!target) return
+    window.open(target, "_blank", "noopener,noreferrer")
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -1286,6 +1295,24 @@ export function TransactionsContent() {
                       <TableCell>{getStatusBadge(transaction.status)}</TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-2">
+                          {transaction.type_trans === "payin" && transaction.redirection_url && (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openPaymentLink(transaction.redirection_url)}
+                              >
+                                Ouvrir le lien
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleCopy(transaction.redirection_url || "")}
+                              >
+                                Copier le lien
+                              </Button>
+                            </>
+                          )}
                           <Button
                             variant="outline"
                             size="sm"
@@ -1486,6 +1513,28 @@ export function TransactionsContent() {
                     <label className="text-sm font-medium text-gray-500">{t("clientReference")}</label>
                     <p className="text-sm">{checkStatusModal.data?.client_reference || '-'}</p>
                   </div>
+                  {checkStatusModal.data?.type_trans === "payin" && checkStatusModal.data?.redirection_url && (
+                    <div className="col-span-2">
+                      <label className="text-sm font-medium text-gray-500">Lien de paiement</label>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm truncate">{checkStatusModal.data.redirection_url}</p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleCopy(checkStatusModal.data?.redirection_url || "")}
+                        >
+                          Copier le lien
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openPaymentLink(checkStatusModal.data?.redirection_url)}
+                        >
+                          Ouvrir le lien
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                   <div>
                     <label className="text-sm font-medium text-gray-500">Created At</label>
                     <p className="text-sm">{checkStatusModal.data?.created_at ? new Date(checkStatusModal.data.created_at).toLocaleString() : '-'}</p>

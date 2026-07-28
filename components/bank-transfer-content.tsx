@@ -119,9 +119,11 @@ export function BankTransferContent() {
 
       const list = extractBanks(data)
       setBanks(list)
-      if (data?.operator_code) setOperatorCode(String(data.operator_code))
-      // Si la banque sélectionnée n'est plus dans la liste, on la garde affichée
-      // via selectedBank fallback plus bas
+      // Ne garder que si le backend a bien résolu un opérateur NGN
+      // (évite d'envoyer Moov BJ / XOF par erreur sur bank-transfer)
+      if (data?.operator_code) {
+        setOperatorCode(String(data.operator_code))
+      }
       if (!list.length) {
         setBanksError(
           q
@@ -153,11 +155,11 @@ export function BankTransferContent() {
       setResolved(null)
       setTransferSuccess(null)
 
+      // Pas d'operator_code forcé : le backend choisit uniquement un opérateur NGN
       const body: Record<string, string> = {
         bank_code: bankCode,
         account_number: accountNumber.replace(/\D/g, ""),
       }
-      if (operatorCode) body.operator_code = operatorCode
 
       const res = await smartFetch(`${baseUrl}/api/v2/banks/resolve-account/`, {
         method: "POST",
@@ -196,6 +198,7 @@ export function BankTransferContent() {
       setTransferError(null)
       setTransferSuccess(null)
 
+      // Ne pas envoyer Moov BJ / XOF : auto-résolution NGN côté API
       const payload: Record<string, unknown> = {
         amount: parseInt(amount, 10),
         account_number: accountNumber.replace(/\D/g, ""),
@@ -208,7 +211,6 @@ export function BankTransferContent() {
           clientReference.trim() ||
           `BANK-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       }
-      if (operatorCode) payload.operator_code = operatorCode
 
       const res = await smartFetch(`${baseUrl}/api/v2/bank-transfer/`, {
         method: "POST",
