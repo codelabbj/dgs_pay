@@ -39,6 +39,7 @@ import {
   Settings
 } from "lucide-react"
 import { format } from "date-fns"
+import { useCurrencies } from "@/hooks/use-currencies"
 
 interface Product {
   uid: string
@@ -87,6 +88,13 @@ export function StoreContent() {
     stock_quantity: ""
   })
   const [productLoading, setProductLoading] = useState(false)
+  const { currencies: catalogCurrencies, defaultCode } = useCurrencies()
+
+  useEffect(() => {
+    if (defaultCode && !editingProduct) {
+      setProductForm((prev) => ({ ...prev, currency: defaultCode }))
+    }
+  }, [defaultCode, editingProduct])
 
   useEffect(() => {
     loadStoreData()
@@ -320,9 +328,15 @@ export function StoreContent() {
                         <SelectValue placeholder="Select currency" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="XOF">XOF</SelectItem>
-                        <SelectItem value="USD">USD</SelectItem>
-                        <SelectItem value="EUR">EUR</SelectItem>
+                        {catalogCurrencies.length === 0 ? (
+                          <SelectItem value="XOF">XOF</SelectItem>
+                        ) : (
+                          catalogCurrencies.map((c) => (
+                            <SelectItem key={c.code} value={c.code}>
+                              {c.code}{c.name ? ` — ${c.name}` : ""}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                   </div>

@@ -98,6 +98,7 @@ interface RechargeRequest {
   uid: string
   reference: string
   amount: number
+  currency_code?: string
   payment_method: string
   payment_method_display: string
   proof_image: string | null
@@ -163,6 +164,7 @@ export function BalanceContent() {
   const [rechargeDialogOpen, setRechargeDialogOpen] = useState(false)
   const [rechargeForm, setRechargeForm] = useState({
     amount: "",
+    currency_code: "XOF",
     payment_method: "cash",
     notes: ""
   })
@@ -372,6 +374,7 @@ export function BalanceContent() {
         },
         body: JSON.stringify({
           amount: parseInt(rechargeForm.amount),
+          currency_code: rechargeForm.currency_code || displayCurrency || "XOF",
           payment_method: rechargeForm.payment_method,
           notes: rechargeForm.notes
         })
@@ -379,7 +382,12 @@ export function BalanceContent() {
 
       if (response.ok) {
         setRechargeDialogOpen(false)
-        setRechargeForm({ amount: "", payment_method: "cash", notes: "" })
+        setRechargeForm({
+          amount: "",
+          currency_code: displayCurrency || "XOF",
+          payment_method: "cash",
+          notes: ""
+        })
         loadRecharges()
       }
     } catch (error) {
@@ -684,6 +692,28 @@ export function BalanceContent() {
                           placeholder={t("enterAmount")}
                           required
                         />
+                      </div>
+                      <div>
+                        <Label htmlFor="recharge-currency">{t("currency")}</Label>
+                        <Select
+                          value={rechargeForm.currency_code || displayCurrency || "XOF"}
+                          onValueChange={(value) => setRechargeForm({ ...rechargeForm, currency_code: value })}
+                        >
+                          <SelectTrigger id="recharge-currency">
+                            <SelectValue placeholder={t("selectCurrency")} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(wallets.length > 0
+                              ? wallets.filter((w) => w.is_active !== false)
+                              : [{ currency_code: displayCurrency || "XOF", currency_name: "" }]
+                            ).map((wallet) => (
+                              <SelectItem key={wallet.currency_code} value={wallet.currency_code}>
+                                {wallet.currency_code}
+                                {wallet.currency_name ? ` — ${wallet.currency_name}` : ""}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div>
                         <Label htmlFor="recharge-method">{t("paymentMethod")}</Label>
@@ -1047,7 +1077,7 @@ export function BalanceContent() {
                     </div>
                     <div className="text-right">
                       <p className="font-medium text-green-600">
-                        +{recharge.amount.toLocaleString()} XOF
+                        +{recharge.amount.toLocaleString()} {recharge.currency_code || "XOF"}
                       </p>
                       <Badge className={getStatusColor(recharge.status)}>
                         {recharge.status_display}

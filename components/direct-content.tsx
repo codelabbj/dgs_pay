@@ -40,6 +40,7 @@ import {
   Globe
 } from "lucide-react"
 import { format } from "date-fns"
+import { useCurrencies } from "@/hooks/use-currencies"
 
 interface DirectPayment {
   uid: string
@@ -85,6 +86,13 @@ export function DirectContent() {
     description: ""
   })
   const [paymentLoading, setPaymentLoading] = useState(false)
+  const { currencies: catalogCurrencies, defaultCode } = useCurrencies()
+
+  useEffect(() => {
+    if (defaultCode) {
+      setPaymentForm((prev) => ({ ...prev, currency: prev.currency || defaultCode }))
+    }
+  }, [defaultCode])
 
   const paymentMethods: PaymentMethod[] = [
     {
@@ -308,9 +316,15 @@ export function DirectContent() {
                         <SelectValue placeholder="Select currency" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="XOF">XOF</SelectItem>
-                        <SelectItem value="USD">USD</SelectItem>
-                        <SelectItem value="EUR">EUR</SelectItem>
+                        {catalogCurrencies.length === 0 ? (
+                          <SelectItem value="XOF">XOF</SelectItem>
+                        ) : (
+                          catalogCurrencies.map((c) => (
+                            <SelectItem key={c.code} value={c.code}>
+                              {c.code}{c.name ? ` — ${c.name}` : ""}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
