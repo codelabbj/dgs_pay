@@ -178,7 +178,7 @@ export default function ApiKeysComponent() {
           {t("developers")}
         </h1>
         <Button
-          onClick={() => window.open('https://documenter.getpostman.com/view/39341809/2sB3HnMLqx', '_blank', 'noopener,noreferrer')}
+          onClick={() => window.open('https://documenter.getpostman.com/view/27978736/2sBY4Tqe25', '_blank', 'noopener,noreferrer')}
           className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2 font-medium"
         >
           <ExternalLink className="w-4 h-4" />
