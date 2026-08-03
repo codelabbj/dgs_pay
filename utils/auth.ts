@@ -356,8 +356,9 @@ export async function smartFetch(url: string, options: RequestInit = {}): Promis
 
   console.log(`smartFetch: Response status ${response.status} for ${url}`)
 
-  // If we get 401 or 403, try to refresh token and retry once
-  if ((response.status === 401 || response.status === 403)) {
+  // 401 = token invalide/expiré → refresh.
+  // 403 = permission métier (ex. compte pas encore vérifié/activé) → NE PAS refresh.
+  if (response.status === 401) {
     console.log(`smartFetch: Got ${response.status}, checking if we should attempt refresh...`)
     const refreshTokenExpired = isRefreshTokenExpired()
     console.log('Refresh token expired?', refreshTokenExpired)

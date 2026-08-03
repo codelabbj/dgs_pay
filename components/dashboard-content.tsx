@@ -38,6 +38,8 @@ import {
   Area,
 } from "recharts"
 import { useUserConfig } from "@/contexts/user-config-context"
+import { useUserProfile } from "@/contexts/user-profile-context"
+import Link from "next/link"
 
 export function DashboardContent() {
   // Temporarily disable useAuth to test
@@ -74,6 +76,11 @@ export function DashboardContent() {
   const [error, setError] = useState<string | null>(null)
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
   const { userConfig } = useUserConfig()
+  const { userProfile } = useUserProfile()
+  const isAccountVerified = userProfile?.account_status === "verify"
+  const needsVerification = Boolean(
+    userProfile && (!isAccountVerified || userConfig?.is_active === false)
+  )
 
   useEffect(() => {
     // Add a delay to ensure authentication is fully established
@@ -112,6 +119,10 @@ export function DashboardContent() {
         const data = await res.json()
         setBalance(data)
         console.log('Balance data fetched:', data)
+      } else if (res.status === 403) {
+        // Compte pas encore vérifié / agrégateur inactif — normal, pas une erreur auth
+        setError(null)
+        setBalance(null)
       } else {
         setError(`Failed to fetch balance: ${res.status}`)
       }
@@ -183,6 +194,27 @@ export function DashboardContent() {
             {showBalances ? t("hideBalances") : t("showBalances")}
           </Button>
         </div>
+
+        {needsVerification && (
+          <div className="rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-5 flex gap-4 items-start">
+            <ShieldCheck className="h-6 w-6 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div className="space-y-2">
+              <p className="font-semibold text-amber-900 dark:text-amber-100">
+                Vérification de compte requise
+              </p>
+              <p className="text-sm text-amber-800 dark:text-amber-200/90">
+                {!isAccountVerified
+                  ? "Votre compte est connecté, mais pas encore vérifié. Déposez vos documents dans le profil : un administrateur validera ensuite votre accès (solde, payin, payout)."
+                  : "Vos documents sont vérifiés, mais l’accès agrégateur n’est pas encore activé. Contactez le support si cela dure."}
+              </p>
+              {!isAccountVerified && (
+                <Button asChild variant="outline" size="sm" className="rounded-xl border-amber-300">
+                  <Link href="/profile">Compléter mon profil</Link>
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Debug Section */}
         {/* <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
