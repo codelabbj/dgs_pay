@@ -38,6 +38,7 @@ import {
 } from "lucide-react"
 import { format } from "date-fns"
 import { useUserConfig } from "@/contexts/user-config-context"
+import { useCurrencies } from "@/hooks/use-currencies"
 
 interface Wallet {
   uid: string
@@ -142,6 +143,25 @@ export function BalanceContent() {
     wallets.find((w) => w.currency_code === (balance?.default_currency || "XOF")) ||
     wallets[0]
   const displayCurrency = defaultWallet?.currency_code || balance?.default_currency || "XOF"
+  const { currencies: catalogCurrencies, defaultCode } = useCurrencies()
+  const rechargeCurrencyOptions = (() => {
+    const seen = new Set<string>()
+    const options: { code: string; name?: string }[] = []
+    for (const c of catalogCurrencies) {
+      if (!c.code || seen.has(c.code)) continue
+      seen.add(c.code)
+      options.push({ code: c.code, name: c.name })
+    }
+    for (const wallet of wallets.filter((w) => w.is_active !== false)) {
+      if (!wallet.currency_code || seen.has(wallet.currency_code)) continue
+      seen.add(wallet.currency_code)
+      options.push({ code: wallet.currency_code, name: wallet.currency_name })
+    }
+    if (options.length === 0) {
+      options.push({ code: displayCurrency || defaultCode || "XOF" })
+    }
+    return options
+  })()
 
   // Static operator options (same as payin-content.tsx)
   const OPERATOR_OPTIONS = [
@@ -164,7 +184,7 @@ export function BalanceContent() {
   const [rechargeDialogOpen, setRechargeDialogOpen] = useState(false)
   const [rechargeForm, setRechargeForm] = useState({
     amount: "",
-    currency_code: "XOF",
+    currency_code: "",
     payment_method: "cash",
     notes: ""
   })
@@ -189,6 +209,12 @@ export function BalanceContent() {
     loadOperators()
     refreshUserConfig().catch(() => null)
   }, [])
+
+  useEffect(() => {
+    const next = displayCurrency || defaultCode
+    if (!next) return
+    setRechargeForm((prev) => ({ ...prev, currency_code: prev.currency_code || next }))
+  }, [displayCurrency, defaultCode])
 
   useEffect(() => {
     if (activeTab === "history") {
@@ -696,20 +722,17 @@ export function BalanceContent() {
                       <div>
                         <Label htmlFor="recharge-currency">{t("currency")}</Label>
                         <Select
-                          value={rechargeForm.currency_code || displayCurrency || "XOF"}
+                          value={rechargeForm.currency_code || displayCurrency || defaultCode || "XOF"}
                           onValueChange={(value) => setRechargeForm({ ...rechargeForm, currency_code: value })}
                         >
                           <SelectTrigger id="recharge-currency">
                             <SelectValue placeholder={t("selectCurrency")} />
                           </SelectTrigger>
                           <SelectContent>
-                            {(wallets.length > 0
-                              ? wallets.filter((w) => w.is_active !== false)
-                              : [{ currency_code: displayCurrency || "XOF", currency_name: "" }]
-                            ).map((wallet) => (
-                              <SelectItem key={wallet.currency_code} value={wallet.currency_code}>
-                                {wallet.currency_code}
-                                {wallet.currency_name ? ` — ${wallet.currency_name}` : ""}
+                            {rechargeCurrencyOptions.map((currency) => (
+                              <SelectItem key={currency.code} value={currency.code}>
+                                {currency.code}
+                                {currency.name ? ` — ${currency.name}` : ""}
                               </SelectItem>
                             ))}
                           </SelectContent>

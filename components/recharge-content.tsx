@@ -14,12 +14,14 @@ import { Search, Download, RefreshCw, ChevronLeft, ChevronRight, ChevronsLeft, C
 import { useLanguage } from "@/contexts/language-context"
 import { smartFetch } from "@/utils/auth"
 import { toast } from "@/hooks/use-toast"
+import { useCurrencies } from "@/hooks/use-currencies"
 
 // Types for recharge requests
 interface RechargeRequest {
   uid: string
   reference: string
   amount: number
+  currency_code?: string
   payment_method: string
   payment_method_display: string
   proof_image: string | null
@@ -42,6 +44,7 @@ interface RechargeListResponse {
 
 interface CreateRechargeForm {
   amount: string
+  currency_code: string
   payment_method: string
   notes: string
   bank_reference: string
@@ -64,17 +67,25 @@ export function RechargeContent() {
   const [createLoading, setCreateLoading] = useState(false)
   
   const { t } = useLanguage()
+  const { currencies: catalogCurrencies, defaultCode } = useCurrencies()
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
 
   // Create recharge form state
   const [createForm, setCreateForm] = useState<CreateRechargeForm>({
     amount: "",
+    currency_code: "",
     payment_method: "cash",
     notes: "",
     bank_reference: "",
     mobile_reference: "",
     proof_image: null
   })
+
+  useEffect(() => {
+    if (defaultCode) {
+      setCreateForm((prev) => ({ ...prev, currency_code: prev.currency_code || defaultCode }))
+    }
+  }, [defaultCode])
 
   useEffect(() => {
     fetchRecharges()
@@ -125,6 +136,7 @@ export function RechargeContent() {
 
       const formData = new FormData()
       formData.append("amount", String(parsedAmount))
+      formData.append("currency_code", (createForm.currency_code || defaultCode || "XOF").toUpperCase())
       formData.append("payment_method", createForm.payment_method)
       if (createForm.notes.trim()) {
         formData.append("notes", createForm.notes.trim())
@@ -152,6 +164,7 @@ export function RechargeContent() {
         setCreateDialogOpen(false)
         setCreateForm({
           amount: "",
+          currency_code: defaultCode || "",
           payment_method: "cash",
           notes: "",
           bank_reference: "",
@@ -331,6 +344,28 @@ export function RechargeContent() {
                   />
                 </div>
                 <div>
+                  <Label htmlFor="currency_code">{t("currency")}</Label>
+                  <Select
+                    value={createForm.currency_code || defaultCode}
+                    onValueChange={(value) => setCreateForm({ ...createForm, currency_code: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t("selectCurrency")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {catalogCurrencies.length === 0 ? (
+                        <SelectItem value={defaultCode || "XOF"}>{defaultCode || "XOF"}</SelectItem>
+                      ) : (
+                        catalogCurrencies.map((c) => (
+                          <SelectItem key={c.code} value={c.code}>
+                            {c.code}{c.name ? ` — ${c.name}` : ""}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
                   <Label htmlFor="payment_method">{t("rechargePaymentMethodLabel")}</Label>
                   <Select
                     value={createForm.payment_method}
@@ -483,7 +518,7 @@ export function RechargeContent() {
                   {recharges.map((recharge) => (
                     <TableRow key={recharge.uid}>
                       <TableCell className="font-medium">{recharge.reference}</TableCell>
-                      <TableCell>{recharge.amount.toLocaleString()} XOF</TableCell>
+                      <TableCell>{recharge.amount.toLocaleString()} {recharge.currency_code || "XOF"}</TableCell>
                       <TableCell>{recharge.payment_method_display}</TableCell>
                       <TableCell>
                         <Badge className={getStatusColor(recharge.status)}>
