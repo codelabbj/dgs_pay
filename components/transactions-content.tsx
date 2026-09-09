@@ -33,6 +33,8 @@ function formatTxAmount(tx: { amount?: number | null; currency?: string; formatt
   }
   return tx.formatted_amount || "-"
 }
+
+function operatorLabel(op: {
   public_operator_name?: string
   display_name?: string
   operator_name?: string
