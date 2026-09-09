@@ -76,6 +76,7 @@ interface BalanceHistoryItem {
   balance_before: number
   balance_after: number
   description: string
+  currency_code?: string
   created_at: string
 }
 
@@ -1013,7 +1014,7 @@ export function BalanceContent() {
                         {item.formatted_amount}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        Balance: {item.balance_after.toLocaleString()} XOF
+                        Balance: {item.balance_after.toLocaleString()} {item.currency_code || ""}
                       </p>
                     </div>
                   </div>

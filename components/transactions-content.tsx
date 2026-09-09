@@ -27,7 +27,12 @@ function inferNetworkFromOperator(op?: {
   return networks.find((n) => hay.includes(n)) || ""
 }
 
-function operatorLabel(op: {
+function formatTxAmount(tx: { amount?: number | null; currency?: string; formatted_amount?: string }) {
+  if (tx.amount != null && tx.currency) {
+    return `${tx.amount.toLocaleString()} ${tx.currency}`
+  }
+  return tx.formatted_amount || "-"
+}
   public_operator_name?: string
   display_name?: string
   operator_name?: string
@@ -43,6 +48,7 @@ interface Transaction {
   type_trans_display: string
   amount: number
   formatted_amount: string
+  currency?: string
   phone: string
   status: "processing" | "completed" | "failed"
   status_display: string
@@ -967,7 +973,7 @@ export function TransactionsContent() {
             dateObj ? dateObj.toLocaleTimeString() : "-",
             transaction.type_trans_display || "-",
             transaction.phone || "-",
-            transaction.formatted_amount || "-",
+            formatTxAmount(transaction),
             transaction.operator_name || "-",
             transaction.status_display || "-",
             transaction.description || "-"
@@ -1008,7 +1014,7 @@ export function TransactionsContent() {
             dateObj ? dateObj.toLocaleTimeString() : "-",
             transaction.type_trans_display || "-",
             transaction.phone || "-",
-            transaction.formatted_amount || "-",
+            formatTxAmount(transaction),
             transaction.operator_name || "-",
             transaction.status_display || "-",
             transaction.description || "-"
@@ -1047,7 +1053,7 @@ export function TransactionsContent() {
           dateObj ? dateObj.toLocaleTimeString() : "-",
           transaction.type_trans_display || "-",
           transaction.phone || "-",
-          transaction.formatted_amount || "-",
+          formatTxAmount(transaction),
           transaction.operator_name || "-",
           transaction.status_display || "-",
           transaction.client_reference || "-",
@@ -1290,7 +1296,7 @@ export function TransactionsContent() {
                       <TableCell>
                         <div className="font-medium">{transaction.phone || "-"}</div>
                       </TableCell>
-                      <TableCell className="font-medium">{transaction.formatted_amount || "-"}</TableCell>
+                      <TableCell className="font-medium">{formatTxAmount(transaction)}</TableCell>
                       <TableCell>{transaction.operator_name || "-"}</TableCell>
                       <TableCell>{getStatusBadge(transaction.status)}</TableCell>
                       <TableCell>
@@ -1491,7 +1497,7 @@ export function TransactionsContent() {
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-500">{t("amount")}</label>
-                    <p className="text-sm">{checkStatusModal.data?.formatted_amount || '-'}</p>
+                    <p className="text-sm">{formatTxAmount(checkStatusModal.data || {})}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-500">{t("phone")}</label>

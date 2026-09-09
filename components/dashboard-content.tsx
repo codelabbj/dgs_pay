@@ -134,7 +134,7 @@ export function DashboardContent() {
     }
   }
 
-  const formatCurrency = (amount: number | null | undefined, currency = "XOF") => {
+  const formatCurrency = (amount: number | null | undefined, currency = defaultCurrency) => {
     if (amount == null) return showBalances ? `0 ${currency}` : "••••••"
     return showBalances ? `${amount.toLocaleString()} ${currency}` : "••••••"
   }
