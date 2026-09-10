@@ -23,7 +23,7 @@ function inferNetworkFromOperator(op?: {
   operator_code?: string
 } | null): string {
   const hay = `${op?.public_operator_name || ""} ${op?.display_name || ""} ${op?.operator_name || ""} ${op?.operator_code || ""}`.toUpperCase()
-  const networks = ["MOOV", "MTN", "WAVE", "ORANGE", "AIRTEL", "TIGO", "FREE"]
+  const networks = ["MOOV", "MTN", "WAVE", "ORANGE", "AIRTEL", "TIGO", "FREE", "TELECEL"]
   return networks.find((n) => hay.includes(n)) || ""
 }
 
