@@ -52,7 +52,7 @@ interface Transaction {
   formatted_amount: string
   currency?: string
   phone: string
-  status: "processing" | "completed" | "failed"
+  status: "processing" | "pending" | "completed" | "success" | "failed"
   status_display: string
   operator_name: string
   description: string
@@ -907,11 +907,16 @@ export function TransactionsContent() {
     return () => clearTimeout(timeoutId)
   }, [searchTerm, statusFilter, typeFilter, startDate, endDate])
 
+  const isSuccessfulStatus = (status: string) =>
+    status === "success" || status === "completed"
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
+      case "success":
         return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">{t("completed")}</Badge>
       case "processing":
+      case "pending":
         return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">{t("processing")}</Badge>
       case "failed":
         return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">{t("failed")}</Badge>
@@ -1073,8 +1078,16 @@ export function TransactionsContent() {
     }
   }
 
-  const totalAmount = transactions.reduce((sum, transaction) => sum + (transaction.amount || 0), 0)
-  const completedTransactions = transactions.filter((t) => t.status === "completed").length
+  const totalsByCurrency = transactions.reduce((acc: Record<string, number>, transaction) => {
+    const code = transaction.currency || "XOF"
+    acc[code] = (acc[code] || 0) + (Number(transaction.amount) || 0)
+    return acc
+  }, {})
+  const totalAmountLabel =
+    Object.entries(totalsByCurrency)
+      .map(([code, amount]) => `${Number(amount).toLocaleString()} ${code}`)
+      .join(" · ") || "0 XOF"
+  const completedTransactions = transactions.filter((t) => isSuccessfulStatus(t.status)).length
 
   const handleCopy = async (text: string) => {
     try {
@@ -1138,7 +1151,7 @@ export function TransactionsContent() {
             <div className="text-2xl font-bold text-green-600">{completedTransactions}</div>
             {totalPages > 1 && (
               <p className="text-xs text-muted-foreground mt-1">
-                Showing {transactions.filter(t => t.status === "completed").length} on this page
+                Showing {completedTransactions} on this page
               </p>
             )}
           </CardContent>
@@ -1148,10 +1161,10 @@ export function TransactionsContent() {
             <CardTitle className="text-sm font-medium">{t("totalAmount")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalAmount.toLocaleString()} FCFA</div>
+            <div className="text-2xl font-bold">{totalAmountLabel}</div>
             {totalPages > 1 && (
               <p className="text-xs text-muted-foreground mt-1">
-                Page amount: {transactions.reduce((sum, transaction) => sum + (transaction.amount || 0), 0).toLocaleString()} FCFA
+                Page amount: {totalAmountLabel}
               </p>
             )}
           </CardContent>
@@ -1170,7 +1183,7 @@ export function TransactionsContent() {
             {totalPages > 1 && (
               <p className="text-xs text-muted-foreground mt-1">
                 Page success rate: {transactions.length > 0
-                  ? Math.round((transactions.filter(t => t.status === "completed").length / transactions.length) * 100)
+                  ? Math.round((completedTransactions / transactions.length) * 100)
                   : 0}%
               </p>
             )}
@@ -1218,7 +1231,7 @@ export function TransactionsContent() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t("allStatus")}</SelectItem>
-                <SelectItem value="completed">{t("completed")}</SelectItem>
+                <SelectItem value="success">{t("completed")}</SelectItem>
                 <SelectItem value="processing">{t("processing")}</SelectItem>
                 <SelectItem value="failed">{t("failed")}</SelectItem>
               </SelectContent>

@@ -425,7 +425,7 @@ export function DirectContent() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {payments.filter(p => p.status === "completed").length}
+              {payments.filter(p => p.status === "success" || p.status === "completed").length}
             </div>
             <p className="text-xs text-muted-foreground">
               Successfully paid
@@ -455,7 +455,7 @@ export function DirectContent() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {payments.reduce((sum, p) => sum + p.amount, 0).toLocaleString()} XOF
+              {payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0).toLocaleString()} XOF
             </div>
             <p className="text-xs text-muted-foreground">
               All payment amounts
