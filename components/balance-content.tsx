@@ -1,50 +1,35 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { smartFetch } from "@/utils/auth"
 import { useLanguage } from "@/contexts/language-context"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Counter, Spot, useGrow } from "@/components/dash-ui"
 import {
-  Wallet,
-  TrendingUp,
-  TrendingDown,
-  Plus,
-  Minus,
-  Eye,
-  EyeOff,
-  RefreshCw,
-  Download,
-  Filter,
-  Search,
-  Calendar,
-  Phone,
-  CreditCard,
-  History,
-  ArrowUpRight,
-  ArrowDownLeft,
-  Settings,
-  FileText,
   AlertCircle,
-  CheckCircle,
-  Clock
+  ArrowDownLeft,
+  ArrowUpRight,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  FileText,
+  History,
+  Minus,
+  Plus,
+  RefreshCw,
+  Star,
+  Wallet as WalletIcon,
 } from "lucide-react"
-import { format } from "date-fns"
-import { useUserConfig } from "@/contexts/user-config-context"
-import { useCurrencies } from "@/hooks/use-currencies"
 
-interface Wallet {
+
+interface WalletData {
   uid: string
   currency_code: string
   currency_name?: string
-  currency_symbol?: string
   balance: number
   formatted_balance: string
   is_default: boolean
@@ -53,7 +38,8 @@ interface Wallet {
   last_transaction_at: string | null
 }
 
-interface Balance {
+
+interface BalanceData {
   uid: string
   balance: number
   formatted_balance: string
@@ -63,11 +49,12 @@ interface Balance {
   is_active: boolean
   is_frozen: boolean
   last_transaction_at: string | null
-  wallets?: Wallet[]
+  wallets?: WalletData[]
   default_currency?: string
 }
 
-interface BalanceHistoryItem {
+
+interface HistoryItem {
   uid: string
   type: string
   type_display: string
@@ -80,1176 +67,491 @@ interface BalanceHistoryItem {
   created_at: string
 }
 
-interface WithdrawalRequest {
-  uid: string
-  reference: string
-  amount: number
-  phone: string
-  operator_code: string
-  status: string
-  status_display: string
-  code: string | null
-  admin_notes: string
-  rejection_reason: string
-  created_at: string
-  approved_at: string | null
-  processed_at: string | null
-}
 
-interface RechargeRequest {
-  uid: string
-  reference: string
-  amount: number
-  currency_code?: string
-  payment_method: string
-  payment_method_display: string
-  proof_image: string | null
-  bank_reference: string
-  mobile_reference: string
-  notes: string
-  status: string
-  status_display: string
-  rejection_reason: string
-  created_at: string
-  approved_at: string | null
-}
+type Filter = "all" | "in" | "out"
+type Tab = "history" | "reports"
 
-interface Operator {
-  uid: string
-  operator_name: string
-  operator_code: string
-  min_payin_amount: number
-  max_payin_amount: number
-  min_payout_amount: number
-  max_payout_amount: number
-  supports_smartlink: boolean
-}
+
+const isCredit = (type: string) => type.includes("credit") || type.includes("payin")
+const BASE = process.env.NEXT_PUBLIC_BASE_URL
+const isoDay = (d: Date) => d.toISOString().split("T")[0]
+
 
 export function BalanceContent() {
   const { t } = useLanguage()
-  const [balance, setBalance] = useState<Balance | null>(null)
-  const [balanceHistory, setBalanceHistory] = useState<BalanceHistoryItem[]>([])
-  const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([])
-  const [recharges, setRecharges] = useState<RechargeRequest[]>([])
-  const [operators, setOperators] = useState<Operator[]>([])
+  const grown = useGrow()
+
+
+  const [balance, setBalance] = useState<BalanceData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [selectedUid, setSelectedUid] = useState<string | null>(null)
   const [settingDefault, setSettingDefault] = useState<string | null>(null)
-  const { userConfig, isLoading: userConfigLoading, refreshUserConfig } = useUserConfig()
-  const [showBalance, setShowBalance] = useState(true)
-  const [activeTab, setActiveTab] = useState("overview")
+  const [tab, setTab] = useState<Tab>("history")
+
+
+  const [history, setHistory] = useState<HistoryItem[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [page, setPage] = useState(1)
+  const [hasNext, setHasNext] = useState(false)
+  const [filter, setFilter] = useState<Filter>("all")
+
+
+  const [reportFormat, setReportFormat] = useState<"csv" | "xlsx" | "pdf">("csv")
+  const [range, setRange] = useState({ from: "", to: "" })
+  const [reportBusy, setReportBusy] = useState<string | null>(null)
+  const [reportError, setReportError] = useState<string | null>(null)
+
+
+  /* ---------- Données ---------- */
+
+
+  const loadBalance = async () => {
+    try {
+      const res = await smartFetch(`${BASE}/api/v2/balance/`)
+      if (res.ok) setBalance(await res.json())
+    } catch (e) {
+      console.error("Failed to load balance:", e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+
+  const loadHistory = async (p: number) => {
+    setHistoryLoading(true)
+    try {
+      const res = await smartFetch(`${BASE}/api/v2/balance/history/?page=${p}`)
+      if (res.ok) {
+        const data = await res.json()
+        setHistory(data.results || [])
+        setHasNext(Boolean(data.next))
+      }
+    } catch (e) {
+      console.error("Failed to load balance history:", e)
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
+
+  useEffect(() => {
+    loadBalance()
+  }, [])
+
+
+  useEffect(() => {
+    loadHistory(page)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page])
+
+
+  const refresh = async () => {
+    setRefreshing(true)
+    await Promise.all([loadBalance(), loadHistory(page)])
+    setRefreshing(false)
+  }
+
+
+  const setDefaultWallet = async (uid: string) => {
+    try {
+      setSettingDefault(uid)
+      const res = await smartFetch(`${BASE}/api/v2/wallets/${uid}/set-default/`, { method: "POST" })
+      if (res.ok) await loadBalance()
+    } catch (e) {
+      console.error("Failed to set default wallet:", e)
+    } finally {
+      setSettingDefault(null)
+    }
+  }
+
+
+  const initializeWallets = async () => {
+    try {
+      const res = await smartFetch(`${BASE}/api/v2/wallets/initialize/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      })
+      if (res.ok) await loadBalance()
+    } catch (e) {
+      console.error("Failed to initialize wallets:", e)
+    }
+  }
+
+
+  const downloadReport = async (key: string, from: string, to: string) => {
+    if (!from || !to) return
+    setReportBusy(key)
+    setReportError(null)
+    try {
+      const params = new URLSearchParams({ from, to, format: reportFormat })
+      const res = await smartFetch(`${BASE}/api/v2/reports/transactions/?${params}`)
+      if (!res.ok) throw new Error(String(res.status))
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `transactions-report-${from}-to-${to}.${reportFormat}`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (e) {
+      console.error("Failed to generate report:", e)
+      setReportError("Impossible de générer le rapport. Réessayez.")
+    } finally {
+      setReportBusy(null)
+    }
+  }
+
+
+  /* ---------- Dérivés ---------- */
+
 
   const wallets = balance?.wallets || []
   const defaultWallet =
     wallets.find((w) => w.is_default) ||
     wallets.find((w) => w.currency_code === (balance?.default_currency || "XOF")) ||
     wallets[0]
-  const displayCurrency = defaultWallet?.currency_code || balance?.default_currency || "XOF"
-  const { currencies: catalogCurrencies, defaultCode } = useCurrencies()
-  const rechargeCurrencyOptions = (() => {
-    const seen = new Set<string>()
-    const options: { code: string; name?: string }[] = []
-    for (const c of catalogCurrencies) {
-      if (!c.code || seen.has(c.code)) continue
-      seen.add(c.code)
-      options.push({ code: c.code, name: c.name })
-    }
-    for (const wallet of wallets.filter((w) => w.is_active !== false)) {
-      if (!wallet.currency_code || seen.has(wallet.currency_code)) continue
-      seen.add(wallet.currency_code)
-      options.push({ code: wallet.currency_code, name: wallet.currency_name })
-    }
-    if (options.length === 0) {
-      options.push({ code: displayCurrency || defaultCode || "XOF" })
-    }
-    return options
-  })()
+  const shown = wallets.find((w) => w.uid === selectedUid) || defaultWallet
+  const currency = shown?.currency_code || balance?.default_currency || "XOF"
+  const mainAmount = Number(shown?.balance ?? balance?.balance ?? 0)
+  const isActive = shown?.is_active ?? balance?.is_active
+  const payin = Number(balance?.total_payin || 0)
+  const payout = Number(balance?.total_payout || 0)
+  const fees = Number(balance?.total_fees_paid || 0)
+  const payinShare = payin + payout > 0 ? (payin / (payin + payout)) * 100 : 50
 
-  // Static operator options (same as payin-content.tsx)
-  const OPERATOR_OPTIONS = [
-    { value: "wave-ci", label: "Wave CI" },
-    { value: "mtn-ci", label: "MTN CI" },
-    { value: "orange-ci", label: "Orange CI" }
+
+  const groups = useMemo(() => {
+    const list = history.filter((h) => filter === "all" || (filter === "in" ? isCredit(h.type) : !isCredit(h.type)))
+    const map = new Map<string, HistoryItem[]>()
+    for (const h of list) {
+      const day = new Date(h.created_at).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })
+      map.set(day, [...(map.get(day) || []), h])
+    }
+    return Array.from(map.entries())
+  }, [history, filter])
+
+
+  const today = new Date()
+  const daysAgo = (n: number) => isoDay(new Date(today.getTime() - n * 86400000))
+  const presets = [
+    { key: "7", label: "7 jours", from: daysAgo(7) },
+    { key: "30", label: t("last30Days"), from: daysAgo(30) },
+    { key: "90", label: "90 jours", from: daysAgo(90) },
   ]
 
-  // Withdrawal form state
-  const [withdrawalDialogOpen, setWithdrawalDialogOpen] = useState(false)
-  const [withdrawalForm, setWithdrawalForm] = useState({
-    amount: "",
-    phone: "",
-    operator_code: "",
-    code: ""
-  })
-  const [withdrawalLoading, setWithdrawalLoading] = useState(false)
 
-  // Recharge form state
-  const [rechargeDialogOpen, setRechargeDialogOpen] = useState(false)
-  const [rechargeForm, setRechargeForm] = useState({
-    amount: "",
-    currency_code: "",
-    payment_method: "cash",
-    notes: ""
-  })
-  const [rechargeLoading, setRechargeLoading] = useState(false)
+  /* ---------- Rendu ---------- */
 
-  // Pagination state
-  const [historyPage, setHistoryPage] = useState(1)
-  const [withdrawalsPage, setWithdrawalsPage] = useState(1)
-  const [rechargesPage, setRechargesPage] = useState(1)
 
-  // Report state
-  const [reportDialogOpen, setReportDialogOpen] = useState(false)
-  const [reportForm, setReportForm] = useState({
-    from: "",
-    to: "",
-    format: "csv"
-  })
-  const [reportLoading, setReportLoading] = useState(false)
-
-  useEffect(() => {
-    loadBalanceData()
-    loadOperators()
-    refreshUserConfig().catch(() => null)
-  }, [])
-
-  useEffect(() => {
-    const next = displayCurrency || defaultCode
-    if (!next) return
-    setRechargeForm((prev) => ({ ...prev, currency_code: prev.currency_code || next }))
-  }, [displayCurrency, defaultCode])
-
-  useEffect(() => {
-    if (activeTab === "history") {
-      loadBalanceHistory()
-    } else if (activeTab === "withdrawals") {
-      loadWithdrawals()
-    } else if (activeTab === "recharges") {
-      loadRecharges()
-    }
-  }, [activeTab])
-
-  const loadBalanceData = async () => {
-    try {
-      const response = await smartFetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/v2/balance/`)
-      if (response.ok) {
-        const data = await response.json()
-        setBalance(data)
-      }
-    } catch (error) {
-      console.error("Failed to load balance:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const loadBalanceHistory = async () => {
-    try {
-      const response = await smartFetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/v2/balance/history/?page=${historyPage}`)
-      if (response.ok) {
-        const data = await response.json()
-        setBalanceHistory(data.results || [])
-      }
-    } catch (error) {
-      console.error("Failed to load balance history:", error)
-    }
-  }
-
-  const loadWithdrawals = async () => {
-    try {
-      const response = await smartFetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/v2/balance/withdrawals/?page=${withdrawalsPage}`)
-      if (response.ok) {
-        const data = await response.json()
-        setWithdrawals(data.results || [])
-      }
-    } catch (error) {
-      console.error("Failed to load withdrawals:", error)
-    }
-  }
-
-  const loadRecharges = async () => {
-    try {
-      const response = await smartFetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/v2/recharges/?page=${rechargesPage}`)
-      if (response.ok) {
-        const data = await response.json()
-        setRecharges(data.results || [])
-      }
-    } catch (error) {
-      console.error("Failed to load recharges:", error)
-    }
-  }
-
-  const loadOperators = async () => {
-    try {
-      const response = await smartFetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/v2/operators/`)
-      if (response.ok) {
-        const data = await response.json()
-        setOperators(data)
-      }
-    } catch (error) {
-      console.error("Failed to load operators:", error)
-    }
-  }
-
-  const setDefaultWallet = async (walletUid: string) => {
-    try {
-      setSettingDefault(walletUid)
-      const response = await smartFetch(
-        `${process.env.NEXT_PUBLIC_BASE_URL}/api/v2/wallets/${walletUid}/set-default/`,
-        { method: "POST" }
-      )
-      if (response.ok) {
-        await loadBalanceData()
-      }
-    } catch (error) {
-      console.error("Failed to set default wallet:", error)
-    } finally {
-      setSettingDefault(null)
-    }
-  }
-
-  const initializeWallets = async () => {
-    try {
-      const response = await smartFetch(
-        `${process.env.NEXT_PUBLIC_BASE_URL}/api/v2/wallets/initialize/`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}),
-        }
-      )
-      if (response.ok) {
-        await loadBalanceData()
-      }
-    } catch (error) {
-      console.error("Failed to initialize wallets:", error)
-    }
-  }
-
-  const handleReportSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setReportLoading(true)
-
-    try {
-      const params = new URLSearchParams({
-        from: reportForm.from,
-        to: reportForm.to,
-        format: reportForm.format
-      })
-
-      const response = await smartFetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/v2/reports/transactions/?${params}`)
-
-      if (response.ok) {
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `transactions-report-${reportForm.from}-to-${reportForm.to}.${reportForm.format}`
-        document.body.appendChild(a)
-        a.click()
-        window.URL.revokeObjectURL(url)
-        document.body.removeChild(a)
-
-        setReportDialogOpen(false)
-        setReportForm({ from: "", to: "", format: "csv" })
-      }
-    } catch (error) {
-      console.error("Failed to generate report:", error)
-    } finally {
-      setReportLoading(false)
-    }
-  }
-
-  const handleWithdrawalSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setWithdrawalLoading(true)
-
-    try {
-      const response = await smartFetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/v2/balance/withdraw/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          amount: parseInt(withdrawalForm.amount),
-          phone: withdrawalForm.phone,
-          operator_code: withdrawalForm.operator_code,
-          code: withdrawalForm.code || null
-        })
-      })
-
-      if (response.ok) {
-        setWithdrawalDialogOpen(false)
-        setWithdrawalForm({ amount: "", phone: "", operator_code: "", code: "" })
-        loadBalanceData()
-        loadWithdrawals()
-      }
-    } catch (error) {
-      console.error("Failed to create withdrawal:", error)
-    } finally {
-      setWithdrawalLoading(false)
-    }
-  }
-
-  const handleRechargeSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setRechargeLoading(true)
-
-    try {
-      const response = await smartFetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/v2/recharge/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          amount: parseInt(rechargeForm.amount),
-          currency_code: rechargeForm.currency_code || displayCurrency || "XOF",
-          payment_method: rechargeForm.payment_method,
-          notes: rechargeForm.notes
-        })
-      })
-
-      if (response.ok) {
-        setRechargeDialogOpen(false)
-        setRechargeForm({
-          amount: "",
-          currency_code: displayCurrency || "XOF",
-          payment_method: "cash",
-          notes: ""
-        })
-        loadRecharges()
-      }
-    } catch (error) {
-      console.error("Failed to create recharge:", error)
-    } finally {
-      setRechargeLoading(false)
-    }
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "completed":
-      case "approved":
-        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
-      case "pending":
-        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
-      case "rejected":
-      case "failed":
-        return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
-      default:
-        return "bg-muted text-foreground"
-    }
-  }
-
-  const getTransactionIcon = (type: string) => {
-    if (type.includes("credit") || type.includes("payin")) {
-      return <ArrowDownLeft className="h-4 w-4 text-green-600" />
-    } else if (type.includes("debit") || type.includes("payout")) {
-      return <ArrowUpRight className="h-4 w-4 text-red-600" />
-    }
-    return <TrendingUp className="h-4 w-4 text-blue-600" />
-  }
-
-  if (loading || userConfigLoading) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="flex items-center space-x-2">
-          <RefreshCw className="h-6 w-6 animate-spin text-primary" />
-          <span className="text-lg font-medium">{t("loading")}</span>
-        </div>
+      <div className="space-y-6">
+        <Skeleton className="h-9 w-40" />
+        <Skeleton className="h-64 w-full rounded-3xl" />
+        <Skeleton className="h-80 w-full rounded-2xl" />
       </div>
     )
   }
 
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{t("balance")}</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage your account balance, withdrawals, and recharges
-          </p>
-        </div>
-        <div className="flex items-center space-x-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowBalance(!showBalance)}
-            className="flex items-center space-x-2"
-          >
-            {showBalance ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            <span>{showBalance ? t("hideBalances") : t("showBalances")}</span>
+      {/* En-tête */}
+      <div className="dash-rise flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">{t("balance")}</h1>
+        <div className="flex gap-2">
+          <Button asChild variant="outline" size="sm" className="rounded-xl transition-transform hover:-translate-y-0.5">
+            <Link href="/recharge"><Plus className="mr-2 h-4 w-4" />{t("rechargeRequests")}</Link>
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={loadBalanceData}
-            className="flex items-center space-x-2"
-          >
-            <RefreshCw className="h-4 w-4" />
-            <span>{t("loading")}</span>
+          <Button asChild variant="outline" size="sm" className="rounded-xl transition-transform hover:-translate-y-0.5">
+            <Link href="/withdraw"><Minus className="mr-2 h-4 w-4" />{t("withdrawalRequests")}</Link>
+          </Button>
+          <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl" onClick={refresh} aria-label="Actualiser">
+            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
           </Button>
         </div>
       </div>
 
-      {/* Wallets multi-devises */}
-      {balance && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Wallets</h2>
+
+      {/* Carte principale */}
+      <div
+        style={{ animationDelay: "60ms" }}
+        className="dash-rise relative overflow-hidden rounded-3xl bg-gradient-to-br from-[hsl(210_68%_14%)] via-[hsl(210_66%_21%)] to-[hsl(211_70%_32%)] p-6 text-white shadow-xl sm:p-8"
+      >
+        <div className="dash-sheen pointer-events-none absolute inset-y-0 left-0 w-1/4 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+        <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-white/5 blur-2xl" />
+        <div className="relative grid gap-8 lg:grid-cols-[1.2fr_1fr] lg:items-end">
+          <div>
+            <div className="flex items-center gap-3 text-sm text-white/70">
+              <span>{shown?.currency_name || t("currentBalance")}</span>
+              <span className="flex items-center gap-2 rounded-full bg-white/10 px-2.5 py-1 text-xs text-white">
+                <span className="relative flex h-2 w-2">
+                  {isActive && <span className="dash-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400" />}
+                  <span className={`relative inline-flex h-2 w-2 rounded-full ${isActive ? "bg-emerald-400" : "bg-red-400"}`} />
+                </span>
+                {isActive ? t("balanceActive") : t("balanceInactive")}
+              </span>
+              {shown?.is_frozen && <span className="rounded-full bg-amber-400/20 px-2.5 py-1 text-xs text-amber-200">{t("balanceFrozen")}</span>}
+            </div>
+            <div key={shown?.uid} className="dash-rise mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">
+              <Counter value={mainAmount} />
+              <span className="ml-2 text-xl font-medium text-white/60 sm:text-2xl">{currency}</span>
+            </div>
+            {shown && !shown.is_default && shown.uid && (
+              <button
+                disabled={settingDefault === shown.uid}
+                onClick={() => setDefaultWallet(shown.uid)}
+                className="mt-4 text-xs text-white/60 underline-offset-4 transition-colors hover:text-white hover:underline disabled:opacity-50"
+              >
+                {t("setAsDefault")}
+              </button>
+            )}
             {wallets.length === 0 && (
-              <Button size="sm" variant="outline" onClick={initializeWallets}>
+              <Button size="sm" variant="secondary" className="mt-4 rounded-xl" onClick={initializeWallets}>
                 Initialiser les wallets
               </Button>
             )}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {(wallets.length > 0 ? wallets : [{
-              uid: "legacy",
-              currency_code: "XOF",
-              formatted_balance: balance.formatted_balance,
-              balance: balance.balance,
-              is_default: true,
-              is_active: balance.is_active,
-              is_frozen: balance.is_frozen,
-              last_transaction_at: balance.last_transaction_at,
-            } as Wallet]).map((wallet) => (
-              <Card
-                key={wallet.uid}
-                className={wallet.is_default ? "border-blue-500 ring-1 ring-blue-200" : ""}
-              >
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <Wallet className="h-4 w-4 text-muted-foreground" />
-                    {wallet.currency_code}
-                    {wallet.currency_name ? (
-                      <span className="text-xs text-muted-foreground font-normal">
-                        · {wallet.currency_name}
-                      </span>
-                    ) : null}
-                  </CardTitle>
-                  <div className="flex items-center gap-2">
-                    {wallet.is_default && (
-                      <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Default</Badge>
-                    )}
-                    {wallet.is_frozen && (
-                      <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-100">Frozen</Badge>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="text-2xl font-bold">
-                    {showBalance
-                      ? (wallet.formatted_balance || `${wallet.balance.toLocaleString()} ${wallet.currency_code}`)
-                      : "••••••"}
-                  </div>
-                  {!wallet.is_default && wallet.uid !== "legacy" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={settingDefault === wallet.uid}
-                      onClick={() => setDefaultWallet(wallet.uid)}
-                    >
-                      {settingDefault === wallet.uid ? (
-                        <RefreshCw className="h-3 w-3 mr-2 animate-spin" />
-                      ) : null}
-                      Définir par défaut
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{t("totalPayin")}</CardTitle>
-                <TrendingUp className="h-4 w-4 text-green-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {showBalance ? `${balance.total_payin.toLocaleString()} XOF` : "••••••"}
+
+          <div className="rounded-2xl bg-white/5 p-5 backdrop-blur-sm">
+            <div className="flex h-2.5 overflow-hidden rounded-full bg-white/10">
+              <div className="h-full bg-emerald-400 transition-[width] duration-1000 ease-out" style={{ width: grown ? `${payinShare}%` : "0%" }} />
+              <div className="h-full flex-1 bg-rose-400/80" />
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
+              {[
+                { label: t("totalPayin"), v: payin, dot: "bg-emerald-400" },
+                { label: t("totalPayout"), v: payout, dot: "bg-rose-400" },
+                { label: t("totalFeesPaid"), v: fees, dot: "bg-amber-300" },
+              ].map((x) => (
+                <div key={x.label} className="min-w-0">
+                  <div className="flex items-center gap-1.5 text-xs text-white/60">
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${x.dot}`} />
+                    <span className="truncate">{x.label}</span>
+                  </div>
+                  <div className="mt-1 truncate font-medium"><Counter value={x.v} /></div>
                 </div>
-                <p className="text-xs text-muted-foreground">{t("allTimePaymentsReceived")}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{t("totalPayout")}</CardTitle>
-                <TrendingDown className="h-4 w-4 text-red-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {showBalance ? `${balance.total_payout.toLocaleString()} XOF` : "••••••"}
-                </div>
-                <p className="text-xs text-muted-foreground">{t("allTimePaymentsSent")}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{t("totalFeesPaid")}</CardTitle>
-                <CreditCard className="h-4 w-4 text-blue-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {showBalance ? `${balance.total_fees_paid.toLocaleString()} XOF` : "••••••"}
-                </div>
-                <p className="text-xs text-muted-foreground">{t("transactionFeesPaid")}</p>
-              </CardContent>
-            </Card>
+              ))}
+            </div>
           </div>
+        </div>
+      </div>
+
+
+      {/* Wallets */}
+      {wallets.length > 0 && (
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+          {wallets.map((w, i) => {
+            const active = w.uid === shown?.uid
+            return (
+              <button key={w.uid} onClick={() => setSelectedUid(w.uid)} className="text-left">
+                <Spot delay={140 + i * 60} className={`p-4 ${active ? "border-ring ring-1 ring-ring/40" : ""}`}>
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+                      <WalletIcon className="h-4 w-4 text-muted-foreground" />
+                      {w.currency_code}
+                    </span>
+                    {w.is_default && <Star className="h-3.5 w-3.5 fill-warning text-warning" />}
+                  </div>
+                  <div className="mt-3 truncate text-xl font-semibold tabular-nums text-foreground">
+                    <Counter value={Number(w.balance)} />
+                  </div>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{w.currency_name || w.currency_code}</p>
+                </Spot>
+              </button>
+            )
+          })}
         </div>
       )}
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid h-auto w-full grid-cols-2 sm:grid-cols-5">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="history">{t("balanceHistory")}</TabsTrigger>
-          <TabsTrigger value="withdrawals">{t("withdrawalRequests")}</TabsTrigger>
-          <TabsTrigger value="recharges">{t("rechargeRequests")}</TabsTrigger>
-          <TabsTrigger value="reports">{t("reports")}</TabsTrigger>
-        </TabsList>
 
-        {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Quick Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle>{t("quickActions")}</CardTitle>
-                <CardDescription>
-                  {t("performCommonBalanceOperations")}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Dialog open={withdrawalDialogOpen} onOpenChange={setWithdrawalDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="w-full justify-start" variant="outline">
-                      <Minus className="h-4 w-4 mr-2" />
-                      {t("requestWithdrawal")}
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>{t("requestWithdrawal")}</DialogTitle>
-                      <DialogDescription>
-                        {t("submitWithdrawalRequest")}
-                      </DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleWithdrawalSubmit} className="space-y-4">
-                      <div>
-                        <Label htmlFor="withdrawal-amount">{t("withdrawalAmount")}</Label>
-                        <Input
-                          id="withdrawal-amount"
-                          type="number"
-                          value={withdrawalForm.amount}
-                          onChange={(e) => setWithdrawalForm({ ...withdrawalForm, amount: e.target.value })}
-                          placeholder={t("enterAmount")}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="withdrawal-phone">{t("phoneNumber")}</Label>
-                        <Input
-                          id="withdrawal-phone"
-                          type="tel"
-                          value={withdrawalForm.phone}
-                          onChange={(e) => setWithdrawalForm({ ...withdrawalForm, phone: e.target.value })}
-                          placeholder={t("enterPhone")}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="withdrawal-operator">{t("operator")}</Label>
-                        <Select
-                          value={withdrawalForm.operator_code}
-                          onValueChange={(value) => setWithdrawalForm({ ...withdrawalForm, operator_code: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder={t("selectOperator")} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {OPERATOR_OPTIONS.map((operator) => (
-                              <SelectItem key={operator.value} value={operator.value}>
-                                {operator.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="withdrawal-code">{t("codeOptional")}</Label>
-                        <Input
-                          id="withdrawal-code"
-                          value={withdrawalForm.code}
-                          onChange={(e) => setWithdrawalForm({ ...withdrawalForm, code: e.target.value })}
-                          placeholder={t("enterCode")}
-                        />
-                      </div>
-                      <Button type="submit" className="w-full" disabled={withdrawalLoading}>
-                        {withdrawalLoading ? t("submitting") : t("submitRequest")}
-                      </Button>
-                    </form>
-                  </DialogContent>
-                </Dialog>
+      {/* Onglets */}
+      <div style={{ animationDelay: "300ms" }} className="dash-rise">
+        <div className="inline-flex rounded-xl bg-muted p-1">
+          {([
+            { id: "history", label: t("balanceHistory"), icon: History },
+            { id: "reports", label: t("reports"), icon: FileText },
+          ] as const).map((x) => (
+            <button
+              key={x.id}
+              onClick={() => setTab(x.id)}
+              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                tab === x.id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <x.icon className="h-4 w-4" />
+              {x.label}
+            </button>
+          ))}
+        </div>
 
-                <Dialog open={rechargeDialogOpen} onOpenChange={setRechargeDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="w-full justify-start" variant="outline">
-                      <Plus className="h-4 w-4 mr-2" />
-                      {t("requestRecharge")}
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>{t("requestRecharge")}</DialogTitle>
-                      <DialogDescription>
-                        {t("submitRechargeRequest")}
-                      </DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleRechargeSubmit} className="space-y-4">
-                      <div>
-                        <Label htmlFor="recharge-amount">{t("rechargeAmount")}</Label>
-                        <Input
-                          id="recharge-amount"
-                          type="number"
-                          value={rechargeForm.amount}
-                          onChange={(e) => setRechargeForm({ ...rechargeForm, amount: e.target.value })}
-                          placeholder={t("enterAmount")}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="recharge-currency">{t("currency")}</Label>
-                        <Select
-                          value={rechargeForm.currency_code || displayCurrency || defaultCode || "XOF"}
-                          onValueChange={(value) => setRechargeForm({ ...rechargeForm, currency_code: value })}
-                        >
-                          <SelectTrigger id="recharge-currency">
-                            <SelectValue placeholder={t("selectCurrency")} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {rechargeCurrencyOptions.map((currency) => (
-                              <SelectItem key={currency.code} value={currency.code}>
-                                {currency.code}
-                                {currency.name ? ` — ${currency.name}` : ""}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="recharge-method">{t("paymentMethod")}</Label>
-                        <Select
-                          value={rechargeForm.payment_method}
-                          onValueChange={(value) => setRechargeForm({ ...rechargeForm, payment_method: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder={t("selectPaymentMethod")} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="cash">{t("cash")}</SelectItem>
-                            <SelectItem value="bank_transfer">{t("bankTransfer")}</SelectItem>
-                            <SelectItem value="mobile_money">{t("mobileMoney")}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="recharge-notes">{t("notes")} ({t("cancel")})</Label>
-                        <Textarea
-                          id="recharge-notes"
-                          value={rechargeForm.notes}
-                          onChange={(e) => setRechargeForm({ ...rechargeForm, notes: e.target.value })}
-                          placeholder={t("additionalNotes")}
-                        />
-                      </div>
-                      <Button type="submit" className="w-full" disabled={rechargeLoading}>
-                        {rechargeLoading ? t("submitting") : t("submitRequest")}
-                      </Button>
-                    </form>
-                  </DialogContent>
-                </Dialog>
 
-                <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="w-full justify-start" variant="outline">
-                      <FileText className="h-4 w-4 mr-2" />
-                      {t("generateReport")}
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>{t("generateTransactionReport")}</DialogTitle>
-                      <DialogDescription>
-                        {t("exportTransactionData")}
-                      </DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleReportSubmit} className="space-y-4">
-                      <div>
-                        <Label htmlFor="report-from">{t("fromDate")}</Label>
-                        <Input
-                          id="report-from"
-                          type="date"
-                          value={reportForm.from}
-                          onChange={(e) => setReportForm({ ...reportForm, from: e.target.value })}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="report-to">{t("toDate")}</Label>
-                        <Input
-                          id="report-to"
-                          type="date"
-                          value={reportForm.to}
-                          onChange={(e) => setReportForm({ ...reportForm, to: e.target.value })}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="report-format">{t("format")}</Label>
-                        <Select
-                          value={reportForm.format}
-                          onValueChange={(value) => setReportForm({ ...reportForm, format: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder={t("selectFormat")} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="csv">{t("csvFormat")}</SelectItem>
-                            <SelectItem value="xlsx">{t("excelFormat")}</SelectItem>
-                            <SelectItem value="pdf">{t("pdfFormat")}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Button type="submit" className="w-full" disabled={reportLoading}>
-                        {reportLoading ? t("generating") : t("generateReport")}
-                      </Button>
-                    </form>
-                  </DialogContent>
-                </Dialog>
-              </CardContent>
-            </Card>
-
-            {/* Recent Activity */}
-            <Card>
-              <CardHeader>
-                <CardTitle>{t("recentActivity")}</CardTitle>
-                <CardDescription>
-                  {t("latestBalanceTransactions")}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {balanceHistory.slice(0, 5).map((item) => (
-                    <div key={item.uid} className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        {getTransactionIcon(item.type)}
-                        <div>
-                          <p className="text-sm font-medium">{item.type_display}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {format(new Date(item.created_at), "MMM dd, yyyy")}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className={`text-sm font-medium ${item.type.includes("credit") || item.type.includes("payin")
-                            ? "text-green-600"
-                            : "text-red-600"
-                          }`}>
-                          {item.type.includes("credit") || item.type.includes("payin") ? "+" : "-"}
-                          {item.formatted_amount}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                  {balanceHistory.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      {t("noRecentActivity")}
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* User Configuration */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Settings className="h-5 w-5" />
-                  <span>{t("accountConfiguration")}</span>
-                </CardTitle>
-                <CardDescription>
-                  {t("accountSettingsAndLimits")}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {userConfig ? (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{t("configStatus")}</span>
-                      <Badge className={userConfig.is_active ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"}>
-                        {userConfig.is_active ? t("balanceActive") : t("balanceInactive")}
-                      </Badge>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>{t("payinFeeRate")}:</span>
-                        <span className="font-medium">{userConfig.payin_fee_rate}%</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>{t("payoutFeeRate")}:</span>
-                        <span className="font-medium">{userConfig.payout_fee_rate}%</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>{t("feeType")}:</span>
-                        <span className="font-medium">{userConfig.use_fixed_fees ? t("fixed") : t("percentage")}</span>
-                      </div>
-                    </div>
-
-                    {(userConfig.daily_payin_limit || userConfig.daily_payout_limit) && (
-                      <div className="space-y-2">
-                        <h4 className="text-sm font-medium">{t("dailyLimits")}</h4>
-                        {userConfig.daily_payin_limit && (
-                          <div className="flex justify-between text-sm">
-                            <span>Payin:</span>
-                            <span className="font-medium">{userConfig.daily_payin_limit.toLocaleString()} XOF</span>
-                          </div>
-                        )}
-                        {userConfig.daily_payout_limit && (
-                          <div className="flex justify-between text-sm">
-                            <span>Payout:</span>
-                            <span className="font-medium">{userConfig.daily_payout_limit.toLocaleString()} XOF</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {(userConfig.monthly_payin_limit || userConfig.monthly_payout_limit) && (
-                      <div className="space-y-2">
-                        <h4 className="text-sm font-medium">{t("monthlyLimits")}</h4>
-                        {userConfig.monthly_payin_limit && (
-                          <div className="flex justify-between text-sm">
-                            <span>Payin:</span>
-                            <span className="font-medium">{userConfig.monthly_payin_limit.toLocaleString()} XOF</span>
-                          </div>
-                        )}
-                        {userConfig.monthly_payout_limit && (
-                          <div className="flex justify-between text-sm">
-                            <span>Payout:</span>
-                            <span className="font-medium">{userConfig.monthly_payout_limit.toLocaleString()} XOF</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {userConfig.webhook_url && (
-                      <div className="space-y-2">
-                        <h4 className="text-sm font-medium">{t("webhookUrl")}</h4>
-                        <p className="text-xs text-muted-foreground break-all">{userConfig.webhook_url}</p>
-                      </div>
-                    )}
-
-                    {userConfig.ip_whitelist?.length > 0 && (
-                      <div className="space-y-2">
-                        <h4 className="text-sm font-medium">{t("ipWhitelist")}</h4>
-                        <div className="space-y-1">
-                          {userConfig.ip_whitelist?.map((ip, index) => (
-                            <Badge key={index} variant="outline" className="text-xs">
-                              {ip}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3 inline mr-1" />
-                      {t("created")}: {format(new Date(userConfig.created_at), "MMM dd, yyyy")}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="flex items-center space-x-2">
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                      <span className="text-sm text-muted-foreground">{t("loadingConfiguration")}</span>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* History Tab */}
-        <TabsContent value="history" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("balanceHistory")}</CardTitle>
-              <CardDescription>
-                {t("completeHistoryOfBalanceChanges")}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {balanceHistory.map((item) => (
-                  <div key={item.uid} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      {getTransactionIcon(item.type)}
-                      <div>
-                        <p className="font-medium">{item.type_display}</p>
-                        <p className="text-sm text-muted-foreground">{item.description}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(item.created_at), "MMM dd, yyyy 'at' HH:mm")}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className={`font-medium ${item.type.includes("credit") || item.type.includes("payin")
-                          ? "text-green-600"
-                          : "text-red-600"
-                        }`}>
-                        {item.type.includes("credit") || item.type.includes("payin") ? "+" : "-"}
-                        {item.formatted_amount}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Balance: {item.balance_after.toLocaleString()} {item.currency_code || ""}
-                      </p>
-                    </div>
-                  </div>
+        {tab === "history" && (
+          <div key="history" className="dash-rise mt-4 rounded-2xl border border-border bg-card p-4 sm:p-6">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">{t("completeHistoryOfBalanceChanges")}</p>
+              <div className="flex gap-1.5">
+                {([["all", "Tout"], ["in", "Entrées"], ["out", "Sorties"]] as const).map(([id, label]) => (
+                  <button
+                    key={id}
+                    onClick={() => setFilter(id)}
+                    className={`rounded-full px-3 py-1 text-xs transition-colors ${
+                      filter === id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {label}
+                  </button>
                 ))}
-                {balanceHistory.length === 0 && (
-                  <p className="text-center text-muted-foreground py-8">
-                    {t("noBalanceHistoryAvailable")}
-                  </p>
-                )}
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </div>
 
-        {/* Withdrawals Tab */}
-        <TabsContent value="withdrawals" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("withdrawalRequests")}</CardTitle>
-              <CardDescription>
-                {t("trackWithdrawalRequestsAndStatus")}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {withdrawals.map((withdrawal) => (
-                  <div key={withdrawal.uid} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <Minus className="h-4 w-4 text-red-600" />
-                      <div>
-                        <p className="font-medium">{withdrawal.reference}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {withdrawal.phone} • {withdrawal.operator_code}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(withdrawal.created_at), "MMM dd, yyyy 'at' HH:mm")}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium text-red-600">
-                        -{withdrawal.amount.toLocaleString()} XOF
-                      </p>
-                      <Badge className={getStatusColor(withdrawal.status)}>
-                        {withdrawal.status_display}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-                {withdrawals.length === 0 && (
-                  <p className="text-center text-muted-foreground py-8">
-                    {t("noWithdrawalRequestsFound")}
-                  </p>
-                )}
+
+            {historyLoading ? (
+              <div className="space-y-3">
+                {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-16 rounded-xl" />)}
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Recharges Tab */}
-        <TabsContent value="recharges" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("rechargeRequests")}</CardTitle>
-              <CardDescription>
-                {t("trackRechargeRequestsAndStatus")}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {recharges.map((recharge) => (
-                  <div key={recharge.uid} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <Plus className="h-4 w-4 text-green-600" />
-                      <div>
-                        <p className="font-medium">{recharge.reference}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {recharge.payment_method_display}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(recharge.created_at), "MMM dd, yyyy 'at' HH:mm")}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium text-green-600">
-                        +{recharge.amount.toLocaleString()} {recharge.currency_code || "XOF"}
-                      </p>
-                      <Badge className={getStatusColor(recharge.status)}>
-                        {recharge.status_display}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-                {recharges.length === 0 && (
-                  <p className="text-center text-muted-foreground py-8">
-                    {t("noRechargeRequestsFound")}
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Reports Tab */}
-        <TabsContent value="reports" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <FileText className="h-5 w-5" />
-                <span>{t("transactionReports")}</span>
-              </CardTitle>
-              <CardDescription>
-                Generate and download transaction reports for analysis
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+            ) : groups.length === 0 ? (
+              <div className="py-12 text-center text-sm text-muted-foreground">{t("noBalanceHistoryAvailable")}</div>
+            ) : (
               <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium">{t("quickReport")}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Generate a report for the last 30 days
-                    </p>
-                    <Button
-                      onClick={() => {
-                        const today = new Date()
-                        const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
-                        setReportForm({
-                          from: thirtyDaysAgo.toISOString().split('T')[0],
-                          to: today.toISOString().split('T')[0],
-                          format: "csv"
-                        })
-                        setReportDialogOpen(true)
-                      }}
-                      className="w-full"
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      {t("last30Days")} (CSV)
-                    </Button>
-                  </div>
-
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium">{t("customReport")}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Choose your own date range and format
-                    </p>
-                    <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" className="w-full">
-                          <Calendar className="h-4 w-4 mr-2" />
-                          {t("customRange")}
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Generate Transaction Report</DialogTitle>
-                          <DialogDescription>
-                            Export your transaction data for a specific date range
-                          </DialogDescription>
-                        </DialogHeader>
-                        <form onSubmit={handleReportSubmit} className="space-y-4">
-                          <div>
-                            <Label htmlFor="report-from">From Date</Label>
-                            <Input
-                              id="report-from"
-                              type="date"
-                              value={reportForm.from}
-                              onChange={(e) => setReportForm({ ...reportForm, from: e.target.value })}
-                              required
-                            />
+                {groups.map(([day, items]) => (
+                  <div key={day}>
+                    <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">{day}</p>
+                    <div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
+                      {items.map((h, i) => {
+                        const credit = isCredit(h.type)
+                        return (
+                          <div
+                            key={h.uid}
+                            style={{ animationDelay: `${i * 40}ms` }}
+                            className="dash-rise flex items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-muted/50"
+                          >
+                            <div className="flex min-w-0 items-center gap-3">
+                              <span className={`shrink-0 rounded-full p-2 ${credit ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}>
+                                {credit ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
+                              </span>
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-medium text-foreground">{h.type_display}</p>
+                                <p className="truncate text-xs text-muted-foreground">
+                                  {new Date(h.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                                  {h.description ? ` · ${h.description}` : ""}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <p className={`text-sm font-semibold tabular-nums ${credit ? "text-success" : "text-destructive"}`}>
+                                {credit ? "+" : "-"}{h.formatted_amount}
+                              </p>
+                              <p className="text-xs tabular-nums text-muted-foreground">
+                                {Math.round(h.balance_after).toLocaleString("fr-FR")} {h.currency_code || ""}
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <Label htmlFor="report-to">To Date</Label>
-                            <Input
-                              id="report-to"
-                              type="date"
-                              value={reportForm.to}
-                              onChange={(e) => setReportForm({ ...reportForm, to: e.target.value })}
-                              required
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="report-format">Format</Label>
-                            <Select
-                              value={reportForm.format}
-                              onValueChange={(value) => setReportForm({ ...reportForm, format: value })}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select format" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="csv">CSV</SelectItem>
-                                <SelectItem value="xlsx">Excel</SelectItem>
-                                <SelectItem value="pdf">PDF</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <Button type="submit" className="w-full" disabled={reportLoading}>
-                            {reportLoading ? "Generating..." : "Generate Report"}
-                          </Button>
-                        </form>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                </div>
-
-                <div className="border-t pt-6">
-                  <h3 className="text-lg font-medium mb-4">Report Information</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                    <div className="space-y-2">
-                      <h4 className="font-medium">CSV Format</h4>
-                      <p className="text-muted-foreground">
-                        Comma-separated values, compatible with Excel and Google Sheets
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <h4 className="font-medium">Excel Format</h4>
-                      <p className="text-muted-foreground">
-                        Native Excel format with formatting and multiple sheets
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <h4 className="font-medium">PDF Format</h4>
-                      <p className="text-muted-foreground">
-                        Portable document format for sharing and printing
-                      </p>
+                        )
+                      })}
                     </div>
                   </div>
-                </div>
+                ))}
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            )}
+
+
+            {(page > 1 || hasNext) && (
+              <div className="mt-5 flex items-center justify-between">
+                <Button variant="outline" size="sm" className="rounded-xl" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
+                  <ChevronLeft className="mr-1 h-4 w-4" />Précédent
+                </Button>
+                <span className="text-sm text-muted-foreground">Page {page}</span>
+                <Button variant="outline" size="sm" className="rounded-xl" disabled={!hasNext} onClick={() => setPage((p) => p + 1)}>
+                  Suivant<ChevronRight className="ml-1 h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
+
+        {tab === "reports" && (
+          <div key="reports" className="dash-rise mt-4 space-y-5 rounded-2xl border border-border bg-card p-4 sm:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="font-semibold text-foreground">{t("transactionReports")}</h2>
+                <p className="text-sm text-muted-foreground">Téléchargez vos transactions pour l&apos;analyse ou la comptabilité.</p>
+              </div>
+              <div className="inline-flex rounded-xl bg-muted p-1">
+                {(["csv", "xlsx", "pdf"] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setReportFormat(f)}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-medium uppercase transition-all ${
+                      reportFormat === f ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {presets.map((p) => (
+                <button
+                  key={p.key}
+                  disabled={reportBusy !== null}
+                  onClick={() => downloadReport(p.key, p.from, isoDay(today))}
+                  className="group flex items-center justify-between rounded-xl border border-border bg-muted/40 p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-ring/40 hover:bg-muted disabled:opacity-60"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{p.label}</p>
+                    <p className="text-xs uppercase text-muted-foreground">{reportFormat}</p>
+                  </div>
+                  {reportBusy === p.key ? (
+                    <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
+                  ) : (
+                    <Download className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-y-0.5" />
+                  )}
+                </button>
+              ))}
+            </div>
+
+
+            <div className="rounded-xl border border-border p-4">
+              <p className="mb-3 text-sm font-medium text-foreground">{t("customRange")}</p>
+              <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[1fr_1fr_auto]">
+                <div className="space-y-1.5">
+                  <Label htmlFor="r-from" className="text-xs text-muted-foreground">{t("fromDate")}</Label>
+                  <Input id="r-from" type="date" value={range.from} max={range.to || undefined} onChange={(e) => setRange({ ...range, from: e.target.value })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="r-to" className="text-xs text-muted-foreground">{t("toDate")}</Label>
+                  <Input id="r-to" type="date" value={range.to} min={range.from || undefined} onChange={(e) => setRange({ ...range, to: e.target.value })} />
+                </div>
+                <Button
+                  className="rounded-xl"
+                  disabled={!range.from || !range.to || reportBusy !== null}
+                  onClick={() => downloadReport("custom", range.from, range.to)}
+                >
+                  {reportBusy === "custom" ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                  {t("generateReport")}
+                </Button>
+              </div>
+            </div>
+
+
+            {reportError && (
+              <p className="flex items-center gap-2 text-sm text-destructive">
+                <AlertCircle className="h-4 w-4" />{reportError}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
