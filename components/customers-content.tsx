@@ -136,7 +136,6 @@ export function CustomersContent() {
     
     try {
       // Mock API call - replace with actual implementation
-      console.log("Customer form submitted:", customerForm)
       
       setCustomerDialogOpen(false)
       setCustomerForm({ first_name: "", last_name: "", email: "", phone: "", country: "", status: "active" })
@@ -166,7 +165,6 @@ export function CustomersContent() {
     if (confirm("Are you sure you want to delete this customer?")) {
       try {
         // Mock API call - replace with actual implementation
-        console.log("Deleting customer:", customerId)
         loadCustomers()
       } catch (error) {
         console.error("Failed to delete customer:", error)
@@ -183,7 +181,7 @@ export function CustomersContent() {
       case "pending":
         return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
       default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300"
+        return "bg-muted text-foreground"
     }
   }
 
@@ -200,7 +198,7 @@ export function CustomersContent() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="flex items-center space-x-2">
-          <RefreshCw className="h-6 w-6 animate-spin text-crimson-600" />
+          <RefreshCw className="h-6 w-6 animate-spin text-primary" />
           <span className="text-lg font-medium">{t("loading")}</span>
         </div>
       </div>
@@ -210,10 +208,10 @@ export function CustomersContent() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-neutral-900 dark:text-white">{t("customers")}</h1>
-          <p className="text-neutral-600 dark:text-neutral-400 mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{t("customers")}</h1>
+          <p className="text-muted-foreground mt-1">
             Manage your customer database and relationships
           </p>
         </div>
@@ -242,7 +240,7 @@ export function CustomersContent() {
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleCustomerSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="first-name">{t("firstName")}</Label>
                     <Input
@@ -433,7 +431,7 @@ export function CustomersContent() {
             {filteredCustomers.map((customer) => (
               <div key={customer.uid} className="flex items-center justify-between p-4 border rounded-lg">
                 <div className="flex items-center space-x-4">
-                  <div className="w-10 h-10 bg-crimson-600 rounded-full flex items-center justify-center text-white font-medium">
+                  <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white font-medium">
                     {customer.first_name.charAt(0)}{customer.last_name.charAt(0)}
                   </div>
                   <div>

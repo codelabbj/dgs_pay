@@ -1,41 +1,32 @@
 "use client"
 
 import type React from "react"
-
-import { useState, useEffect } from "react"
-import { useUserProfile } from "@/contexts/user-profile-context"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
   BarChart3,
-  CreditCard,
-  Users,
-  Wallet,
-  Store,
-  Zap,
-  Code,
-  Settings,
-  LogOut,
-  Search,
-  Bell,
-  User,
-  Moon,
-  Sun,
-  Menu,
-  X,
-  Crown,
-  ChevronDown,
-  CheckCircle,
-  AlertCircle,
-  Minus,
-  Plus,
   Building2,
+  CheckCircle,
+  ChevronDown,
+  Code,
+  CreditCard,
+  LogOut,
+  Menu,
+  Minus,
+  Moon,
+  Plus,
+  Settings,
+  Sun,
+  User,
+  Wallet,
+  X,
+  Zap,
+  AlertCircle,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Switch } from "@/components/ui/switch"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -45,71 +36,63 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Badge } from "@/components/ui/badge"
-import { useLanguage } from "@/contexts/language-context"
 import { LanguageSwitcher } from "@/components/language-switcher"
+import { useLanguage } from "@/contexts/language-context"
+import { useUserProfile } from "@/contexts/user-profile-context"
+import { cn } from "@/lib/utils"
 
 interface DashboardLayoutProps {
   children: React.ReactNode
 }
 
+/** Logo : clair en mode clair, version claire en mode sombre (via CSS, sans attendre le montage). */
+function Logo({ className }: { className?: string }) {
+  return (
+    <>
+      <img src="/logo_light11.png" alt="DGS Pay" className={cn("object-contain dark:hidden", className)} />
+      <img src="/logo_dark1.png" alt="DGS Pay" className={cn("hidden object-contain dark:block", className)} />
+    </>
+  )
+}
+
 export function DashboardLayout({ children }: DashboardLayoutProps) {
-  // Temporarily disable useAuth to test
-  // const { isLoading, isAuthenticated, requireAuth, checkAuth } = useAuth()
   const { userProfile } = useUserProfile()
   const router = useRouter()
   const pathname = usePathname()
-  
-  // Temporarily bypass authentication check
-  // if (!requireAuth()) {
-  //   return null
-  // }
-  
-  const handleLogout = async () => {
-    try {
-      // Try to call logout API if we have valid tokens
-      // if (isAuthenticated) { // This line was removed as per the edit hint
-      //   await smartFetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/logout`, {
-      //     method: "POST",
-      //   })
-      // }
-      // The original code had this block commented out, so it's removed.
-      // The user's edit hint implies removing the useAuth hook, so this block
-      // should also be removed as it relies on isAuthenticated.
-    } catch (error) {
-      console.error('Logout error:', error)
-    } finally {
-      // Clear local storage and redirect
-      localStorage.removeItem("access")
-      localStorage.removeItem("refresh")
-      localStorage.removeItem("exp")
-      localStorage.removeItem("user")
-      router.push("/login")
-    }
-  }
-  
-  const getUserInitials = () => {
-    if (!userProfile) return "U"
-    const firstName = userProfile.first_name || ""
-    const lastName = userProfile.last_name || ""
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
-  }
-
-  const { theme, setTheme } = useTheme()
-
-  const getVerificationStatus = () => {
-    if (!userProfile) return null
-    // Check if account is verified based on account_status
-    return userProfile.account_status === 'verify'
-  }
-  const [isLiveMode, setIsLiveMode] = useState(true)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [mounted, setMounted] = useState(false)
+  const { resolvedTheme, setTheme } = useTheme()
   const { t } = useLanguage()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
+  // Ferme le menu mobile à chaque changement de page
   useEffect(() => {
-    setMounted(true)
-  }, [])
+    setSidebarOpen(false)
+  }, [pathname])
+
+  // Fermeture avec Échap + blocage du scroll quand le menu mobile est ouvert
+  useEffect(() => {
+    if (!sidebarOpen) return
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setSidebarOpen(false)
+    document.addEventListener("keydown", onKey)
+    document.body.style.overflow = "hidden"
+    return () => {
+      document.removeEventListener("keydown", onKey)
+      document.body.style.overflow = ""
+    }
+  }, [sidebarOpen])
+
+  const handleLogout = () => {
+    localStorage.removeItem("access")
+    localStorage.removeItem("refresh")
+    localStorage.removeItem("exp")
+    localStorage.removeItem("user")
+    router.push("/login")
+  }
+
+  const fullName = userProfile ? `${userProfile.first_name ?? ""} ${userProfile.last_name ?? ""}`.trim() : ""
+  const initials = userProfile
+    ? `${(userProfile.first_name || "").charAt(0)}${(userProfile.last_name || "").charAt(0)}`.toUpperCase() || "U"
+    : "U"
+  const isVerified = userProfile?.account_status === "verify"
 
   const navigation = [
     { name: t("dashboard"), href: "/", icon: BarChart3 },
@@ -117,273 +100,183 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { name: t("balance"), href: "/balance", icon: Wallet },
     { name: t("withdrawalRequests"), href: "/withdraw", icon: Minus },
     { name: t("rechargeRequests"), href: "/recharge", icon: Plus },
-    // { name: t("customers"), href: "/customers", icon: Users },
-    // { name: t("payDirect"), href: "/payouts", icon: Wallet },
-    // { name: t("myStore"), href: "/store", icon: Store },
     { name: t("payDirect"), href: "/pay", icon: Zap },
-    { name: "Virement NGN", href: "/bank-transfer", icon: Building2 },
+    { name: t("bankTransferNgn"), href: "/bank-transfer", icon: Building2 },
     { name: t("developers"), href: "/developers", icon: Code },
     { name: t("settings"), href: "/settings", icon: Settings },
   ]
 
-  if (!mounted) {
-    return null
-  }
+  const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href))
 
-  // Show loading until authentication is verified
-  // if (isLoading) { // This line was removed as per the edit hint
-  //   return ( // This line was removed as per the edit hint
-  //     <div className="min-h-screen bg-slate-50/30 dark:bg-neutral-950 flex items-center justify-center"> // This line was removed as per the edit hint
-  //       <div className="flex items-center space-x-2"> // This line was removed as per the edit hint
-  //         <div className="w-8 h-8 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin"></div> // This line was removed as per the edit hint
-  //         <span className="text-lg font-medium text-blue-600">Verifying authentication...</span> // This line was removed as per the edit hint
-  //       </div> // This line was removed as per the edit hint
-  //     </div> // This line was removed as per the edit hint
-  //   ) // This line was removed as per the edit hint
-  // } // This line was removed as per the edit hint
+  const StatusIcon = ({ className }: { className?: string }) =>
+    isVerified ? (
+      <CheckCircle className={cn("text-success", className)} />
+    ) : (
+      <AlertCircle className={cn("text-warning", className)} />
+    )
 
   return (
-    <div className="bg-slate-50/30 dark:bg-neutral-950 h-screen flex overflow-hidden">
-      {/* Mobile sidebar overlay */}
+    <div className="flex h-dvh overflow-hidden bg-background">
+      {/* Fond sombre derrière le menu mobile */}
       {sidebarOpen && (
-        <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
+        <div
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
       )}
 
       {/* Sidebar */}
-      <div
-        className={`fixed inset-y-0 left-0 z-50 w-72 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-xl border-r border-slate-100 dark:border-neutral-800 shadow-2xl transform transition-all duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 flex flex-col ${
+      <aside
+        aria-label="Navigation principale"
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r bg-card transition-transform duration-200 ease-out",
+          "lg:static lg:w-64 lg:max-w-none lg:translate-x-0",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        )}
       >
-        {/* Sidebar Header */}
-        <div className="flex items-center justify-between h-20 px-6 border-b border-slate-100 dark:border-neutral-800 bg-crimson-600 dark:bg-crimson-700 flex-shrink-0">
-          <div className="flex items-center space-x-3">
-            <div className="w-12 h-12  backdrop-blur-sm rounded-2xl flex items-center justify-center shadow-lg">
-              <img 
-                src={theme === "dark" ? "/logo_dark1.png" : "/logo_light11.png"} 
-                alt="Logo" 
-                className="w-10 h-10 object-contain"
-              />
+        <div className="flex h-16 flex-shrink-0 items-center justify-between border-b px-4">
+          <Link href="/" className="flex min-w-0 items-center gap-3">
+            <Logo className="h-9 w-9" />
+            <div className="min-w-0 leading-tight">
+              <p className="truncate text-base font-bold text-foreground">{t("companyShortName")}</p>
+              <p className="truncate text-xs text-muted-foreground">{t("merchantDashboard")}</p>
             </div>
-            <div>
-              {/* <img 
-                src={theme === "dark" ? "/logo_dark1.png" : "/logo_light11.png"} 
-                alt="Logo" 
-                className="h-14 object-contain"
-              /> */}
-              <p className="text-lg font-bold text-black/80 dark:text-white/80">{t("companyShortName")}</p>
-              <p className="text-xs text-black/80 dark:text-white/80">{t("merchantDashboard")}</p>
-            </div>
-          </div>
+          </Link>
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden text-black dark:text-white hover:bg-white/20"
+            className="lg:hidden"
             onClick={() => setSidebarOpen(false)}
+            aria-label="Fermer le menu"
           >
             <X className="h-5 w-5" />
           </Button>
         </div>
 
-        {/* Navigation - Scrollable */}
-        <div className="flex-1 overflow-y-auto">
-          <nav className="px-4 py-8 space-y-3">
-            {navigation.map((item) => {
-              const isActive = pathname === item.href
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`group flex items-center space-x-4 px-4 py-4 mx-2 rounded-2xl text-sm font-medium transition-all duration-300 ${
-                    isActive
-                      ? "bg-crimson-600 text-crimson-600 dark:text-crimson-200 shadow-lg shadow-crimson-600/25 scale-105"
-                      : "text-neutral-700 dark:text-neutral-300 hover:text-crimson-600 dark:hover:text-crimson-400 hover:bg-slate-50 dark:hover:bg-neutral-800 hover:scale-105"
-                  }`}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <item.icon
-                    className={`h-5 w-5 ${isActive ? "text-black dark:text-white" : "text-neutral-500 group-hover:text-crimson-600"}`}
-                  />
-                  <span>{item.name}</span>
-                  {isActive && <div className="ml-auto w-2 h-2 bg-white rounded-full animate-pulse" />}
-                </Link>
-              )
-            })}
-          </nav>
-        </div>
+        <nav className="flex-1 space-y-1 overflow-y-auto p-3">
+          {navigation.map((item) => {
+            const active = isActive(item.href)
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                  active
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <item.icon className={cn("h-5 w-5 flex-shrink-0", active ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
+                <span className="truncate">{item.name}</span>
+              </Link>
+            )
+          })}
+        </nav>
 
-        {/* Sidebar Footer */}
-        <div className="p-6 border-t border-slate-100 dark:border-neutral-800 flex-shrink-0">
-          <Link href="/profile" className="block">
-            <div className="bg-slate-50 dark:bg-neutral-800 rounded-2xl p-4 mb-4 hover:bg-slate-100 dark:hover:bg-neutral-700 transition-colors cursor-pointer">
-              <div className="flex items-center space-x-3">
-                <div className="relative">
-                  <Avatar className="h-10 w-10 ring-2 ring-crimson-600 dark:ring-crimson-400 text-black dark:text-white">
-                    <AvatarImage src={userProfile?.logo || ""} />
-                    <AvatarFallback className="bg-crimson-600 text-black dark:text-white">
-                      {getUserInitials()}
-                    </AvatarFallback>
-                  </Avatar>
-                  {/* Verification Status Icon */}
-                  {userProfile && (
-                    <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-white dark:bg-neutral-800 border-2 border-white dark:border-neutral-800 flex items-center justify-center">
-                      {getVerificationStatus() ? (
-                        <CheckCircle className="w-3 h-3 text-green-600 dark:text-green-400" />
-                      ) : (
-                        <AlertCircle className="w-3 h-3 text-yellow-600 dark:text-yellow-400" />
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium text-neutral-900 dark:text-white">
-                    {userProfile ? `${userProfile.first_name} ${userProfile.last_name}` : "Loading..."}
-                  </p>
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                    {userProfile?.entreprise_name || ""}
-                  </p>
-                </div>
-                <ChevronDown className="h-4 w-4 text-neutral-400" />
-              </div>
+        <div className="flex-shrink-0 space-y-2 border-t p-3">
+          <Link
+            href="/profile"
+            className="flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted"
+          >
+            <div className="relative">
+              <Avatar className="h-9 w-9">
+                <AvatarImage src={userProfile?.logo || ""} />
+                <AvatarFallback className="bg-primary text-xs font-semibold text-primary-foreground">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              {userProfile && (
+                <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-card">
+                  <StatusIcon className="h-3.5 w-3.5" />
+                </span>
+              )}
+            </div>
+            <div className="min-w-0 flex-1 leading-tight">
+              <p className="truncate text-sm font-medium text-foreground">{fullName || "…"}</p>
+              <p className="truncate text-xs text-muted-foreground">{userProfile?.entreprise_name || ""}</p>
             </div>
           </Link>
           <Button
             variant="ghost"
-            className="w-full justify-start text-neutral-600 dark:text-neutral-400 hover:text-crimson-600 dark:hover:text-crimson-400 hover:bg-slate-50 dark:hover:bg-neutral-800"
+            className="w-full justify-start text-muted-foreground hover:text-foreground"
             onClick={handleLogout}
           >
-            <LogOut className="h-5 w-5 mr-3" />
+            <LogOut className="h-4 w-4" />
             {t("signOut")}
           </Button>
         </div>
-      </div>
+      </aside>
 
-      {/* Main content area */}
-      <div className="flex-1 flex flex-col min-w-0 h-full">
-        {/* Top navbar - Fixed */}
-        <header className="bg-white/80 dark:bg-neutral-900/80 backdrop-blur-xl border-b border-slate-100 dark:border-neutral-800 h-20 flex items-center justify-between px-8 shadow-sm flex-shrink-0 z-30">
-          <div className="flex items-center space-x-6">
+      {/* Zone principale */}
+      <div className="flex h-full min-w-0 flex-1 flex-col">
+        <header className="z-30 flex h-16 flex-shrink-0 items-center justify-between gap-2 border-b bg-card/90 px-4 backdrop-blur sm:px-6">
+          <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="icon"
-              className="lg:hidden hover:bg-slate-50 dark:hover:bg-neutral-800"
+              className="lg:hidden"
               onClick={() => setSidebarOpen(true)}
+              aria-label="Ouvrir le menu"
             >
               <Menu className="h-5 w-5" />
             </Button>
-
-            {/* <div className="relative hidden md:block">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
-              <Input
-                placeholder={t("search")}
-                className="pl-12 w-96 h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-crimson-600 focus:border-transparent"
-              />
-            </div> */}
+            {/* Logo visible sur mobile uniquement (la sidebar est cachée) */}
+            <Link href="/" className="flex items-center gap-2 lg:hidden">
+              <Logo className="h-7 w-7" />
+              <span className="font-bold text-foreground">{t("companyShortName")}</span>
+            </Link>
           </div>
 
-          <div className="flex items-center space-x-4">
-            {/* Live/Sandbox Toggle */}
-            <div className="flex items-center space-x-3 bg-slate-50 dark:bg-neutral-800 rounded-2xl px-4 py-2">
-              <span
-                className={`text-sm font-medium ${!isLiveMode ? "text-neutral-500" : "text-neutral-700 dark:text-neutral-300"}`}
-              >
-                {t("sandbox")}
-              </span>
-              <Switch
-                checked={isLiveMode}
-                onCheckedChange={setIsLiveMode}
-                className="data-[state=checked]:bg-crimson-600"
-              />
-              <span
-                className={`text-sm font-medium ${isLiveMode ? "text-neutral-500" : "text-neutral-700 dark:text-neutral-300"}`}
-              >
-                {t("live")}
-              </span>
-              {isLiveMode && (
-                <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white ml-2">
-                  {t("live").toUpperCase()}
-                </Badge>
-              )}
-            </div>
-
-            {/* Language Switcher */}
+          <div className="flex items-center gap-1 sm:gap-2">
             <LanguageSwitcher />
 
-            {/* Theme Toggle */}
             <Button
               variant="ghost"
               size="icon"
-              className="hover:bg-slate-50 dark:hover:bg-neutral-800 rounded-2xl"
-              onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+              onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+              aria-label="Changer de thème"
             >
-              <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-              <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+              <Sun className="h-4 w-4 dark:hidden" />
+              <Moon className="hidden h-4 w-4 dark:block" />
             </Button>
 
-            {/* Notifications */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative hover:bg-slate-50 dark:hover:bg-neutral-800 rounded-2xl"
-            >
-              <Bell className="h-5 w-5" />
-              <span className="absolute -top-1 -right-1 h-3 w-3 bg-crimson-600 rounded-full animate-pulse"></span>
-            </Button>
-
-            {/* User Menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="flex items-center space-x-3 hover:bg-slate-50 dark:hover:bg-neutral-800 rounded-2xl px-3 py-2"
-                >
-                  <div className="relative">
-                    <Avatar className="h-8 w-8 ring-2 ring-crimson-600 text-black dark:text-white">
-                      <AvatarImage src={userProfile?.logo || ""} />
-                      <AvatarFallback className="bg-crimson-600 text-black dark:text-white">
-                        {getUserInitials()}
-                      </AvatarFallback>
-                    </Avatar>
-                    {/* Verification Status Icon */}
-                    {userProfile && (
-                      <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-white dark:bg-neutral-800 border-2 border-white dark:border-neutral-800 flex items-center justify-center">
-                        {getVerificationStatus() ? (
-                          <CheckCircle className="w-2.5 h-2.5 text-green-600 dark:text-green-400" />
-                        ) : (
-                          <AlertCircle className="w-2.5 h-2.5 text-yellow-600 dark:text-yellow-400" />
-                        )}
-                      </div>
-                    )}
+                <Button variant="ghost" className="h-10 gap-2 px-2">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={userProfile?.logo || ""} />
+                    <AvatarFallback className="bg-primary text-xs font-semibold text-primary-foreground">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="hidden max-w-[10rem] text-left leading-tight md:block">
+                    <p className="truncate text-sm font-medium">{fullName || "…"}</p>
+                    <p className="truncate text-xs text-muted-foreground">{userProfile?.entreprise_name || ""}</p>
                   </div>
-                  <div className="hidden md:block text-left">
-                    <p className="text-sm font-medium">
-                      {userProfile ? `${userProfile.first_name} ${userProfile.last_name}` : "Loading..."}
-                    </p>
-                    <p className="text-xs text-neutral-500">
-                      {userProfile?.entreprise_name || ""}
-                    </p>
-                  </div>
-                  <ChevronDown className="h-4 w-4 text-neutral-400" />
+                  <ChevronDown className="hidden h-4 w-4 text-muted-foreground sm:block" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 rounded-2xl border-slate-100 dark:border-neutral-800">
+              <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>{t("myAccount")}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <Link href="/profile">
-                  <DropdownMenuItem className="rounded-xl cursor-pointer">
+                <DropdownMenuItem asChild className="cursor-pointer">
+                  <Link href="/profile">
                     <User className="mr-2 h-4 w-4" />
                     {t("profile")}
-                  </DropdownMenuItem>
-                </Link>
-                <Link href="/settings">
-                  <DropdownMenuItem className="rounded-xl cursor-pointer">
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild className="cursor-pointer">
+                  <Link href="/settings">
                     <Settings className="mr-2 h-4 w-4" />
                     {t("settings")}
-                  </DropdownMenuItem>
-                </Link>
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  className="rounded-xl text-crimson-600 focus:text-crimson-600 cursor-pointer"
+                  className="cursor-pointer text-destructive focus:text-destructive"
                   onClick={handleLogout}
                 >
                   <LogOut className="mr-2 h-4 w-4" />
@@ -394,11 +287,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </header>
 
-        {/* Page content - Scrollable */}
-        <main className="flex-1 overflow-y-auto bg-slate-50/30 dark:bg-neutral-950">
-          <div className="p-8 h-full">
-            {children}
-          </div>
+        <main className="flex-1 overflow-y-auto">
+          <div className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8">{children}</div>
         </main>
       </div>
     </div>

@@ -236,12 +236,12 @@ export function BankTransferContent() {
   }
 
   return (
-    <div className="space-y-6 p-6 pb-20 max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-4xl mx-auto">
       <div>
-        <h1 className="text-3xl font-bold text-neutral-900 dark:text-white">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
           Virement bancaire NGN
         </h1>
-        <p className="text-neutral-500 mt-1">
+        <p className="text-muted-foreground mt-1">
           Flux Postman : liste banques → vérifier compte → virement (wallet NGN)
         </p>
         {operatorCode && (

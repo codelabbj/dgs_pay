@@ -1105,11 +1105,11 @@ export function TransactionsContent() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">{t("transactions")}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t("transactions")}</h1>
           <p className="text-muted-foreground">{t("manageAndTrackPayments")}</p>
         </div>
         <div className="flex space-x-2">
@@ -1208,7 +1208,7 @@ export function TransactionsContent() {
                 className="pl-10"
               />
             </div>
-            <div className="flex gap-2 w-full md:w-auto">
+            <div className="flex flex-wrap gap-2 w-full md:w-auto">
               <Input
                 type="date"
                 value={startDate}
@@ -1481,9 +1481,9 @@ export function TransactionsContent() {
           <div className="space-y-4">
             {checkStatusModal.data ? (
               <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium text-gray-500">{t("reference")}</label>
+                    <label className="text-sm font-medium text-muted-foreground">{t("reference")}</label>
                     <p className="text-sm flex items-center">
                       <span className="truncate">{checkStatusModal.data?.reference || '-'}</span>
                       {checkStatusModal.data?.reference && (
@@ -1499,44 +1499,44 @@ export function TransactionsContent() {
                     </p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">UID</label>
+                    <label className="text-sm font-medium text-muted-foreground">UID</label>
                     <p className="text-sm">{checkStatusModal.data?.uid || '-'}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">{t("status")}</label>
+                    <label className="text-sm font-medium text-muted-foreground">{t("status")}</label>
                     <p className="text-sm">{checkStatusModal.data?.status_display || '-'}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Type</label>
+                    <label className="text-sm font-medium text-muted-foreground">Type</label>
                     <p className="text-sm">{checkStatusModal.data?.type_trans_display || '-'}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">{t("amount")}</label>
+                    <label className="text-sm font-medium text-muted-foreground">{t("amount")}</label>
                     <p className="text-sm">{formatTxAmount(checkStatusModal.data || {})}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">{t("phone")}</label>
+                    <label className="text-sm font-medium text-muted-foreground">{t("phone")}</label>
                     <p className="text-sm">{checkStatusModal.data?.phone || '-'}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Operator</label>
+                    <label className="text-sm font-medium text-muted-foreground">Operator</label>
                     <p className="text-sm">{checkStatusModal.data?.operator_name || '-'}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Commission</label>
+                    <label className="text-sm font-medium text-muted-foreground">Commission</label>
                     <p className="text-sm">{checkStatusModal.data?.commission_amount || '-'}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Description</label>
+                    <label className="text-sm font-medium text-muted-foreground">Description</label>
                     <p className="text-sm">{checkStatusModal.data?.description || '-'}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">{t("clientReference")}</label>
+                    <label className="text-sm font-medium text-muted-foreground">{t("clientReference")}</label>
                     <p className="text-sm">{checkStatusModal.data?.client_reference || '-'}</p>
                   </div>
                   {checkStatusModal.data?.type_trans === "payin" && checkStatusModal.data?.redirection_url && (
                     <div className="col-span-2">
-                      <label className="text-sm font-medium text-gray-500">Lien de paiement</label>
+                      <label className="text-sm font-medium text-muted-foreground">Lien de paiement</label>
                       <div className="flex items-center gap-2">
                         <p className="text-sm truncate">{checkStatusModal.data.redirection_url}</p>
                         <Button
@@ -1557,18 +1557,18 @@ export function TransactionsContent() {
                     </div>
                   )}
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Created At</label>
+                    <label className="text-sm font-medium text-muted-foreground">Created At</label>
                     <p className="text-sm">{checkStatusModal.data?.created_at ? new Date(checkStatusModal.data.created_at).toLocaleString() : '-'}</p>
                   </div>
                   {checkStatusModal.data?.completed_at && (
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Completed At</label>
+                      <label className="text-sm font-medium text-muted-foreground">Completed At</label>
                       <p className="text-sm">{new Date(checkStatusModal.data.completed_at).toLocaleString()}</p>
                     </div>
                   )}
                   {checkStatusModal.data?.error_message && (
                     <div className="col-span-2">
-                      <label className="text-sm font-medium text-gray-500">Error Message</label>
+                      <label className="text-sm font-medium text-muted-foreground">Error Message</label>
                       <p className="text-sm text-red-600">{checkStatusModal.data.error_message}</p>
                     </div>
                   )}

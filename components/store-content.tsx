@@ -174,7 +174,6 @@ export function StoreContent() {
     
     try {
       // Mock API call - replace with actual implementation
-      console.log("Product form submitted:", productForm)
       
       setProductDialogOpen(false)
       setProductForm({ name: "", description: "", price: "", currency: "XOF", category: "", status: "active", stock_quantity: "" })
@@ -205,7 +204,6 @@ export function StoreContent() {
     if (confirm("Are you sure you want to delete this product?")) {
       try {
         // Mock API call - replace with actual implementation
-        console.log("Deleting product:", productId)
         loadStoreData()
       } catch (error) {
         console.error("Failed to delete product:", error)
@@ -222,7 +220,7 @@ export function StoreContent() {
       case "draft":
         return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
       default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300"
+        return "bg-muted text-foreground"
     }
   }
 
@@ -244,7 +242,7 @@ export function StoreContent() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="flex items-center space-x-2">
-          <RefreshCw className="h-6 w-6 animate-spin text-crimson-600" />
+          <RefreshCw className="h-6 w-6 animate-spin text-primary" />
           <span className="text-lg font-medium">{t("loading")}</span>
         </div>
       </div>
@@ -254,10 +252,10 @@ export function StoreContent() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-neutral-900 dark:text-white">{t("myStore")}</h1>
-          <p className="text-neutral-600 dark:text-neutral-400 mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{t("myStore")}</h1>
+          <p className="text-muted-foreground mt-1">
             Manage your products and track sales performance
           </p>
         </div>
@@ -306,7 +304,7 @@ export function StoreContent() {
                     rows={3}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="product-price">Price</Label>
                     <Input
@@ -341,7 +339,7 @@ export function StoreContent() {
                     </Select>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="product-category">Category</Label>
                     <Select
@@ -525,7 +523,7 @@ export function StoreContent() {
               return (
                 <div key={product.uid} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex items-center space-x-4">
-                    <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center">
+                    <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center">
                       {product.image_url ? (
                         <img src={product.image_url} alt={product.name} className="w-full h-full object-cover rounded-lg" />
                       ) : (

@@ -185,7 +185,7 @@ export default function Register() {
   ]
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4">
+    <div className="min-h-dvh bg-muted/50 flex items-center justify-center p-4">
       {/* Language switcher */}
       <div className="absolute top-4 right-4">
         <LanguageSwitcher />
@@ -194,16 +194,16 @@ export default function Register() {
       <div className="w-full max-w-lg">
         {/* Logo and branding */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">{t("joinpay")}</h1>
-          <p className="text-slate-600 dark:text-slate-400 mt-2">{t("createMerchantAccount")}</p>
+          <h1 className="text-3xl font-bold text-foreground">{t("joinpay")}</h1>
+          <p className="text-muted-foreground mt-2">{t("createMerchantAccount")}</p>
         </div>
 
-        <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-xl">
+        <Card className="bg-card border-border shadow-md">
           <CardHeader className="space-y-1 pb-6">
-            <CardTitle className="text-2xl font-semibold text-center text-slate-900 dark:text-white">
+            <CardTitle className="text-2xl font-semibold text-center text-foreground">
               {t("createAccount")}
             </CardTitle>
-            <CardDescription className="text-center text-slate-600 dark:text-slate-400">
+            <CardDescription className="text-center text-muted-foreground">
               {t("fillDetails")}
             </CardDescription>
           </CardHeader>
@@ -219,27 +219,27 @@ export default function Register() {
             )}
             {step === "register" ? (
               <form onSubmit={handleSubmit} className="space-y-5">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="firstName" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    <Label htmlFor="firstName" className="text-sm font-medium text-foreground/80">
                       {t("firstName")}
                     </Label>
                     <div className="relative">
-                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="firstName"
                         type="text"
                         placeholder="John"
                         value={formData.firstName}
                         onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                        className="pl-10 h-11 bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500"
+                        className="pl-10 h-11 bg-muted/50 border-border focus:border-blue-500 focus:ring-blue-500"
                         required
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="lastName" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    <Label htmlFor="lastName" className="text-sm font-medium text-foreground/80">
                       {t("lastName")}
                     </Label>
                     <Input
@@ -248,14 +248,14 @@ export default function Register() {
                       placeholder="Doe"
                       value={formData.lastName}
                       onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                      className="h-11 bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500"
+                      className="h-11 bg-muted/50 border-border focus:border-blue-500 focus:ring-blue-500"
                       required
                     />
                   </div>
                 </div>
 
                 {/* <div className="space-y-2">
-                  <Label htmlFor="entrepriseName" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  <Label htmlFor="entrepriseName" className="text-sm font-medium text-foreground/80">
                     {t("entrepriseName") || "Entreprise Name"}
                   </Label>
                   <Input
@@ -264,39 +264,39 @@ export default function Register() {
                     placeholder="Mon Entreprise"
                     value={formData.entrepriseName}
                     onChange={(e) => setFormData({ ...formData, entrepriseName: e.target.value })}
-                    className="h-11 bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500"
+                    className="h-11 bg-muted/50 border-border focus:border-blue-500 focus:ring-blue-500"
                     required
                   />
                 </div> */}
 
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  <Label htmlFor="email" className="text-sm font-medium text-foreground/80">
                     {t("emailAddress")}
                   </Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="email"
                       type="email"
                       placeholder="john@example.com"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="pl-10 h-11 bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500"
+                      className="pl-10 h-11 bg-muted/50 border-border focus:border-blue-500 focus:ring-blue-500"
                       required
                     />
                   </div>
                 </div>
 
-                {/* <div className="grid grid-cols-2 gap-4">
+                {/* <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="country" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    <Label htmlFor="country" className="text-sm font-medium text-foreground/80">
                       {t("country")}
                     </Label>
                     <Select
                       value={formData.country}
                       onValueChange={(value) => setFormData({ ...formData, country: value })}
                     >
-                      <SelectTrigger className="h-11 bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500">
+                      <SelectTrigger className="h-11 bg-muted/50 border-border focus:border-blue-500 focus:ring-blue-500">
                         <SelectValue placeholder={t("selectCountry")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -310,18 +310,18 @@ export default function Register() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="phone" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    <Label htmlFor="phone" className="text-sm font-medium text-foreground/80">
                       {t("phoneNumber")}
                     </Label>
                     <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="phone"
                         type="tel"
                         placeholder="12345678"
                         value={formData.phone}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        className="pl-10 h-11 bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500"
+                        className="pl-10 h-11 bg-muted/50 border-border focus:border-blue-500 focus:ring-blue-500"
                         required
                       />
                     </div>
@@ -329,18 +329,18 @@ export default function Register() {
                 </div> */}
 
                 <div className="space-y-2">
-                  <Label htmlFor="password" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  <Label htmlFor="password" className="text-sm font-medium text-foreground/80">
                     {t("password")}
                   </Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
                       placeholder={t("password")}
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      className="pl-10 pr-10 h-11 bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500"
+                      className="pl-10 pr-10 h-11 bg-muted/50 border-border focus:border-blue-500 focus:ring-blue-500"
                       required
                     />
                     <Button
@@ -351,27 +351,27 @@ export default function Register() {
                       onClick={() => setShowPassword(!showPassword)}
                     >
                       {showPassword ? (
-                        <EyeOff className="h-4 w-4 text-slate-400" />
+                        <EyeOff className="h-4 w-4 text-muted-foreground" />
                       ) : (
-                        <Eye className="h-4 w-4 text-slate-400" />
+                        <Eye className="h-4 w-4 text-muted-foreground" />
                       )}
                     </Button>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  <Label htmlFor="confirmPassword" className="text-sm font-medium text-foreground/80">
                     {t("confirmPassword")}
                   </Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="confirmPassword"
                       type={showConfirmPassword ? "text" : "password"}
                       placeholder={t("confirmPassword")}
                       value={formData.confirmPassword}
                       onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                      className="pl-10 pr-10 h-11 bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500"
+                      className="pl-10 pr-10 h-11 bg-muted/50 border-border focus:border-blue-500 focus:ring-blue-500"
                       required
                     />
                     <Button
@@ -382,9 +382,9 @@ export default function Register() {
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     >
                       {showConfirmPassword ? (
-                        <EyeOff className="h-4 w-4 text-slate-400" />
+                        <EyeOff className="h-4 w-4 text-muted-foreground" />
                       ) : (
-                        <Eye className="h-4 w-4 text-slate-400" />
+                        <Eye className="h-4 w-4 text-muted-foreground" />
                       )}
                     </Button>
                   </div>
@@ -397,7 +397,7 @@ export default function Register() {
                     onCheckedChange={(checked) => setFormData({ ...formData, agreeToTerms: checked as boolean })}
                     className="mt-1"
                   />
-                  <Label htmlFor="terms" className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                  <Label htmlFor="terms" className="text-sm text-muted-foreground leading-relaxed">
                     {t("agreeToTerms")} {" "}
                     <Link href="/terms" className="text-blue-600 hover:text-blue-700 font-medium">
                       {t("termsOfService")}
@@ -411,12 +411,12 @@ export default function Register() {
 
                 <Button
                   type="submit"
-                  className="w-full h-14 bg-crimson-600 hover:bg-crimson-700 text-black dark:text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 rounded-2xl text-base"
+                  className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl text-base"
                   disabled={isLoading || !formData.agreeToTerms}
                 >
                   {isLoading ? (
                     <div className="flex items-center space-x-2">
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      <div className="w-4 h-4 border-2 border-border border-t-white rounded-full animate-spin"></div>
                       <span>{t("creatingAccount")}</span>
                     </div>
                   ) : (
@@ -430,7 +430,7 @@ export default function Register() {
             ) : (
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="space-y-2">
-                  <Label htmlFor="otp" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  <Label htmlFor="otp" className="text-sm font-medium text-foreground/80">
                     {t("enterOtp") || "Enter OTP"}
                   </Label>
                   <Input
@@ -439,18 +439,18 @@ export default function Register() {
                     placeholder="Enter OTP"
                     value={otp}
                     onChange={(e) => setOtp(e.target.value)}
-                    className="h-11 bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600 focus:border-blue-500 focus:ring-blue-500"
+                    className="h-11 bg-muted/50 border-border focus:border-blue-500 focus:ring-blue-500"
                     required
                   />
                 </div>
                 <Button
                   type="submit"
-                  className="w-full h-14 bg-crimson-600 hover:bg-crimson-700 text-black dark:text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 rounded-2xl text-base"
+                  className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl text-base"
                   disabled={isLoading || !otp}
                 >
                   {isLoading ? (
                     <div className="flex items-center space-x-2">
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      <div className="w-4 h-4 border-2 border-border border-t-white rounded-full animate-spin"></div>
                       <span>{t("verifyOtp") || "Verifying OTP..."}</span>
                     </div>
                   ) : (
@@ -464,7 +464,7 @@ export default function Register() {
                   <Button
                     type="button"
                     variant="link"
-                    className="text-crimson-600 hover:text-crimson-700"
+                    className="text-primary hover:text-primary/80"
                     onClick={handleResendOtp}
                     disabled={isResending}
                   >
@@ -474,7 +474,7 @@ export default function Register() {
               </form>
             )}
             <div className="mt-6 text-center">
-              <p className="text-sm text-slate-600 dark:text-slate-400">
+              <p className="text-sm text-muted-foreground">
                 {t("alreadyHaveAccount")} {" "}
                 <Link href="/login" className="text-blue-600 hover:text-blue-700 font-medium">
                   {t("signIn")}
@@ -484,7 +484,7 @@ export default function Register() {
           </CardContent>
         </Card>
         {/* Footer */}
-        <div className="text-center mt-8 text-sm text-slate-500">
+        <div className="text-center mt-8 text-sm text-muted-foreground">
           {/* <p>© 2025 pay. All rights reserved.</p> */}
         </div>
       </div>

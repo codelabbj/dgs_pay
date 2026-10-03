@@ -435,7 +435,7 @@ export function BalanceContent() {
       case "failed":
         return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
       default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300"
+        return "bg-muted text-foreground"
     }
   }
 
@@ -452,7 +452,7 @@ export function BalanceContent() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="flex items-center space-x-2">
-          <RefreshCw className="h-6 w-6 animate-spin text-crimson-600" />
+          <RefreshCw className="h-6 w-6 animate-spin text-primary" />
           <span className="text-lg font-medium">{t("loading")}</span>
         </div>
       </div>
@@ -462,10 +462,10 @@ export function BalanceContent() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-neutral-900 dark:text-white">{t("balance")}</h1>
-          <p className="text-neutral-600 dark:text-neutral-400 mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{t("balance")}</h1>
+          <p className="text-muted-foreground mt-1">
             Manage your account balance, withdrawals, and recharges
           </p>
         </div>
@@ -603,7 +603,7 @@ export function BalanceContent() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid h-auto w-full grid-cols-2 sm:grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="history">{t("balanceHistory")}</TabsTrigger>
           <TabsTrigger value="withdrawals">{t("withdrawalRequests")}</TabsTrigger>

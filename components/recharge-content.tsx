@@ -175,9 +175,6 @@ export function RechargeContent() {
       } else {
         try {
           const errorData = await response.json()
-          console.log('Error response data:', errorData)
-          console.log('Error data type:', typeof errorData)
-          console.log('Error data keys:', Object.keys(errorData))
           
           let errorMessage = t("failedToCreateRecharge")
           
@@ -207,7 +204,6 @@ export function RechargeContent() {
             errorMessage = `Failed to create recharge request: ${response.status} ${response.statusText}`
           }
           
-          console.log('Final error message:', errorMessage)
           setCreateError(errorMessage)
           toast({
             title: t("errorTitle"),
@@ -256,7 +252,7 @@ export function RechargeContent() {
       case "failed":
         return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
       default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300"
+        return "bg-muted text-foreground"
     }
   }
 
@@ -274,7 +270,7 @@ export function RechargeContent() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="flex items-center space-x-2">
-          <RefreshCw className="h-6 w-6 animate-spin text-crimson-600" />
+          <RefreshCw className="h-6 w-6 animate-spin text-primary" />
           <span className="text-lg font-medium">{t("loading")}</span>
         </div>
       </div>
@@ -284,10 +280,10 @@ export function RechargeContent() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-neutral-900 dark:text-white">{t("rechargeRequests")}</h1>
-          <p className="text-neutral-600 dark:text-neutral-400 mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{t("rechargeRequests")}</h1>
+          <p className="text-muted-foreground mt-1">
             {t("trackRechargeRequestsAndStatus")}
           </p>
         </div>
@@ -419,7 +415,7 @@ export function RechargeContent() {
                     onChange={(e) => setCreateForm({ ...createForm, proof_image: e.target.files?.[0] || null })}
                   />
                   {createForm.proof_image && (
-                    <p className="text-xs text-neutral-500 mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                       {t("selectedFileLabel")}: {createForm.proof_image.name}
                     </p>
                   )}
@@ -448,7 +444,7 @@ export function RechargeContent() {
           <div className="flex flex-col md:flex-row gap-4">
             <form onSubmit={handleSearch} className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder={t("rechargeSearchPlaceholder")}
                   value={searchTerm}
@@ -498,7 +494,7 @@ export function RechargeContent() {
               {error}
             </div>
           ) : recharges.length === 0 ? (
-            <div className="text-center py-8 text-neutral-500">
+            <div className="text-center py-8 text-muted-foreground">
               {t("rechargeNoRequestsFound")}
             </div>
           ) : (
@@ -539,7 +535,7 @@ export function RechargeContent() {
               {/* Pagination */}
               {totalPages > 1 && (
                 <div className="flex items-center justify-between mt-6">
-                  <div className="text-sm text-neutral-500">
+                  <div className="text-sm text-muted-foreground">
                     {t("showingLabel")} {((currentPage - 1) * 10) + 1} {t("toLabel")} {Math.min(currentPage * 10, totalCount)} {t("ofLabel")} {totalCount} {t("resultsLabel")}
                   </div>
                   <div className="flex items-center space-x-2">

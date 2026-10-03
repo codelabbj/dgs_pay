@@ -96,7 +96,6 @@ export function PayinContent() {
         }
       }
 
-      console.log('Submitting transaction with payload:', payload)
 
       // Use different API endpoint based on transaction type
       let apiEndpoint
@@ -116,11 +115,9 @@ export function PayinContent() {
         body: JSON.stringify(payload),
       })
 
-      console.log('Response status:', res.status, 'ok:', res.ok)
 
       if (res.ok) {
         const data = await res.json()
-        console.log('Success response data:', data)
         // Clear error state first, then set success
         setError(null)
         
@@ -134,15 +131,11 @@ export function PayinContent() {
         // Reset form using stored reference
         form.reset()
       } else {
-        console.log('Error response, status:', res.status)
         // Clear success state first, then set error
         setSuccess(null)
         
         try {
           const errorData = await res.json()
-          console.log('Error response data:', errorData)
-          console.log('Error data type:', typeof errorData)
-          console.log('Error data keys:', Object.keys(errorData))
           
           let errorMessage = t("failedToCreateTransaction")
           
@@ -172,7 +165,6 @@ export function PayinContent() {
             errorMessage = `${t("failedToCreateTransaction")}: ${res.status} ${res.statusText}`
           }
           
-          console.log('Final error message:', errorMessage)
           setError(errorMessage)
           console.error('Transaction creation error:', errorData)
         } catch (parseError) {
@@ -191,7 +183,7 @@ export function PayinContent() {
   }
 
   return (
-    <div className="max-w-xl mx-auto py-10">
+    <div className="max-w-xl mx-auto py-4 sm:py-10">
       <Card>
         <CardHeader>
           <CardTitle>{t("directPayTransaction")}</CardTitle>
@@ -345,7 +337,7 @@ export function PayinContent() {
 
             <Button 
               type="submit" 
-              className="w-full h-12 bg-black text-white hover:bg-gray-800 transition-colors font-medium" 
+              className="w-full h-12 bg-primary text-white hover:bg-primary/90 transition-colors font-medium" 
               disabled={isLoading}
             >
               {isLoading ? t("processing") : t("createTransaction")}

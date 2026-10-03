@@ -141,38 +141,38 @@ export function SettingContent() {
 
   if (!userProfile) {
     return (
-      <div className="min-h-screen bg-slate-50/30 dark:bg-neutral-950 flex items-center justify-center">
+      <div className="min-h-screen bg-muted/50 flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-neutral-900 dark:text-white mb-2">{t("profileNotFound")}</h2>
-          <p className="text-neutral-600 dark:text-neutral-400">{t("unableToLoadProfile")}</p>
+          <h2 className="text-xl font-semibold text-foreground mb-2">{t("profileNotFound")}</h2>
+          <p className="text-muted-foreground">{t("unableToLoadProfile")}</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/30 dark:bg-neutral-950 p-6">
+    <div className="w-full">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-neutral-900 dark:text-white mb-2">Settings</h1>
-          <p className="text-neutral-600 dark:text-neutral-400 text-lg">Manage your account settings and security</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-2">{t("settings")}</h1>
+          <p className="text-muted-foreground text-lg">Manage your account settings and security</p>
         </div>
 
         <div className="max-w-2xl mx-auto">
           {/* Password Change */}
-          <Card className="bg-white/80 dark:bg-neutral-900/80 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-2xl rounded-3xl overflow-hidden">
+          <Card className="bg-card border-border shadow-lg rounded-xl overflow-hidden">
             <CardHeader className="pb-6 pt-8">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
                   <Lock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <CardTitle className="text-2xl font-bold text-neutral-900 dark:text-white">
+                  <CardTitle className="text-2xl font-bold text-foreground">
                     Change Password
                   </CardTitle>
-                  <CardDescription className="text-neutral-600 dark:text-neutral-400">
+                  <CardDescription className="text-muted-foreground">
                     Update your password for better security
                   </CardDescription>
                 </div>
@@ -182,7 +182,7 @@ export function SettingContent() {
               <form onSubmit={handlePasswordChange}>
                 <div className="space-y-6">
                   <div className="space-y-2">
-                    <Label htmlFor="old_password" className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                    <Label htmlFor="old_password" className="text-sm font-semibold text-foreground/80">
                       Current Password
                     </Label>
                     <div className="relative">
@@ -193,13 +193,13 @@ export function SettingContent() {
                         value={passwordData.old_password}
                         onChange={(e) => setPasswordData(prev => ({ ...prev, old_password: e.target.value }))}
                         disabled={isLoading}
-                        className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-blue-600 focus:border-transparent pr-12"
+                        className="h-12 bg-muted/50 border-border rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent pr-12"
                         placeholder="Enter current password"
                       />
                       <button
                         type="button"
                         onClick={() => togglePasswordVisibility('old')}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       >
                         {showPasswords.old ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                       </button>
@@ -207,7 +207,7 @@ export function SettingContent() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="new_password" className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                    <Label htmlFor="new_password" className="text-sm font-semibold text-foreground/80">
                       New Password
                     </Label>
                     <div className="relative">
@@ -218,13 +218,13 @@ export function SettingContent() {
                         value={passwordData.new_password}
                         onChange={(e) => setPasswordData(prev => ({ ...prev, new_password: e.target.value }))}
                         disabled={isLoading}
-                        className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-blue-600 focus:border-transparent pr-12"
+                        className="h-12 bg-muted/50 border-border rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent pr-12"
                         placeholder="Enter new password"
                       />
                       <button
                         type="button"
                         onClick={() => togglePasswordVisibility('new')}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       >
                         {showPasswords.new ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                       </button>
@@ -232,7 +232,7 @@ export function SettingContent() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="confirm_new_password" className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                    <Label htmlFor="confirm_new_password" className="text-sm font-semibold text-foreground/80">
                       {t("confirmNewPassword")}
                     </Label>
                     <div className="relative">
@@ -243,13 +243,13 @@ export function SettingContent() {
                         value={passwordData.confirm_new_password}
                         onChange={(e) => setPasswordData(prev => ({ ...prev, confirm_new_password: e.target.value }))}
                         disabled={isLoading}
-                        className="h-12 bg-slate-50/50 dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 rounded-2xl focus:ring-2 focus:ring-blue-600 focus:border-transparent pr-12"
+                        className="h-12 bg-muted/50 border-border rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent pr-12"
                         placeholder="Confirm new password"
                       />
                       <button
                         type="button"
                         onClick={() => togglePasswordVisibility('confirm')}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       >
                         {showPasswords.confirm ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                       </button>
@@ -259,7 +259,7 @@ export function SettingContent() {
                   <Button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-2xl h-12"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-12"
                   >
                     {isLoading ? (
                       <div className="flex items-center space-x-2">
@@ -281,17 +281,17 @@ export function SettingContent() {
         </div>
 
         {/* Current Account Status */}
-        <Card className="mt-8 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-2xl rounded-3xl overflow-hidden">
+        <Card className="mt-8 bg-card border-border shadow-lg rounded-xl overflow-hidden">
           <CardHeader className="pb-6 pt-8">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center">
                 <UserCheck className="w-5 h-5 text-purple-600 dark:text-purple-400" />
               </div>
               <div>
-                <CardTitle className="text-2xl font-bold text-neutral-900 dark:text-white">
+                <CardTitle className="text-2xl font-bold text-foreground">
                   Current Account Status
                 </CardTitle>
-                <CardDescription className="text-neutral-600 dark:text-neutral-400">
+                <CardDescription className="text-muted-foreground">
                   View your current account information
                 </CardDescription>
               </div>
@@ -300,10 +300,10 @@ export function SettingContent() {
           <CardContent className="px-6 pb-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
-                <Label className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                <Label className="text-sm font-semibold text-foreground/80">
                   {t("accountStatus")}
                 </Label>
-                <div className={`h-12 rounded-2xl flex items-center px-4 font-medium ${
+                <div className={`h-12 rounded-xl flex items-center px-4 font-medium ${
                   userProfile.account_status === 'active'
                     ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
                     : userProfile.account_status === 'pending'
@@ -317,13 +317,13 @@ export function SettingContent() {
               </div>
               
               <div className="space-y-2">
-                <Label className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                <Label className="text-sm font-semibold text-foreground/80">
                   Account Type
                 </Label>
-                <div className={`h-12 rounded-2xl flex items-center px-4 font-medium ${
+                <div className={`h-12 rounded-xl flex items-center px-4 font-medium ${
                   userProfile.is_partner 
                     ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
-                    : 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
+                    : 'bg-muted text-foreground'
                 }`}>
                   {userProfile.is_partner ? "Partner" : "Customer"}
                 </div>
@@ -336,7 +336,7 @@ export function SettingContent() {
 
         {/* Error and Success Messages */}
         {(error || success) && (
-          <Card className="mt-8 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-2xl rounded-3xl overflow-hidden">
+          <Card className="mt-8 bg-card border-border shadow-lg rounded-xl overflow-hidden">
             <CardContent className="px-6 py-4">
               {error && (
                 <div className="flex items-center space-x-3 text-red-600 dark:text-red-400">

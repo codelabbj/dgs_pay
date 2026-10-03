@@ -193,7 +193,6 @@ export function DirectContent() {
     
     try {
       // Mock API call - replace with actual implementation
-      console.log("Payment form submitted:", paymentForm)
       
       setPaymentDialogOpen(false)
       setPaymentForm({ amount: "", currency: "XOF", payment_method: "", customer_name: "", customer_email: "", customer_phone: "", description: "" })
@@ -214,7 +213,7 @@ export function DirectContent() {
       case "failed":
         return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
       default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300"
+        return "bg-muted text-foreground"
     }
   }
 
@@ -227,7 +226,7 @@ export function DirectContent() {
       case "failed":
         return <AlertCircle className="h-4 w-4 text-red-600" />
       default:
-        return <Clock className="h-4 w-4 text-gray-600" />
+        return <Clock className="h-4 w-4 text-muted-foreground" />
     }
   }
 
@@ -252,7 +251,7 @@ export function DirectContent() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="flex items-center space-x-2">
-          <RefreshCw className="h-6 w-6 animate-spin text-crimson-600" />
+          <RefreshCw className="h-6 w-6 animate-spin text-primary" />
           <span className="text-lg font-medium">{t("loading")}</span>
         </div>
       </div>
@@ -262,10 +261,10 @@ export function DirectContent() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-neutral-900 dark:text-white">{t("payDirect")}</h1>
-          <p className="text-neutral-600 dark:text-neutral-400 mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{t("payDirect")}</h1>
+          <p className="text-muted-foreground mt-1">
             Create direct payment links and manage payment requests
           </p>
         </div>
@@ -294,7 +293,7 @@ export function DirectContent() {
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handlePaymentSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="payment-amount">Amount</Label>
                     <Input
@@ -360,7 +359,7 @@ export function DirectContent() {
                     required
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="customer-email">Customer Email</Label>
                     <Input
@@ -478,8 +477,8 @@ export function DirectContent() {
               <Card key={method.id} className="cursor-pointer hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-crimson-100 dark:bg-crimson-900 rounded-lg flex items-center justify-center">
-                      <method.icon className="h-6 w-6 text-crimson-600 dark:text-crimson-400" />
+                    <div className="w-12 h-12 bg-primary/10 bg-primary rounded-lg flex items-center justify-center">
+                      <method.icon className="h-6 w-6 text-primary text-primary" />
                     </div>
                     <div>
                       <CardTitle className="text-lg">{method.name}</CardTitle>
@@ -519,7 +518,7 @@ export function DirectContent() {
                 {payments.map((payment) => (
                   <div key={payment.uid} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex items-center space-x-4">
-                      <div className="w-10 h-10 bg-crimson-600 rounded-full flex items-center justify-center text-white font-medium">
+                      <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white font-medium">
                         {payment.customer_name.charAt(0)}
                       </div>
                       <div>
@@ -571,7 +570,7 @@ export function DirectContent() {
                             size="sm"
                             onClick={() => {
                               // Open QR code in modal or new window
-                              window.open(payment.qr_code, '_blank')
+                              window.open(payment.qr_code ?? "", '_blank', "noopener,noreferrer")
                             }}
                           >
                             <QrCode className="h-4 w-4" />

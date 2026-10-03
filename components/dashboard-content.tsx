@@ -60,9 +60,9 @@ export function DashboardContent() {
   // Temporarily disable loading check
   // if (isLoading) {
   //   return (
-  //     <div className="min-h-screen bg-slate-50/30 dark:bg-neutral-950 flex items-center justify-center">
+  //     <div className="min-h-screen bg-muted/50 flex items-center justify-center">
   //       <div className="flex items-center space-x-2">
-  //         <div className="w-8 h-8 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin"></div>
+  //         <div className="w-8 h-8 border-4 border-border border-t-blue-600 rounded-full animate-spin"></div>
   //         <span className="text-lg font-medium text-blue-600">Loading dashboard...</span>
   //       </div>
   //     </div>
@@ -85,7 +85,6 @@ export function DashboardContent() {
   useEffect(() => {
     // Add a delay to ensure authentication is fully established
     const timer = setTimeout(() => {
-      console.log('Dashboard content: Starting to fetch stats and balance after delay')
       fetchStats()
       fetchBalance()
     }, 1000) // Wait 1 second for auth to be fully established
@@ -118,7 +117,6 @@ export function DashboardContent() {
       if (res.ok) {
         const data = await res.json()
         setBalance(data)
-        console.log('Balance data fetched:', data)
       } else if (res.status === 403) {
         // Compte pas encore vérifié / agrégateur inactif — normal, pas une erreur auth
         setError(null)
@@ -168,7 +166,7 @@ export function DashboardContent() {
       <div className="h-full overflow-y-auto">
         <div className="space-y-8 p-6 pb-20">
           <div className="flex items-center justify-center h-64">
-            <div className="text-neutral-600 dark:text-neutral-400">{t("loadingDashboardData")}</div>
+            <div className="text-muted-foreground">{t("loadingDashboardData")}</div>
           </div>
         </div>
       </div>
@@ -176,18 +174,17 @@ export function DashboardContent() {
   }
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="space-y-8 p-6 pb-20">
+    <div>
+      <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between sticky top-0 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md z-10 py-4 -mx-6 px-6 border-b border-slate-100 dark:border-neutral-800">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-4xl font-bold text-neutral-900 dark:text-white mb-2">{t("dashboard")}</h1>
-            {/* <p className="text-neutral-600 dark:text-neutral-400 text-lg">{t("welcomeBack2")}</p> */}
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground mb-2">{t("dashboard")}</h1>
+            {/* <p className="text-muted-foreground text-lg">{t("welcomeBack2")}</p> */}
           </div>
           <Button
             variant="outline"
-            size="lg"
-            className="rounded-2xl border-slate-200 dark:border-neutral-700 hover:bg-slate-50 dark:hover:bg-neutral-800 bg-transparent"
+            className="self-start sm:self-auto"
             onClick={() => setShowBalances(!showBalances)}
           >
             {showBalances ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
@@ -196,7 +193,7 @@ export function DashboardContent() {
         </div>
 
         {needsVerification && (
-          <div className="rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-5 flex gap-4 items-start">
+          <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-5 flex gap-4 items-start">
             <ShieldCheck className="h-6 w-6 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <div className="space-y-2">
               <p className="font-semibold text-amber-900 dark:text-amber-100">
@@ -226,12 +223,6 @@ export function DashboardContent() {
             <div>User Data: {localStorage.getItem('user') ? '✅ Present' : '❌ Missing'}</div>
             <button
               onClick={() => {
-                console.log('Dashboard localStorage check:', {
-                  access: localStorage.getItem('access'),
-                  refresh: localStorage.getItem('refresh'),
-                  exp: localStorage.getItem('exp'),
-                  user: localStorage.getItem('user')
-                })
               }}
               className="text-blue-600 hover:text-blue-800 underline"
             >
@@ -242,12 +233,9 @@ export function DashboardContent() {
                 const accessToken = localStorage.getItem('access')
                 const refreshToken = localStorage.getItem('refresh')
                 const hasTokens = !!(accessToken && refreshToken)
-                console.log('Manual auth check from dashboard:', { hasTokens, accessToken: !!accessToken, refreshToken: !!refreshToken })
                 
                 if (hasTokens) {
-                  console.log('✅ Dashboard auth check passed')
                 } else {
-                  console.log('❌ Dashboard auth check failed')
                 }
               }}
               className="text-green-600 hover:text-green-800 underline ml-2"
@@ -260,20 +248,20 @@ export function DashboardContent() {
         {/* Balance Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Current Balance Card */}
-          <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-3xl overflow-hidden group">
+          <Card className="bg-card border-border shadow-md hover:shadow-2xl transition-all duration-300 rounded-xl overflow-hidden group">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <div className="p-3 bg-blue-600 rounded-2xl shadow-lg">
+                <div className="p-3 bg-blue-600 rounded-xl shadow-lg">
                   <CreditCard className="h-6 w-6 text-white" />
                 </div>
                 <ArrowUpRight className="h-5 w-5 text-blue-600 group-hover:scale-110 transition-transform" />
               </div>
-              <CardTitle className="text-sm font-medium text-neutral-600 dark:text-neutral-400 mt-4">
+              <CardTitle className="text-sm font-medium text-muted-foreground mt-4">
                 {t("currentBalance")} ({defaultCurrency})
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">
+              <div className="text-3xl font-bold text-foreground mb-2">
                 {showBalances
                   ? (defaultWallet?.formatted_balance || balance?.formatted_balance || `0 ${defaultCurrency}`)
                   : "••••••"}
@@ -282,7 +270,7 @@ export function DashboardContent() {
                 <Badge className={`${(defaultWallet?.is_active ?? balance?.is_active) ? 'bg-green-100 text-green-800 hover:bg-green-100' : 'bg-red-100 text-red-800 hover:bg-red-100'} rounded-full`}>
                   {(defaultWallet?.is_active ?? balance?.is_active) ? t("balanceActive") : t("balanceInactive")}
                 </Badge>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">
+                <span className="text-sm text-muted-foreground">
                   {(defaultWallet?.is_frozen ?? balance?.is_frozen) ? t("balanceFrozen") : t("balanceAvailable")}
                 </span>
               </div>
@@ -290,73 +278,73 @@ export function DashboardContent() {
           </Card>
 
           {/* Total Payin Card */}
-          <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-3xl overflow-hidden group">
+          <Card className="bg-card border-border shadow-md hover:shadow-2xl transition-all duration-300 rounded-xl overflow-hidden group">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <div className="p-3 bg-green-600 rounded-2xl shadow-lg">
+                <div className="p-3 bg-green-600 rounded-xl shadow-lg">
                   <TrendingUp className="h-6 w-6 text-white" />
                 </div>
                 <ArrowUpRight className="h-5 w-5 text-green-600 group-hover:scale-110 transition-transform" />
               </div>
-              <CardTitle className="text-sm font-medium text-neutral-600 dark:text-neutral-400 mt-4">
+              <CardTitle className="text-sm font-medium text-muted-foreground mt-4">
                 {t("totalPayin")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">
+              <div className="text-3xl font-bold text-foreground mb-2">
                 {showBalances ? `${balance?.total_payin?.toLocaleString() || 0} XOF` : '••••••'}
               </div>
               <div className="flex items-center space-x-2">
                 <Badge className="bg-green-100 text-green-800 hover:bg-green-100 rounded-full">+15.3%</Badge>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">{t("allTimePaymentsReceived")}</span>
+                <span className="text-sm text-muted-foreground">{t("allTimePaymentsReceived")}</span>
               </div>
             </CardContent>
           </Card>
 
           {/* Total Payout Card */}
-          <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-3xl overflow-hidden group">
+          <Card className="bg-card border-border shadow-md hover:shadow-2xl transition-all duration-300 rounded-xl overflow-hidden group">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <div className="p-3 bg-red-600 rounded-2xl shadow-lg">
+                <div className="p-3 bg-red-600 rounded-xl shadow-lg">
                   <TrendingDown className="h-6 w-6 text-white" />
                 </div>
                 <ArrowDownRight className="h-5 w-5 text-red-600 group-hover:scale-110 transition-transform" />
               </div>
-              <CardTitle className="text-sm font-medium text-neutral-600 dark:text-neutral-400 mt-4">
+              <CardTitle className="text-sm font-medium text-muted-foreground mt-4">
                 {t("totalPayout")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">
+              <div className="text-3xl font-bold text-foreground mb-2">
                 {showBalances ? `${balance?.total_payout?.toLocaleString() || 0} XOF` : '••••••'}
               </div>
               <div className="flex items-center space-x-2">
                 <Badge className="bg-red-100 text-red-800 hover:bg-red-100 rounded-full">-2.1%</Badge>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">{t("allTimePaymentsSent")}</span>
+                <span className="text-sm text-muted-foreground">{t("allTimePaymentsSent")}</span>
               </div>
             </CardContent>
           </Card>
 
           {/* Total Fees Paid Card */}
-          <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-3xl overflow-hidden group">
+          <Card className="bg-card border-border shadow-md hover:shadow-2xl transition-all duration-300 rounded-xl overflow-hidden group">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <div className="p-3 bg-purple-600 rounded-2xl shadow-lg">
+                <div className="p-3 bg-purple-600 rounded-xl shadow-lg">
                   <CreditCard className="h-6 w-6 text-white" />
                 </div>
                 <ArrowUpRight className="h-5 w-5 text-purple-600 group-hover:scale-110 transition-transform" />
               </div>
-              <CardTitle className="text-sm font-medium text-neutral-600 dark:text-neutral-400 mt-4">
+              <CardTitle className="text-sm font-medium text-muted-foreground mt-4">
                 {t("totalFeesPaid")}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">
+              <div className="text-3xl font-bold text-foreground mb-2">
                 {showBalances ? `${balance?.total_fees_paid?.toLocaleString() || 0} XOF` : '••••••'}
               </div>
               <div className="flex items-center space-x-2">
                 <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100 rounded-full">+8.2%</Badge>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">{t("transactionFeesPaid")}</span>
+                <span className="text-sm text-muted-foreground">{t("transactionFeesPaid")}</span>
               </div>
             </CardContent>
           </Card>
@@ -364,24 +352,24 @@ export function DashboardContent() {
 
         {wallets.length > 0 && (
           <div className="space-y-3">
-            <h2 className="text-lg font-bold text-neutral-900 dark:text-white">{t("myWallets") || "Mes Wallets"}</h2>
+            <h2 className="text-lg font-bold text-foreground">{t("myWallets")}</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {wallets.map((wallet: any) => (
                 <Card
                   key={wallet.uid}
-                  className={`bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-lg rounded-2xl transition-all duration-200 ${wallet.is_default ? "ring-2 ring-blue-400" : "hover:ring-1 hover:ring-slate-300"}`}
+                  className={`bg-card border-border shadow-lg rounded-xl transition-all duration-200 ${wallet.is_default ?"ring-2 ring-blue-400" : "hover:ring-1 hover:ring-slate-300"}`}
                 >
                   <CardContent className="p-5">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-neutral-900 dark:text-white text-lg">
+                        <span className="font-semibold text-foreground text-lg">
                           {wallet.currency_code}
                         </span>
                         {wallet.is_default && (
-                          <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 text-xs">Défaut</Badge>
+                          <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 text-xs">{t("defaultBadge")}</Badge>
                         )}
                         {wallet.is_frozen && (
-                          <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100 text-xs">Gelé</Badge>
+                          <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100 text-xs">{t("frozenBadge")}</Badge>
                         )}
                       </div>
                       {!wallet.is_default && (
@@ -405,12 +393,12 @@ export function DashboardContent() {
                             }
                           }}
                         >
-                          Définir défaut
+                          {t("setAsDefault")}
                         </Button>
                       )}
                     </div>
-                    <p className="text-xs text-neutral-500 mb-2">{wallet.currency_name || wallet.currency_code}</p>
-                    <div className="text-2xl font-bold text-neutral-900 dark:text-white">
+                    <p className="text-xs text-muted-foreground mb-2">{wallet.currency_name || wallet.currency_code}</p>
+                    <div className="text-2xl font-bold text-foreground">
                       {showBalances
                         ? (wallet.formatted_balance || `${wallet.balance?.toLocaleString()} ${wallet.currency_code}`)
                         : "••••••"}
@@ -424,24 +412,24 @@ export function DashboardContent() {
 
         {/* Configuration Overview */}
         {userConfig && (
-          <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl rounded-3xl overflow-hidden">
+          <Card className="bg-card border-border shadow-md rounded-xl overflow-hidden">
             <CardHeader className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-lg font-bold text-neutral-900 dark:text-white">
+                  <CardTitle className="text-lg font-bold text-foreground">
                     {t("configuration")}
                   </CardTitle>
-                  <CardDescription className="text-neutral-600 dark:text-neutral-400">
+                  <CardDescription className="text-muted-foreground">
                     {t("currentApiFeeAndSecurity")}
                   </CardDescription>
                 </div>
-                <Settings className="h-6 w-6 text-crimson-600" />
+                <Settings className="h-6 w-6 text-primary" />
               </div>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 bg-neutral-50 dark:bg-neutral-800/60 rounded-2xl border border-neutral-100 dark:border-neutral-800">
-                  <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-1">{t("status")}</p>
+                <div className="p-4 bg-muted/50 rounded-xl border border-border">
+                  <p className="text-sm text-muted-foreground mb-1">{t("status")}</p>
                   <div className="flex items-center space-x-2">
                     <Badge className={userConfig.is_active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
                       {userConfig.is_active ? t("balanceActive") : t("balanceInactive")}
@@ -450,32 +438,32 @@ export function DashboardContent() {
                       <ShieldCheck className="h-4 w-4 text-emerald-500" />
                     )}
                   </div>
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2">
+                  <p className="text-xs text-muted-foreground mt-2">
                     {userConfig.require_ip_whitelist ? t("ipWhitelistRequired") : t("ipWhitelistDisabled")}
                   </p>
                 </div>
-                <div className="p-4 bg-neutral-50 dark:bg-neutral-800/60 rounded-2xl border border-neutral-100 dark:border-neutral-800">
-                  <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-1">{t("fees")}</p>
+                <div className="p-4 bg-muted/50 rounded-xl border border-border">
+                  <p className="text-sm text-muted-foreground mb-1">{t("fees")}</p>
                   <div className="space-y-1">
-                    <p className="text-neutral-900 dark:text-white text-sm">
+                    <p className="text-foreground text-sm">
                       {t("payinColon")} <span className="font-semibold">{userConfig.use_fixed_fees && userConfig.payin_fee_fixed != null ? `${userConfig.payin_fee_fixed.toLocaleString()} XOF` : `${userConfig.payin_fee_rate}%`}</span>
                     </p>
-                    <p className="text-neutral-900 dark:text-white text-sm">
+                    <p className="text-foreground text-sm">
                       {t("payoutColon")} <span className="font-semibold">{userConfig.use_fixed_fees && userConfig.payout_fee_fixed != null ? `${userConfig.payout_fee_fixed.toLocaleString()} XOF` : `${userConfig.payout_fee_rate}%`}</span>
                     </p>
                   </div>
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2">
+                  <p className="text-xs text-muted-foreground mt-2">
                     {userConfig.use_fixed_fees ? t("fixedFeeMode") : t("percentageFeeMode")}
                   </p>
                 </div>
-                <div className="p-4 bg-neutral-50 dark:bg-neutral-800/60 rounded-2xl border border-neutral-100 dark:border-neutral-800">
-                  <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-1">{t("webhook")}</p>
-                  <div className="flex items-center space-x-2 text-sm text-neutral-900 dark:text-white break-all">
-                    <LinkIcon className="h-4 w-4 text-crimson-600 flex-shrink-0" />
+                <div className="p-4 bg-muted/50 rounded-xl border border-border">
+                  <p className="text-sm text-muted-foreground mb-1">{t("webhook")}</p>
+                  <div className="flex items-center space-x-2 text-sm text-foreground break-all">
+                    <LinkIcon className="h-4 w-4 text-primary flex-shrink-0" />
                     <span>{userConfig.webhook_url || t("notConfigured")}</span>
                   </div>
                   {userConfig.ip_whitelist?.length > 0 && (
-                    <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2">
+                    <p className="text-xs text-muted-foreground mt-2">
                       {t("whitelistedIPs")} {userConfig.ip_whitelist?.length}
                     </p>
                   )}
@@ -487,23 +475,23 @@ export function DashboardContent() {
 
         {/* Balance Details */}
         {balance && (
-          <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl rounded-3xl overflow-hidden">
+          <Card className="bg-card border-border shadow-md rounded-xl overflow-hidden">
             <CardHeader>
-              <CardTitle className="text-lg font-bold text-neutral-900 dark:text-white">{t("balance")} {t("balanceDetails")}</CardTitle>
-              <CardDescription className="text-neutral-600 dark:text-neutral-400">
+              <CardTitle className="text-lg font-bold text-foreground">{t("balance")} {t("balanceDetails")}</CardTitle>
+              <CardDescription className="text-muted-foreground">
                 {t("completeBalanceInformation")}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-neutral-600 dark:text-neutral-400">{t("accountUID")}</h4>
-                  <p className="text-sm font-mono bg-neutral-100 dark:bg-neutral-800 p-2 rounded-lg">
+                  <h4 className="text-sm font-medium text-muted-foreground">{t("accountUID")}</h4>
+                  <p className="text-sm font-mono bg-muted p-2 rounded-lg">
                     {balance.uid}
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-neutral-600 dark:text-neutral-400">{t("accountStatus")}</h4>
+                  <h4 className="text-sm font-medium text-muted-foreground">{t("accountStatus")}</h4>
                   <div className="flex items-center space-x-2">
                     <Badge className={`${balance.is_active ? 'bg-green-100 text-green-800 hover:bg-green-100' : 'bg-red-100 text-red-800 hover:bg-red-100'} rounded-full`}>
                       {balance.is_active ? t("balanceActive") : t("balanceInactive")}
@@ -516,8 +504,8 @@ export function DashboardContent() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-neutral-600 dark:text-neutral-400">{t("lastTransaction")}</h4>
-                  <p className="text-sm text-neutral-700 dark:text-neutral-300">
+                  <h4 className="text-sm font-medium text-muted-foreground">{t("lastTransaction")}</h4>
+                  <p className="text-sm text-foreground/80">
                     {balance.last_transaction_at
                       ? new Date(balance.last_transaction_at).toLocaleDateString('en-US', {
                         year: 'numeric',
@@ -536,10 +524,10 @@ export function DashboardContent() {
         )}
 
         {/* Transaction Success Chart */}
-        <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl rounded-3xl overflow-hidden">
+        <Card className="bg-card border-border shadow-md rounded-xl overflow-hidden">
           <CardHeader>
-            <CardTitle className="text-lg font-bold text-neutral-900 dark:text-white">{t("successfulTransactionsOverview")}</CardTitle>
-            <CardDescription className="text-neutral-600 dark:text-neutral-400">
+            <CardTitle className="text-lg font-bold text-foreground">{t("successfulTransactionsOverview")}</CardTitle>
+            <CardDescription className="text-muted-foreground">
               {t("successfulTransactionsTrend")}
             </CardDescription>
           </CardHeader>
@@ -572,19 +560,19 @@ export function DashboardContent() {
 
                 {/* Success Metrics */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-2xl">
+                  <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-xl">
                     <div className="text-2xl font-bold text-green-600 dark:text-green-400">
                       {stats.total_success_transaction.toLocaleString()}
                     </div>
                     <div className="text-sm text-green-700 dark:text-green-300">{t("successfulTransactions")}</div>
                   </div>
-                  <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-2xl">
+                  <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
                     <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                       {formatCurrency(stats.total_fee)}
                     </div>
                     <div className="text-sm text-blue-700 dark:text-blue-300">{t("totalFeesCollected")}</div>
                   </div>
-                  <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-2xl">
+                  <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl">
                     <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
                       {stats.total_success_transaction > 0 ? '95.2%' : '0%'}
                     </div>
@@ -593,7 +581,7 @@ export function DashboardContent() {
                 </div>
               </div>
             ) : (
-              <div className="text-center py-8 text-neutral-500 dark:text-neutral-400">
+              <div className="text-center py-8 text-muted-foreground">
                 {t("noTransactionDataAvailable")}
               </div>
             )}
@@ -603,10 +591,10 @@ export function DashboardContent() {
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Customer Locations */}
-          <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl rounded-3xl overflow-hidden">
+          <Card className="bg-card border-border shadow-md rounded-xl overflow-hidden">
             <CardHeader>
-              <CardTitle className="text-lg font-bold text-neutral-900 dark:text-white">{t("whereCustomers")}</CardTitle>
-              <CardDescription className="text-neutral-600 dark:text-neutral-400">
+              <CardTitle className="text-lg font-bold text-foreground">{t("whereCustomers")}</CardTitle>
+              <CardDescription className="text-muted-foreground">
                 {t("customerDistribution")}
               </CardDescription>
             </CardHeader>
@@ -616,19 +604,19 @@ export function DashboardContent() {
                   {customerLocationData.map((item, index) => (
                     <div key={index} className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
-                        <div className="p-2 bg-slate-50 dark:bg-neutral-800 rounded-xl">
-                          <MapPin className="h-4 w-4 text-crimson-600" />
+                        <div className="p-2 bg-muted/50 rounded-xl">
+                          <MapPin className="h-4 w-4 text-primary" />
                         </div>
-                        <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{item.country}</span>
+                        <span className="text-sm font-medium text-foreground/80">{item.country}</span>
                       </div>
                       <div className="flex items-center space-x-3">
-                        <div className="w-24 bg-slate-100 dark:bg-neutral-800 rounded-full h-2">
+                        <div className="w-24 bg-muted rounded-full h-2">
                           <div
-                            className="bg-crimson-600 h-2 rounded-full transition-all duration-500"
+                            className="bg-primary h-2 rounded-full transition-all duration-500"
                             style={{ width: `${item.percentage}%` }}
                           />
                         </div>
-                        <span className="text-sm font-bold text-neutral-700 dark:text-neutral-300 w-8">
+                        <span className="text-sm font-bold text-foreground/80 w-8">
                           {typeof item.percentage === "number" ? item.percentage : 0}%
                         </span>
                       </div>
@@ -636,7 +624,7 @@ export function DashboardContent() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-neutral-500 dark:text-neutral-400">
+                <div className="text-center py-8 text-muted-foreground">
                   {t("noDataAvailable")}
                 </div>
               )}
@@ -644,10 +632,10 @@ export function DashboardContent() {
           </Card>
 
           {/* Payment Methods */}
-          {/* <Card className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border-slate-100 dark:border-neutral-800 shadow-xl rounded-3xl overflow-hidden">
+          {/* <Card className="bg-card border-border shadow-md rounded-xl overflow-hidden">
             <CardHeader>
-              <CardTitle className="text-lg font-bold text-neutral-900 dark:text-white">{t("mostUsedPayment")}</CardTitle>
-              <CardDescription className="text-neutral-600 dark:text-neutral-400">
+              <CardTitle className="text-lg font-bold text-foreground">{t("mostUsedPayment")}</CardTitle>
+              <CardDescription className="text-muted-foreground">
                 {t("paymentMethodDistribution")}
               </CardDescription>
             </CardHeader>
@@ -686,16 +674,16 @@ export function DashboardContent() {
                     {paymentMethodData.map((item, index) => (
                       <div
                         key={index}
-                        className="flex items-center justify-between p-3 bg-slate-50/50 dark:bg-neutral-800/50 rounded-2xl"
+                        className="flex items-center justify-between p-3 bg-muted/50 rounded-xl"
                       >
                         <div className="flex items-center space-x-3">
-                          <div className="p-2 bg-white dark:bg-neutral-700 rounded-xl shadow-sm">
-                            {item.name === "Mobile Money" && <Smartphone className="h-4 w-4 text-crimson-600" />}
-                            {item.name === "Credit Card" && <CreditCard className="h-4 w-4 text-crimson-600" />}
-                            {item.name === "Bank Account" && <Building className="h-4 w-4 text-crimson-600" />}
-                            {!["Mobile Money", "Credit Card", "Bank Account"].includes(item.name) && <CreditCard className="h-4 w-4 text-crimson-600" />}
+                          <div className="p-2 bg-card rounded-xl shadow-sm">
+                            {item.name === "Mobile Money" && <Smartphone className="h-4 w-4 text-primary" />}
+                            {item.name === "Credit Card" && <CreditCard className="h-4 w-4 text-primary" />}
+                            {item.name === "Bank Account" && <Building className="h-4 w-4 text-primary" />}
+                            {!["Mobile Money", "Credit Card", "Bank Account"].includes(item.name) && <CreditCard className="h-4 w-4 text-primary" />}
                           </div>
-                          <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                          <span className="text-sm font-medium text-foreground/80">
                             {item.name === "Mobile Money" && t("mobileMoneyMethod")}
                             {item.name === "Credit Card" && t("creditCardMethod")}
                             {item.name === "Bank Account" && t("bankAccountMethod")}
@@ -704,7 +692,7 @@ export function DashboardContent() {
                         </div>
                         <Badge
                           variant="secondary"
-                          className="bg-crimson-100 text-crimson-800 hover:bg-crimson-100 rounded-full font-bold"
+                          className="bg-primary/10 text-primary hover:bg-primary/20 rounded-full font-bold"
                         >
                           {item.value}%
                         </Badge>
@@ -713,7 +701,7 @@ export function DashboardContent() {
                   </div>
                 </>
               ) : (
-                <div className="text-center py-8 text-neutral-500 dark:text-neutral-400">
+                <div className="text-center py-8 text-muted-foreground">
                   {t("noDataAvailable")}
                 </div>
               )}

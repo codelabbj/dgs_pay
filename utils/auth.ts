@@ -24,7 +24,6 @@ export function getUserData(): any {
 
 // Store tokens and user data from login response
 export function storeAuthData(response: any): void {
-  console.log('storeAuthData called with:', response)
   
   localStorage.setItem("access", response.access)
   localStorage.setItem("refresh", response.refresh)
@@ -33,16 +32,9 @@ export function storeAuthData(response: any): void {
     localStorage.setItem("user", JSON.stringify(response.data))
   }
   
-  console.log('Auth data stored in localStorage:', {
-    access: localStorage.getItem("access"),
-    refresh: localStorage.getItem("refresh"),
-    exp: localStorage.getItem("exp"),
-    user: localStorage.getItem("user")
-  })
   
   // Dispatch custom event to notify components of auth state change
   if (typeof window !== 'undefined') {
-    console.log('Dispatching authStateChanged event')
     window.dispatchEvent(new CustomEvent('authStateChanged', { 
       detail: { isAuthenticated: true } 
     }))
@@ -93,12 +85,6 @@ export function isRefreshTokenExpired(): boolean {
     const exp = payload.exp * 1000 // Convert to milliseconds
     const now = Date.now()
     
-    console.log('Refresh token expiration check:', {
-      exp: new Date(exp).toISOString(),
-      now: new Date(now).toISOString(),
-      isExpired: exp <= now,
-      secondsUntilExpiry: Math.round((exp - now) / 1000)
-    })
     
     return exp <= now
   } catch (error) {
@@ -117,7 +103,6 @@ export function hasAuthData(): boolean {
   const refreshToken = getRefreshToken()
   
   const result = !!(accessToken && refreshToken)
-  console.log('hasAuthData check:', { accessToken: !!accessToken, refreshToken: !!refreshToken, result })
   return result
 }
 
@@ -187,7 +172,6 @@ export function isAuthenticatedLenient(): boolean {
   
   // Just check if tokens exist, don't validate format or expiration
   const result = !!(accessToken && refreshToken)
-  console.log('isAuthenticatedLenient check:', { accessToken: !!accessToken, refreshToken: !!refreshToken, result })
   return result
 }
 
@@ -206,7 +190,6 @@ export async function refreshAccessTokenInBackground(): Promise<boolean> {
       return false
     }
 
-    console.log('Attempting to refresh token with baseUrl:', baseUrl)
     
     // Try the refresh endpoint - it might be at v1/api or api/v1
     let response = await fetch(`${baseUrl}/v1/api/refresh-token`, {
@@ -215,17 +198,14 @@ export async function refreshAccessTokenInBackground(): Promise<boolean> {
       body: JSON.stringify({ refresh: refreshToken }),
     })
     
-    console.log('Token refresh response status:', response.status)
 
     // If 404, try alternative endpoint
     if (response.status === 404) {
-      console.log('refresh-token endpoint not found at /v1/api/refresh-token, trying /api/v1/refresh-token')
       response = await fetch(`${baseUrl}/api/v1/refresh-token`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refresh: refreshToken }),
       })
-      console.log('Token refresh response status from alternative endpoint:', response.status)
     }
 
     if (!response.ok) {
@@ -241,7 +221,6 @@ export async function refreshAccessTokenInBackground(): Promise<boolean> {
     }
 
     const data = await response.json()
-    console.log('Token refresh successful, storing new tokens')
     
     // Store new tokens
     localStorage.setItem("access", data.access)
@@ -328,7 +307,6 @@ export async function smartFetch(url: string, options: RequestInit = {}): Promis
   
   // Check if we need to refresh token before making request
   if (isAccessTokenExpired() && !isRefreshTokenExpired()) {
-    console.log('smartFetch: Access token expired, refreshing...')
     await refreshAccessTokenInBackground()
   }
 
@@ -347,42 +325,33 @@ export async function smartFetch(url: string, options: RequestInit = {}): Promis
     ...options.headers,
   }
 
-  console.log('smartFetch: Making request with token', { url, hasToken: !!currentAccessToken })
 
   const response = await fetch(url, {
     ...options,
     headers,
   })
 
-  console.log(`smartFetch: Response status ${response.status} for ${url}`)
 
   // 401 = token invalide/expiré → refresh.
   // 403 = permission métier (ex. compte pas encore vérifié/activé) → NE PAS refresh.
   if (response.status === 401) {
-    console.log(`smartFetch: Got ${response.status}, checking if we should attempt refresh...`)
     const refreshTokenExpired = isRefreshTokenExpired()
-    console.log('Refresh token expired?', refreshTokenExpired)
     
     if (refreshTokenExpired) {
-      console.log('smartFetch: Refresh token is expired, user needs to login again')
       // Clear auth data and redirect to login
       clearAuthData()
       if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-        console.log('smartFetch: Redirecting to login')
         window.location.href = '/login'
       }
     } else {
-      console.log(`smartFetch: Got ${response.status}, attempting token refresh...`)
       try {
         const refreshed = await refreshAccessTokenInBackground()
-        console.log(`Token refresh result: ${refreshed}`)
         
         if (refreshed) {
           // Wait a moment for the token to be stored
           await new Promise(resolve => setTimeout(resolve, 100))
           
           const newAccessToken = getAccessToken()
-          console.log(`smartFetch: New access token available: ${!!newAccessToken}`)
           
           if (newAccessToken) {
             const retryHeaders = {
@@ -391,24 +360,19 @@ export async function smartFetch(url: string, options: RequestInit = {}): Promis
               ...options.headers,
             }
             
-            console.log('smartFetch: Retrying request with new token')
             const retryResponse = await fetch(url, {
               ...options,
               headers: retryHeaders,
             })
-            console.log(`smartFetch: Retry response status: ${retryResponse.status}`)
             return retryResponse
           } else {
-            console.log('smartFetch: Failed to get new access token after refresh')
           }
         } else {
-          console.log('smartFetch: Token refresh returned false')
         }
       } catch (refreshError) {
         console.error('smartFetch: Error during token refresh:', refreshError)
       }
     }
-    console.log('smartFetch: Returning original response with status:', response.status)
   }
 
   return response
@@ -421,44 +385,32 @@ export async function authenticatedFetch(url: string, options: RequestInit = {})
 
 // Debug function - call this from browser console to test token refresh
 export async function debugTokenRefresh() {
-  console.log('=== DEBUG TOKEN REFRESH ===')
   
   const accessToken = getAccessToken()
   const refreshToken = getRefreshToken()
   
-  console.log('Access token exists?', !!accessToken)
   if (accessToken) {
     try {
       const payload = JSON.parse(atob(accessToken.split('.')[1]))
-      console.log('Access token expiry:', new Date(payload.exp * 1000).toISOString())
     } catch (e) {
       console.error('Could not decode access token')
     }
   }
   
-  console.log('Refresh token exists?', !!refreshToken)
   if (refreshToken) {
     try {
       const payload = JSON.parse(atob(refreshToken.split('.')[1]))
-      console.log('Refresh token expiry:', new Date(payload.exp * 1000).toISOString())
     } catch (e) {
       console.error('Could not decode refresh token')
     }
   }
   
-  console.log('Access token expired?', isAccessTokenExpired())
-  console.log('Refresh token expired?', isRefreshTokenExpired())
   
   if (!isRefreshTokenExpired()) {
-    console.log('Attempting refresh...')
     const result = await refreshAccessTokenInBackground()
-    console.log('Refresh result:', result)
-    console.log('New access token:', getAccessToken()?.substring(0, 20) + '...')
   } else {
-    console.log('Cannot refresh: refresh token is expired. User needs to login again.')
   }
   
-  console.log('=== END DEBUG ===')
 }
 
 // Make it available on window for browser console access

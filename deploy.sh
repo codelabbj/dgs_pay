@@ -11,7 +11,7 @@ APP_NAME="dgs-dashboard"    # Nom du processus PM2
 PORT=3000                   # Port de l'application (à adapter si besoin)
 
 # Détection du package manager
-if command -v pnpm &> /dev/null; then
+if [ -f "$PROJECT_DIR/pnpm-lock.yaml" ] && command -v pnpm &> /dev/null; then
     PKG="pnpm"
 elif command -v npm &> /dev/null; then
     PKG="npm"

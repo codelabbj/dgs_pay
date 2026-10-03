@@ -110,6 +110,7 @@ export const translations = {
     selectCountry: "Select country",
     merchantDashboard: "Merchant Dashboard",
     companyShortName: "DGS",
+    bankTransferNgn: "NGN Bank Transfer",
 
     // Countries
     benin: "Benin",
@@ -331,6 +332,10 @@ export const translations = {
     allTimePaymentsReceived: "All time payments received",
     allTimePaymentsSent: "All time payments sent",
     transactionFeesPaid: "Transaction fees paid",
+    myWallets: "My Wallets",
+    defaultBadge: "Default",
+    frozenBadge: "Frozen",
+    setAsDefault: "Set as default",
     performCommonBalanceOperations: "Perform common balance operations",
     latestBalanceTransactions: "Latest balance transactions",
     completeHistoryOfBalanceChanges: "Complete history of balance changes",
@@ -770,6 +775,7 @@ export const translations = {
     selectCountry: "Sélectionner le pays",
     merchantDashboard: "Tableau de Bord Marchand",
     companyShortName: "DGS",
+    bankTransferNgn: "Virement NGN",
 
     // Countries
     benin: "Bénin",
@@ -992,6 +998,10 @@ export const translations = {
     allTimePaymentsReceived: "Paiements reçus de tous temps",
     allTimePaymentsSent: "Paiements envoyés de tous temps",
     transactionFeesPaid: "Frais de transaction payés",
+    myWallets: "Mes Wallets",
+    defaultBadge: "Défaut",
+    frozenBadge: "Gelé",
+    setAsDefault: "Définir défaut",
     performCommonBalanceOperations: "Effectuer des opérations de solde courantes",
     latestBalanceTransactions: "Dernières transactions de solde",
     completeHistoryOfBalanceChanges: "Historique complet des changements de solde",

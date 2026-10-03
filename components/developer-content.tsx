@@ -170,16 +170,16 @@ export default function ApiKeysComponent() {
   };
 
   return (
-    <div className="min-h-screen transition-colors duration-300 ">
-      <div className="max-w-4xl mx-auto p-6">
+    <div className="w-full">
+      <div className="max-w-4xl mx-auto">
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-black-500 dark:text-white">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
           {t("developers")}
         </h1>
         <Button
           onClick={() => window.open('https://documenter.getpostman.com/view/27978736/2sBY4Tqe25', '_blank', 'noopener,noreferrer')}
-          className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2 font-medium"
+          className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 font-medium"
         >
           <ExternalLink className="w-4 h-4" />
           API Docs
@@ -187,16 +187,16 @@ export default function ApiKeysComponent() {
       </div>
 
         {/* Tab Navigation */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
-          <div className="flex border-b border-gray-200 dark:border-gray-700">
+        <div className="bg-card rounded-lg shadow-lg overflow-hidden">
+          <div className="flex border-b border-border">
             {[t("apiKeysTab"), t("webhookTab")].map((tab, idx) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(idx === 0 ? 'API Keys' : 'Webhook')}
                 className={`px-6 py-4 font-medium transition-colors ${
                   (activeTab === 'API Keys' && idx === 0) || (activeTab === 'Webhook' && idx === 1)
-                    ? 'border-b-2 border-black text-black bg-gray-50 dark:text-white dark:bg-gray-700'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-700'
+                    ? 'border-b-2 border-black text-black bg-muted/50'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                 }`}
               >
                 {tab}
@@ -209,7 +209,7 @@ export default function ApiKeysComponent() {
             <div className="p-6 space-y-6">
               {/* Public API Key */}
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label className="block text-sm font-medium text-foreground/80">
                   {t("publicApiKey")}
                 </label>
                 <div className="flex gap-2">
@@ -217,15 +217,15 @@ export default function ApiKeysComponent() {
                     type="text"
                     value={getDisplayValue('public')}
                     readOnly
-                    className="flex-1 px-4 py-3 rounded-lg border transition-colors bg-gray-50 border-gray-300 text-gray-900 focus:border-black dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:border-black focus:outline-none focus:ring-2 focus:ring-black focus:ring-opacity-20"
+                    className="flex-1 px-4 py-3 rounded-lg border transition-colors bg-muted/50 border-border text-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <button
                     onClick={() => handleCopy('public', apiKeys.public)}
                     disabled={!hasRealData.public}
                     className={`px-4 py-3 rounded-lg transition-colors flex items-center gap-2 font-medium ${
                       hasRealData.public 
-                        ? 'bg-black text-white hover:bg-grey-600' 
-                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        ? 'bg-primary text-white hover:bg-primary/90' 
+                        : 'bg-muted text-primary-foreground cursor-not-allowed'
                     }`}
                   >
                     {copiedStates.public ? <Check size={16} /> : <Copy size={16} />}
@@ -236,7 +236,7 @@ export default function ApiKeysComponent() {
 
               {/* Secret */}
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label className="block text-sm font-medium text-foreground/80">
                   {t("secret")}
                 </label>
                 <div className="flex gap-2">
@@ -244,15 +244,15 @@ export default function ApiKeysComponent() {
                     type="text"
                     value={getDisplayValue('secret')}
                     readOnly
-                    className="flex-1 px-4 py-3 rounded-lg border transition-colors bg-gray-50 border-gray-300 text-gray-900 focus:border-black-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:border-black-500 focus:outline-none focus:ring-2 focus:ring-black-500 focus:ring-opacity-20"
+                    className="flex-1 px-4 py-3 rounded-lg border transition-colors bg-muted/50 border-border text-foreground focus:border-ring dark:focus:border-ring focus:outline-none focus:ring-2 focus:ring-black-500"
                   />
                   {/* <button
                     onClick={() => toggleVisibility('secret')}
                     disabled={!hasRealData.secret}
                     className={`px-3 py-3 rounded-lg border transition-colors ${
                       hasRealData.secret 
-                        ? 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600' 
-                        : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-600 dark:border-gray-500'
+                        ? 'bg-card border-border text-muted-foreground hover:bg-muted' 
+                        : 'bg-muted border-border text-muted-foreground cursor-not-allowed'
                     }`}
                   >
                     {visibilityStates.secret ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -262,8 +262,8 @@ export default function ApiKeysComponent() {
                     disabled={!hasRealData.secret}
                     className={`px-4 py-3 rounded-lg transition-colors flex items-center gap-2 font-medium ${
                       hasRealData.secret 
-                        ? 'bg-black text-white hover:bg-black-600' 
-                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        ? 'bg-primary text-white hover:bg-primary/90' 
+                        : 'bg-muted text-primary-foreground cursor-not-allowed'
                     }`}
                   >
                     {copiedStates.secret ? <Check size={16} /> : <Copy size={16} />}
@@ -275,7 +275,7 @@ export default function ApiKeysComponent() {
               {/* Renew Button */}
               <div className="pt-4">
                 <button
-                  className="px-6 py-3 bg-black text-white rounded-lg hover:bg-grey-600 transition-colors flex items-center gap-2 font-medium"
+                  className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 font-medium"
                   onClick={handleRenewKeys}
                   type="button"
                 >
@@ -291,7 +291,7 @@ export default function ApiKeysComponent() {
             <div className="p-6 space-y-6">
               {/* Success URL */}
               <div className="space-y-2">
-                <Label htmlFor="success_url" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <Label htmlFor="success_url" className="block text-sm font-medium text-foreground/80">
                   URL de Succès
                 </Label>
                 <Input
@@ -301,14 +301,14 @@ export default function ApiKeysComponent() {
                   onChange={(e) => setWebhookUrls(prev => ({ ...prev, success_url: e.target.value }))}
                   disabled={isLoadingWebhook}
                   placeholder="https://yoursite.com/success"
-                  className="w-full px-4 py-3 rounded-lg border transition-colors bg-gray-50 border-gray-300 text-gray-900 focus:border-black dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:border-black focus:outline-none focus:ring-2 focus:ring-black focus:ring-opacity-20"
+                  className="w-full px-4 py-3 rounded-lg border transition-colors bg-muted/50 border-border text-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
 
               {/* Cancel URL */}
               <div className="space-y-2">
-                <Label htmlFor="cancel_url" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  URL d'Annulation
+                <Label htmlFor="cancel_url" className="block text-sm font-medium text-foreground/80">
+                  URL d&apos;Annulation
                 </Label>
                 <Input
                   id="cancel_url"
@@ -317,13 +317,13 @@ export default function ApiKeysComponent() {
                   onChange={(e) => setWebhookUrls(prev => ({ ...prev, cancel_url: e.target.value }))}
                   disabled={isLoadingWebhook}
                   placeholder="https://yoursite.com/cancel"
-                  className="w-full px-4 py-3 rounded-lg border transition-colors bg-gray-50 border-gray-300 text-gray-900 focus:border-black dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:border-black focus:outline-none focus:ring-2 focus:ring-black focus:ring-opacity-20"
+                  className="w-full px-4 py-3 rounded-lg border transition-colors bg-muted/50 border-border text-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
 
               {/* Callback URL */}
               <div className="space-y-2">
-                <Label htmlFor="callback_url" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <Label htmlFor="callback_url" className="block text-sm font-medium text-foreground/80">
                   URL de Rappel
                 </Label>
                 <Input
@@ -333,7 +333,7 @@ export default function ApiKeysComponent() {
                   onChange={(e) => setWebhookUrls(prev => ({ ...prev, callback_url: e.target.value }))}
                   disabled={isLoadingWebhook}
                   placeholder="https://yoursite.com/callback"
-                  className="w-full px-4 py-3 rounded-lg border transition-colors bg-gray-50 border-gray-300 text-gray-900 focus:border-black dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:focus:border-black focus:outline-none focus:ring-2 focus:ring-black focus:ring-opacity-20"
+                  className="w-full px-4 py-3 rounded-lg border transition-colors bg-muted/50 border-border text-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
 
@@ -357,7 +357,7 @@ export default function ApiKeysComponent() {
                 <Button
                   onClick={handleWebhookUpdate}
                   disabled={isLoadingWebhook}
-                  className="px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2 font-medium"
+                  className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 font-medium"
                 >
                   {isLoadingWebhook ? (
                     <>
