@@ -336,6 +336,12 @@ export const translations = {
     defaultBadge: "Default",
     frozenBadge: "Frozen",
     setAsDefault: "Set as default",
+    accountVerificationRequired: "Account verification required",
+    accountNotVerifiedDescription:
+      "Your account is connected but not verified yet. Upload your documents in your profile: an administrator will then validate your access (balance, payin, payout).",
+    aggregatorNotActiveDescription:
+      "Your documents are verified, but aggregator access is not enabled yet. Contact support if this takes too long.",
+    completeMyProfile: "Complete my profile",
     performCommonBalanceOperations: "Perform common balance operations",
     latestBalanceTransactions: "Latest balance transactions",
     completeHistoryOfBalanceChanges: "Complete history of balance changes",
@@ -1002,6 +1008,12 @@ export const translations = {
     defaultBadge: "Défaut",
     frozenBadge: "Gelé",
     setAsDefault: "Définir défaut",
+    accountVerificationRequired: "Vérification de compte requise",
+    accountNotVerifiedDescription:
+      "Votre compte est connecté, mais pas encore vérifié. Déposez vos documents dans le profil : un administrateur validera ensuite votre accès (solde, payin, payout).",
+    aggregatorNotActiveDescription:
+      "Vos documents sont vérifiés, mais l’accès agrégateur n’est pas encore activé. Contactez le support si cela dure.",
+    completeMyProfile: "Compléter mon profil",
     performCommonBalanceOperations: "Effectuer des opérations de solde courantes",
     latestBalanceTransactions: "Dernières transactions de solde",
     completeHistoryOfBalanceChanges: "Historique complet des changements de solde",
