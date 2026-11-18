@@ -68,6 +68,8 @@ interface Transaction {
   can_be_refunded: boolean
   refund_requested: boolean
   refund_requested_at: string | null
+  channel?: "mobile" | "card" | "crypto" | "bank"
+  channel_details?: Record<string, any>
 }
 
 interface TransactionListResponse {
@@ -133,6 +135,8 @@ export function TransactionsContent() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [typeFilter, setTypeFilter] = useState("all")
+  // Canal : mobile money, carte, crypto, virement bancaire
+  const [channelFilter, setChannelFilter] = useState("all")
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
   const [statusMap, setStatusMap] = useState<Record<string, string>>({})
@@ -153,7 +157,7 @@ export function TransactionsContent() {
     previous: null as string | null,
     totalPages: 0
   })
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
 
   // Static operator options
@@ -192,7 +196,7 @@ export function TransactionsContent() {
 
   useEffect(() => {
     fetchTransactions(currentPage, searchTerm, statusFilter, typeFilter)
-  }, [currentPage, searchTerm, statusFilter, typeFilter, itemsPerPage, startDate, endDate])
+  }, [currentPage, searchTerm, statusFilter, typeFilter, channelFilter, itemsPerPage, startDate, endDate])
 
   // Separate effect for initial load
   useEffect(() => {
@@ -261,6 +265,10 @@ export function TransactionsContent() {
 
       if (type !== "all") {
         params.append('type', type)
+      }
+
+      if (channelFilter !== "all") {
+        params.append('channel', channelFilter)
       }
 
       const res = await smartFetch(`${baseUrl}/api/v2/transactions/?${params.toString()}`)
@@ -894,7 +902,7 @@ export function TransactionsContent() {
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, statusFilter, typeFilter, startDate, endDate])
+  }, [searchTerm, statusFilter, typeFilter, channelFilter, startDate, endDate])
 
   // Debounced search effect
   useEffect(() => {
@@ -905,7 +913,7 @@ export function TransactionsContent() {
     }, 500) // 500ms delay
 
     return () => clearTimeout(timeoutId)
-  }, [searchTerm, statusFilter, typeFilter, startDate, endDate])
+  }, [searchTerm, statusFilter, typeFilter, channelFilter, startDate, endDate])
 
   const isSuccessfulStatus = (status: string) =>
     status === "success" || status === "completed"
@@ -947,6 +955,9 @@ export function TransactionsContent() {
         params.append('status', statusFilter)
       }
 
+      if (channelFilter !== "all") {
+        params.append('channel', channelFilter)
+      }
       if (typeFilter !== "all") {
         params.append('type', typeFilter)
       }
@@ -1246,6 +1257,18 @@ export function TransactionsContent() {
                 <SelectItem value="payout">{t("payout")}</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={channelFilter} onValueChange={setChannelFilter}>
+              <SelectTrigger className="w-full md:w-44">
+                <SelectValue placeholder={language === "en" ? "Channel" : "Canal"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{language === "en" ? "All channels" : "Tous canaux"}</SelectItem>
+                <SelectItem value="mobile">Mobile money</SelectItem>
+                <SelectItem value="card">{language === "en" ? "Virtual cards" : "Cartes virtuelles"}</SelectItem>
+                <SelectItem value="crypto">Crypto</SelectItem>
+                <SelectItem value="bank">{language === "en" ? "Bank transfer" : "Virement bancaire"}</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Transactions Table */}
@@ -1306,6 +1329,11 @@ export function TransactionsContent() {
                         <div className="flex items-center">
                           {getTypeIcon(transaction.type_trans)}
                           <span className="ml-2">{transaction.type_trans_display}</span>
+                          {transaction.channel && transaction.channel !== "mobile" && (
+                            <span className="ml-2 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase text-muted-foreground">
+                              {transaction.channel === "card" ? (language === "en" ? "card" : "carte") : transaction.channel}
+                            </span>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>

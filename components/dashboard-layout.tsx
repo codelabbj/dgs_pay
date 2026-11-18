@@ -23,6 +23,10 @@ import {
   X,
   Zap,
   AlertCircle,
+  Bitcoin,
+  Webhook,
+  WalletCards,
+  BadgeCheck,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 
@@ -60,7 +64,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const router = useRouter()
   const pathname = usePathname()
   const { resolvedTheme, setTheme } = useTheme()
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // Ferme le menu mobile à chaque changement de page
@@ -98,11 +102,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { name: t("dashboard"), href: "/", icon: BarChart3 },
     { name: t("transactions"), href: "/transactions", icon: CreditCard },
     { name: t("balance"), href: "/balance", icon: Wallet },
+    { name: language === "en" ? "Balance statement" : "Relevé de solde", href: "/statement", icon: BadgeCheck },
     { name: t("withdrawalRequests"), href: "/withdraw", icon: Minus },
     { name: t("rechargeRequests"), href: "/recharge", icon: Plus },
     { name: t("payDirect"), href: "/pay", icon: Zap },
     { name: t("bankTransferNgn"), href: "/bank-transfer", icon: Building2 },
+    { name: language === "en" ? "Virtual cards" : "Cartes virtuelles", href: "/cards", icon: WalletCards },
+    { name: "Crypto", href: "/crypto", icon: Bitcoin },
     { name: t("developers"), href: "/developers", icon: Code },
+    { name: language === "en" ? "Webhooks & events" : "Webhooks & événements", href: "/webhooks", icon: Webhook },
     { name: t("settings"), href: "/settings", icon: Settings },
   ]
 
