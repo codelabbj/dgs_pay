@@ -27,6 +27,7 @@ import {
   Webhook,
   WalletCards,
   BadgeCheck,
+  ShieldCheck,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 
@@ -111,6 +112,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     { name: "Crypto", href: "/crypto", icon: Bitcoin },
     { name: t("developers"), href: "/developers", icon: Code },
     { name: language === "en" ? "Webhooks & events" : "Webhooks & événements", href: "/webhooks", icon: Webhook },
+    { name: language === "en" ? "My sign-ins" : "Mes connexions", href: "/security", icon: ShieldCheck },
     { name: t("settings"), href: "/settings", icon: Settings },
   ]
 
