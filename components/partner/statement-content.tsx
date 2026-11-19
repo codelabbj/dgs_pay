@@ -35,6 +35,8 @@ interface WalletStatement {
     manual_debits: string
     card_fees: string
     card_terminations: string
+    card_conversions_out?: string
+    card_conversions_in?: string
     fees_paid: string
   }
 }
@@ -138,6 +140,8 @@ export function StatementContent() {
                     {Number(a.manual_credits) > 0 && <Line k={tr("Recharges / ajustements", "Top-ups / adjustments")} v={`+ ${n(a.manual_credits, cur)}`} />}
                     {Number(a.manual_debits) > 0 && <Line k={tr("Retraits manuels / ajustements", "Manual withdrawals / adjustments")} v={`− ${n(a.manual_debits, cur)}`} />}
                     {Number(a.card_fees) > 0 && <Line k={tr("Frais cartes", "Card fees")} v={`− ${n(a.card_fees, cur)}`} />}
+                    {Number(a.card_conversions_out || 0) > 0 && <Line k={tr("Converti pour recharger des cartes", "Converted to top up cards")} v={`− ${n(a.card_conversions_out || 0, cur)}`} />}
+                    {Number(a.card_conversions_in || 0) > 0 && <Line k={tr("Reçu par conversion (recharge cartes)", "Received from conversion (card top-ups)")} v={`+ ${n(a.card_conversions_in || 0, cur)}`} />}
                     {Number(a.card_terminations) > 0 && <Line k={tr("Soldes de cartes résiliées", "Terminated card balances")} v={`+ ${n(a.card_terminations, cur)}`} />}
                     <div className="mt-2 flex justify-between border-t pt-2 font-semibold">
                       <span>{tr("Solde recalculé", "Recomputed balance")}</span>

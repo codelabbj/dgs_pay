@@ -138,6 +138,7 @@ export function CardsOverview() {
                 <dl className="space-y-2 p-4 text-sm">
                   <Row k={tr("Création VISA", "VISA creation")} v={money(p.creation_fees?.VISA ?? p.creation_fee)} />
                   <Row k={tr("Création Mastercard", "Mastercard creation")} v={money(p.creation_fees?.MASTERCARD ?? p.creation_fee)} />
+                  <Row k={tr("Solde chargé à la création", "Balance loaded at creation")} v={money(p.creation_prefund ?? "0")} />
                   <Row k={tr("Recharge", "Top-up")} v={`${Number(p.fund_fee_percent)} % + ${money(p.fund_fee_fixed)}`} />
                   <Row k={tr("Retrait", "Withdrawal")} v={`${Number(p.withdraw_fee_percent)} % + ${money(p.withdraw_fee_fixed)}`} />
                   <Row k={tr("Mensuel / carte", "Monthly / card")} v={money(p.monthly_fee)} />

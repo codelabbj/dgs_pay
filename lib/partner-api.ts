@@ -105,12 +105,16 @@ export interface Program {
   currency: string
   creation_fee: string
   creation_fees?: { VISA: string; MASTERCARD: string }
+  creation_prefund?: string
+  contactless?: boolean
   fund_fee_percent: string
   fund_fee_fixed: string
   withdraw_fee_percent: string
   withdraw_fee_fixed: string
   monthly_fee: string
   suspended: boolean
+  /** Wallets utilisables pour recharger : 1 USD = rate (taux DGS). */
+  funding_rates?: { currency: string; rate: string }[]
   limits: {
     max_cards_per_end_user: number
     min_fund_amount: string

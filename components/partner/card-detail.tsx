@@ -20,6 +20,7 @@ import {
   type PartnerCard,
   type Program,
 } from "@/lib/partner-api"
+import { smartFetch } from "@/utils/auth"
 import { useCardTabs } from "./cards-overview"
 import { OP_LABEL } from "./card-operations"
 import { ComplianceBadge, ConfirmDialog, EmptyState, ErrorBanner, Loading, Mono, Panel, Shell, StatusPill, useTr } from "./kit"
@@ -33,6 +34,26 @@ interface LedgerRow {
   merchant: Record<string, any>
   status: string
   occurred_at: string
+  reference?: string
+  disputable?: boolean
+  dispute_status?: string | null
+}
+
+const DISPUTE_REASONS: [string, string, string][] = [
+  ["not_recognized", "Achat non reconnu (fraude)", "Unrecognized purchase (fraud)"],
+  ["not_received", "Produit / service non reçu", "Goods / service not received"],
+  ["duplicate", "Débité plusieurs fois", "Charged more than once"],
+  ["wrong_amount", "Montant incorrect", "Wrong amount"],
+  ["cancelled", "Commande annulée mais débitée", "Cancelled but charged"],
+  ["other", "Autre", "Other"],
+]
+
+const DISPUTE_STATUS: Record<string, [string, string]> = {
+  open: ["Contestation ouverte", "Dispute open"],
+  submitted: ["Contestation transmise", "Dispute submitted"],
+  won: ["Contestation gagnée", "Dispute won"],
+  lost: ["Contestation perdue", "Dispute lost"],
+  cancelled: ["Contestation annulée", "Dispute cancelled"],
 }
 
 const LEDGER_LABEL: Record<string, [string, string]> = {
@@ -62,6 +83,9 @@ export function CardDetail({ id }: { id: string }) {
   const [notice, setNotice] = useState("")
   const [loading, setLoading] = useState(true)
   const [action, setAction] = useState<Action>(null)
+  const [disputeRow, setDisputeRow] = useState<LedgerRow | null>(null)
+  const [disputeReason, setDisputeReason] = useState("not_recognized")
+  const [disputeDetails, setDisputeDetails] = useState("")
   const [amount, setAmount] = useState("")
 
   const safeId = encodeURIComponent(id)
@@ -100,6 +124,28 @@ export function CardDetail({ id }: { id: string }) {
     }
   }
 
+  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7))
+
+  const downloadStatement = async () => {
+    try {
+      const res = await smartFetch(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/api/v2/maplerad/cards/${safeId}/ledger/?month=${month}&export=csv`,
+      )
+      if (!res.ok) throw new Error(`Erreur ${res.status}`)
+      const url = URL.createObjectURL(await res.blob())
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `releve-carte-${id.slice(0, 12)}-${month}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Export impossible")
+    }
+  }
+
+  const [sourceCurrency, setSourceCurrency] = useState("USD")
+  const fundingRates = program?.funding_rates?.length ? program.funding_rates : [{ currency: "USD", rate: "1" }]
+  const sourceRate = Number(fundingRates.find((r) => r.currency === sourceCurrency)?.rate || 1)
   const amountNum = Number(amount.replace(",", "."))
   const fee = useMemo(() => {
     if (!program || !(amountNum > 0)) return 0
@@ -109,9 +155,22 @@ export function CardDetail({ id }: { id: string }) {
   }, [program, amountNum, action])
 
   const moveMoney = async (kind: "fund" | "withdraw", totp: string) => {
+    // Recharge : devis DGS signé (taux et montant débité garantis 5 min).
+    let quoteToken = ""
+    if (kind === "fund") {
+      const { data: q } = await api<{ quote_token: string }>("maplerad/cards/fund-quote/", {
+        query: { amount: amountNum.toFixed(2), source_currency: sourceCurrency },
+      })
+      quoteToken = q.quote_token
+    }
     const { data, status } = await api<CardOperation>(`maplerad/cards/${safeId}/${kind}/`, {
       method: "POST",
-      body: { amount: amountNum.toFixed(2), client_reference: newReference(kind === "fund" ? "DASH-FUND" : "DASH-WD") },
+      body: {
+        amount: amountNum.toFixed(2),
+        client_reference: newReference(kind === "fund" ? "DASH-FUND" : "DASH-WD"),
+        ...(kind === "fund" && sourceCurrency !== "USD" ? { source_currency: sourceCurrency } : {}),
+        ...(quoteToken ? { quote_token: quoteToken } : {}),
+      },
       totp,
     })
     setAmount("")
@@ -232,6 +291,19 @@ export function CardDetail({ id }: { id: string }) {
             </Panel>
           </div>
 
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <span className="text-xs text-muted-foreground">{tr("Relevé du mois", "Monthly statement")}</span>
+            <input
+              type="month"
+              value={month}
+              onChange={(e) => setMonth(e.target.value)}
+              className="h-8 rounded-md border bg-background px-2 text-sm"
+            />
+            <Button size="sm" variant="outline" onClick={downloadStatement}>
+              {tr("Exporter CSV", "Export CSV")}
+            </Button>
+          </div>
+
           <Tabs defaultValue="ledger" onValueChange={(v) => v === "maplerad" && loadMaplerad()}>
             <TabsList>
               <TabsTrigger value="ledger">{tr("Historique", "History")}</TabsTrigger>
@@ -275,7 +347,18 @@ export function CardDetail({ id }: { id: string }) {
                                 {row.direction === "credit" ? "+" : row.direction === "debit" ? "−" : ""}
                                 {money(row.amount)}
                               </TableCell>
-                              <TableCell className="hidden text-sm text-muted-foreground md:table-cell">{dateTime(row.occurred_at)}</TableCell>
+                              <TableCell className="hidden text-sm text-muted-foreground md:table-cell">
+                                {dateTime(row.occurred_at)}
+                                {row.dispute_status ? (
+                                  <span className="ml-2 text-xs font-medium text-amber-600">
+                                    {tr(...(DISPUTE_STATUS[row.dispute_status] || [row.dispute_status, row.dispute_status]))}
+                                  </span>
+                                ) : row.disputable ? (
+                                  <Button size="sm" variant="ghost" className="ml-2 h-7 px-2 text-xs" onClick={() => setDisputeRow(row)}>
+                                    {tr("Contester", "Dispute")}
+                                  </Button>
+                                ) : null}
+                              </TableCell>
                             </TableRow>
                           )
                         })}
@@ -368,7 +451,10 @@ export function CardDetail({ id }: { id: string }) {
         title={action === "fund" ? tr("Recharger la carte", "Top up card") : tr("Retirer de la carte", "Withdraw from card")}
         description={
           action === "fund"
-            ? tr("Débité de votre wallet USD DGS (montant + frais).", "Debited from your DGS USD wallet (amount + fee).")
+            ? tr(
+                "Débité du wallet DGS choisi (montant + frais). Hors USD : converti au taux DGS ; un remboursement éventuel revient en USD.",
+                "Debited from the chosen DGS wallet (amount + fee). Non-USD: converted at the DGS rate; any refund comes back in USD.",
+              )
             : tr(
                 `Crédité sur votre wallet USD DGS, frais déduits. Solde carte : ${money(card?.balance)}.`,
                 `Credited to your DGS USD wallet, fee deducted. Card balance: ${money(card?.balance)}.`,
@@ -378,6 +464,23 @@ export function CardDetail({ id }: { id: string }) {
         canConfirm={amountNum > 0}
         onConfirm={(totp) => moveMoney(action === "withdraw" ? "withdraw" : "fund", totp)}
       >
+        {action === "fund" && fundingRates.length > 1 && (
+          <div className="space-y-1.5">
+            <Label htmlFor="card-source">{tr("Payer depuis le wallet", "Pay from wallet")}</Label>
+            <select
+              id="card-source"
+              className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+              value={sourceCurrency}
+              onChange={(e) => setSourceCurrency(e.target.value)}
+            >
+              {fundingRates.map((r) => (
+                <option key={r.currency} value={r.currency}>
+                  {r.currency === "USD" ? "USD" : `${r.currency} — 1 $ = ${Number(r.rate).toLocaleString("fr-FR")} ${r.currency}`}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="space-y-1.5">
           <Label htmlFor="card-amount">{tr("Montant (USD)", "Amount (USD)")}</Label>
           <Input id="card-amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
@@ -392,8 +495,61 @@ export function CardDetail({ id }: { id: string }) {
               <span>{action === "fund" ? tr("Total débité", "Total debited") : tr("Vous recevez", "You receive")}</span>
               <span className="tabular-nums">{money(action === "fund" ? amountNum + fee : Math.max(amountNum - fee, 0))}</span>
             </div>
+            {action === "fund" && sourceCurrency !== "USD" && (
+              <div className="flex justify-between font-medium">
+                <span>{tr(`Débité du wallet ${sourceCurrency}`, `Debited from ${sourceCurrency} wallet`)}</span>
+                <span className="tabular-nums">
+                  {(Math.ceil((amountNum + fee) * sourceRate * 100) / 100).toLocaleString("fr-FR", { maximumFractionDigits: 2 })}{" "}
+                  {sourceCurrency}
+                </span>
+              </div>
+            )}
           </div>
         )}
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={!!disputeRow}
+        onOpenChange={(v) => {
+          if (!v) {
+            setDisputeRow(null)
+            setDisputeDetails("")
+          }
+        }}
+        title={tr("Contester cet achat", "Dispute this purchase")}
+        description={tr(
+          `${money(disputeRow?.amount)} · ${disputeRow?.merchant?.name || disputeRow?.description || ""}. DGS transmet la contestation à l'émetteur ; si elle aboutit, la carte est recréditée automatiquement (événement card.dispute.updated).`,
+          `${money(disputeRow?.amount)} · ${disputeRow?.merchant?.name || disputeRow?.description || ""}. DGS forwards the dispute to the issuer; if it succeeds the card is credited back automatically (card.dispute.updated event).`,
+        )}
+        confirmLabel={tr("Envoyer", "Submit")}
+        onConfirm={async () => {
+          await api(`maplerad/cards/${safeId}/disputes/`, {
+            method: "POST",
+            body: { transaction_reference: disputeRow?.reference, reason: disputeReason, details: disputeDetails },
+          })
+          setNotice(tr("Contestation envoyée à DGS.", "Dispute sent to DGS."))
+          await load()
+        }}
+      >
+        <div className="space-y-1.5">
+          <Label htmlFor="dispute-reason">{tr("Motif", "Reason")}</Label>
+          <select
+            id="dispute-reason"
+            className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+            value={disputeReason}
+            onChange={(e) => setDisputeReason(e.target.value)}
+          >
+            {DISPUTE_REASONS.map(([v, fr, en]) => (
+              <option key={v} value={v}>
+                {tr(fr, en)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="dispute-details">{tr("Détails (optionnel)", "Details (optional)")}</Label>
+          <Input id="dispute-details" value={disputeDetails} onChange={(e) => setDisputeDetails(e.target.value)} />
+        </div>
       </ConfirmDialog>
 
       <ConfirmDialog
