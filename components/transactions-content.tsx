@@ -55,12 +55,15 @@ interface Transaction {
   status: "processing" | "pending" | "completed" | "success" | "failed"
   status_display: string
   operator_name: string
+  network?: string
+  country_code?: string
   description: string
   client_reference: string
   commission_amount: number
   customer_balance_after: number | null
   error_message: string
   created_at: string
+  updated_at?: string
   completed_at: string | null
   external_id?: string
   redirection_url?: string
@@ -1551,8 +1554,16 @@ export function TransactionsContent() {
                     <p className="text-sm">{checkStatusModal.data?.operator_name || '-'}</p>
                   </div>
                   <div>
+                    <label className="text-sm font-medium text-muted-foreground">{t("network")}</label>
+                    <p className="text-sm">{checkStatusModal.data?.network || '-'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Country</label>
+                    <p className="text-sm">{checkStatusModal.data?.country_code || '-'}</p>
+                  </div>
+                  <div>
                     <label className="text-sm font-medium text-muted-foreground">Commission</label>
-                    <p className="text-sm">{checkStatusModal.data?.commission_amount || '-'}</p>
+                    <p className="text-sm">{checkStatusModal.data?.commission_amount ?? '-'}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Description</label>
